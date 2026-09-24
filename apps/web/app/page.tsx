@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isSupabaseAuthConfigured } from "../lib/supabase/server";
 
 const controlPath = [
   ["01", "Agent proposes an action", "A merge, deployment, refund, purchase, or other high-impact tool call."],
@@ -14,15 +15,24 @@ const useCases = [
 ] as const;
 
 export default function HomePage() {
+  const authConfigured = isSupabaseAuthConfigured();
+  const primaryHref = authConfigured ? "/onboarding" : "/demo";
+
   return (
     <main className="marketingShell" id="main-content" tabIndex={-1}>
       <nav className="marketingNav" aria-label="Main navigation">
         <Link href="/" className="brand"><span className="mark">V</span> VetoLayer</Link>
         <div className="marketingNavLinks">
           <Link href="/demo">Live demo</Link>
-          <Link href="/login">Sign in</Link>
-          <Link href="/dashboard">Control center</Link>
-          <Link className="navCta" href="/onboarding">Start building</Link>
+          {authConfigured ? (
+            <>
+              <Link href="/login">Sign in</Link>
+              <Link href="/dashboard">Control center</Link>
+              <Link className="navCta" href="/onboarding">Start building</Link>
+            </>
+          ) : (
+            <Link className="navCta" href="/demo">Try VetoLayer</Link>
+          )}
         </div>
       </nav>
 
@@ -34,7 +44,9 @@ export default function HomePage() {
             VetoLayer sits between autonomous agents and high-impact tools. It checks hard policy deterministically, uses SERV Reasoning for contextual judgment, and returns an auditable verdict before the action becomes real.
           </p>
           <div className="heroActions">
-            <Link className="primaryButton" href="/onboarding">Create your first gate →</Link>
+            <Link className="primaryButton" href={primaryHref}>
+              {authConfigured ? "Create your first gate →" : "Run the live demo →"}
+            </Link>
             <Link className="secondaryButton" href="/demo">Watch the flagship decision</Link>
           </div>
           <div className="decisionStrip" aria-label="Possible VetoLayer outcomes">
@@ -98,7 +110,12 @@ export default function HomePage() {
 
       <section className="finalCta">
         <div><p className="eyebrow">MAKE AUTONOMY EARN TRUST</p><h2>Put judgment between the agent and the action.</h2></div>
-        <div className="heroActions"><Link className="primaryButton" href="/onboarding">Set up VetoLayer →</Link><Link className="secondaryButton" href="/demo">Open live demo</Link></div>
+        <div className="heroActions">
+          <Link className="primaryButton" href={primaryHref}>
+            {authConfigured ? "Set up VetoLayer →" : "Run the flagship demo →"}
+          </Link>
+          <Link className="secondaryButton" href="/demo">Open live demo</Link>
+        </div>
       </section>
 
       <footer className="marketingFooter"><span>VetoLayer</span><span>Reason before the action is real.</span><span>Powered by SERV Reasoning</span></footer>
