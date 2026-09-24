@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getDecision } from "../../../../lib/dashboard-data";
+import { loadDashboardDecision } from "../../../../lib/server/dashboard-decisions";
+
+export const dynamic = "force-dynamic";
 
 export default async function DecisionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const decision = getDecision(id);
+  const decision = await loadDashboardDecision(id);
   if (!decision) notFound();
 
   const allFindings = [...decision.deterministicFindings, ...decision.contextualFindings];
@@ -13,7 +15,7 @@ export default async function DecisionDetailPage({ params }: { params: Promise<{
     <>
       <header className="detailHeader">
         <div>
-          <Link className="backLink" href="/dashboard">← Decision stream</Link>
+          <Link className="backLink" href="/dashboard/decisions">← Decision stream</Link>
           <p className="eyebrow">DECISION RECEIPT</p>
           <h1 className="detailTitle">{decision.display.title}</h1>
           <p className="dashboardIntro">{decision.decisionSummary}</p>
@@ -38,7 +40,7 @@ export default async function DecisionDetailPage({ params }: { params: Promise<{
                   <span className={`findingStatus ${finding.status}`}>{finding.status.toUpperCase()}</span>
                   <span className="modeTag">{finding.source === "contextual" ? "SERV reasoning" : "Deterministic"}</span>
                 </div>
-                <h3>{finding.policyId}</h3>
+                <h3><Link href={`/dashboard/policies?focus=${encodeURIComponent(finding.policyId)}`}>{finding.policyId}</Link></h3>
                 <p>{finding.summary}</p>
                 <small>{finding.severity} severity · {finding.evidenceIds.length} evidence reference{finding.evidenceIds.length === 1 ? "" : "s"}</small>
               </article>

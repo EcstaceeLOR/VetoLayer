@@ -1,72 +1,121 @@
 import Link from "next/link";
-import { dashboardDecisions } from "../../lib/dashboard-data";
+import { summarizeDecisionHealth } from "../../lib/decision-health";
+import { loadDashboardDecisionFeed } from "../../lib/server/dashboard-decisions";
 
-const counts = dashboardDecisions.reduce(
-  (acc, decision) => ({ ...acc, [decision.outcome]: acc[decision.outcome] + 1 }),
-  { ALLOW: 0, REVIEW: 0, BLOCK: 0 },
-);
+export const dynamic = "force-dynamic";
 
-export default function DashboardPage() {
-  const reviewDecision = dashboardDecisions.find((decision) => decision.outcome === "REVIEW");
+export default async function DashboardPage() {
+  const feed = await loadDashboardDecisionFeed(100);
+  const health = summarizeDecisionHealth(feed.decisions);
+  const recentDecisions = feed.decisions.slice(0, 8);
+  const reviewDecision = feed.decisions.find((decision) => decision.outcome === "REVIEW");
 
   return (
     <>
       <header className="dashboardHeader">
         <div>
-          <p className="eyebrow">CONTROL CENTER</p>
+          <div className="headerModeRow">
+            <p className="eyebrow">CONTROL CENTER</p>
+            <span className={`dataModeBadge ${feed.mode}`}>{feed.mode === "demo" ? "DEMO DATA" : feed.mode === "live" ? "LIVE RECEIPTS" : "NO DATA YET"}</span>
+          </div>
           <h1 className="dashboardTitle">Every action has to earn execution.</h1>
-          <p className="dashboardIntro">See what autonomous agents attempted, which policies mattered, where SERV reasoned over context, and why VetoLayer allowed, escalated, or blocked the action.</p>
+          <p className="dashboardIntro">See what autonomous agents attempted, which policies create friction, where SERV reasoned over context, and whether evidence quality is improving.</p>
         </div>
-        <div className="liveBadge"><span className="pulse" /> Live policy gate</div>
+        <div className="liveBadge"><span className="pulse" /> Decision health</div>
       </header>
 
-      <section className="metricGrid" aria-label="Decision summary">
-        <article className="metricCard"><span>Allowed</span><strong>{counts.ALLOW}</strong><small>safe to execute</small></article>
-        <article className="metricCard"><span>Needs review</span><strong>{counts.REVIEW}</strong><small>human judgment required</small></article>
-        <article className="metricCard"><span>Blocked</span><strong>{counts.BLOCK}</strong><small>stopped before execution</small></article>
-        <article className="metricCard accentMetric"><span>SERV-assisted</span><strong>2</strong><small>contextual decisions</small></article>
-      </section>
-
-      <section className="dashboardSection" id="decisions">
-        <div className="sectionHeading">
-          <div><p className="eyebrow">DECISION STREAM</p><h2>Recent agent actions</h2></div>
-          <span className="sectionMeta">Source: core Decision Receipt contract</span>
-        </div>
-        <div className="decisionTable" role="table" aria-label="Recent VetoLayer decisions">
-          <div className="decisionTableHead" role="row">
-            <span>Action</span><span>Outcome</span><span>Reasoning</span><span>Time</span><span />
+      {feed.mode === "empty" ? (
+        <section className="dashboardEmptyState">
+          <p className="eyebrow">NO RECEIPTS YET</p>
+          <h2>Your operational picture starts with the first evaluated action.</h2>
+          <p>Production analytics never substitute seeded data. Connect an integration or use the Developer API to create real Decision Receipts, or explicitly enable demo mode for a guided preview.</p>
+          <div className="emptyActions">
+            <Link className="primaryLink" href="/dashboard/integrations">Connect an integration →</Link>
+            <Link className="rowLink" href="/demo">Open flagship demo →</Link>
           </div>
-          {dashboardDecisions.map((decision) => (
-            <div className="decisionTableRow" role="row" key={decision.decisionId}>
-              <div><strong>{decision.display.title}</strong><small>{decision.display.repository}</small></div>
-              <span className={`outcomeBadge ${decision.outcome.toLowerCase()}`}>{decision.outcome}</span>
-              <div className="reasoningMode">
-                <span>{decision.contextualFindings.length ? "Deterministic + SERV" : "Deterministic"}</span>
-                <small>{decision.contextualFindings.length ? `${decision.contextualFindings.length} contextual finding` : "SERV skipped"}</small>
-              </div>
-              <span className="rowTime">{decision.display.relativeTime}</span>
-              <Link className="rowLink" href={`/dashboard/decisions/${decision.decisionId}`}>Inspect →</Link>
-            </div>
-          ))}
-        </div>
-      </section>
+        </section>
+      ) : (
+        <>
+          <section className="metricGrid" aria-label="Decision summary">
+            <Link href="/dashboard/decisions?outcome=ALLOW" className="metricCard metricLink"><span>Allowed</span><strong>{health.outcomes.ALLOW}</strong><small>safe to execute</small></Link>
+            <Link href="/dashboard/decisions?outcome=REVIEW" className="metricCard metricLink"><span>Needs review</span><strong>{health.outcomes.REVIEW}</strong><small>{health.unresolvedReviews} unresolved latest action{health.unresolvedReviews === 1 ? "" : "s"}</small></Link>
+            <Link href="/dashboard/decisions?outcome=BLOCK" className="metricCard metricLink"><span>Blocked</span><strong>{health.outcomes.BLOCK}</strong><small>stopped before execution</small></Link>
+            <Link href="/dashboard/decisions?reasoning=serv" className="metricCard accentMetric metricLink"><span>SERV-assisted</span><strong>{health.servAssisted}</strong><small>{health.deterministicOnly} deterministic-only</small></Link>
+          </section>
 
-      <section className="reviewSpotlight dashboardSection" id="reviews">
-        <div>
-          <p className="eyebrow">HUMAN REVIEW</p>
-          <h2>One action is waiting on a person, not another model call.</h2>
-          <p className="muted">REVIEW is a deliberate operating state. VetoLayer explains what is unresolved so a human can inspect the evidence and decide what changes next.</p>
-        </div>
-        {reviewDecision ? (
-          <article className="reviewCard">
-            <div className="reviewCardTop"><span className="outcomeBadge review">REVIEW</span><span>{reviewDecision.display.relativeTime}</span></div>
-            <h3>{reviewDecision.display.title}</h3>
-            <p>{reviewDecision.decisionSummary}</p>
-            <div className="requirementBox"><span>Required next</span><strong>{reviewDecision.requirementsToChangeOutcome[0]}</strong></div>
-            <Link className="primaryLink" href={`/dashboard/decisions/${reviewDecision.decisionId}`}>Open review context →</Link>
-          </article>
-        ) : null}
-      </section>
+          <section className="healthGrid dashboardSection" aria-label="Decision health">
+            <article className="healthPanel">
+              <div className="healthPanelTop"><div><p className="eyebrow">EVIDENCE HEALTH</p><h2>{health.evidenceCompleteness}%</h2></div><span className={health.evidenceTrendDelta >= 0 ? "trendUp" : "trendDown"}>{health.evidenceTrendDelta >= 0 ? "+" : ""}{health.evidenceTrendDelta} pts</span></div>
+              <p>Average evidence completeness across the newest half of recent actions versus the previous half.</p>
+              <Link href="/dashboard/decisions" className="rowLink">Inspect evidence trails →</Link>
+            </article>
+
+            <article className="healthPanel">
+              <div className="sectionHeading compactSectionHeading"><div><p className="eyebrow">ACTIONS BY TOOL</p><h3>Where agents are acting</h3></div></div>
+              <div className="healthList">
+                {health.tools.slice(0, 5).map((tool) => (
+                  <Link href={`/dashboard/decisions?tool=${encodeURIComponent(tool.tool)}`} key={tool.tool} className="healthListRow">
+                    <span><strong>{tool.tool}</strong><small>{tool.friction} REVIEW/BLOCK</small></span><b>{tool.total}</b>
+                  </Link>
+                ))}
+              </div>
+            </article>
+
+            <article className="healthPanel">
+              <div className="sectionHeading compactSectionHeading"><div><p className="eyebrow">POLICY FRICTION</p><h3>What stops execution</h3></div></div>
+              <div className="healthList">
+                {health.topPolicies.length ? health.topPolicies.map((policy) => (
+                  <Link href={`/dashboard/policies?focus=${encodeURIComponent(policy.policyId)}`} key={policy.policyId} className="healthListRow">
+                    <span><strong>{policy.policyId}</strong><small>{policy.outcomes.join(" + ")}</small></span><b>{policy.count}</b>
+                  </Link>
+                )) : <p className="healthEmpty">No REVIEW/BLOCK policy friction in this window.</p>}
+              </div>
+            </article>
+          </section>
+
+          <section className="dashboardSection" id="decisions">
+            <div className="sectionHeading">
+              <div><p className="eyebrow">DECISION STREAM</p><h2>Recent agent actions</h2></div>
+              <span className="sectionMeta">{feed.mode === "demo" ? "Clearly labeled seeded demo receipts" : `Source: ${feed.persistence} Decision Receipts`}</span>
+            </div>
+            <div className="decisionTable" role="table" aria-label="Recent VetoLayer decisions">
+              <div className="decisionTableHead" role="row">
+                <span>Action</span><span>Outcome</span><span>Reasoning</span><span>Time</span><span />
+              </div>
+              {recentDecisions.map((decision) => (
+                <div className="decisionTableRow" role="row" key={decision.receiptId}>
+                  <div><strong>{decision.display.title}</strong><small>{decision.display.repository}</small></div>
+                  <span className={`outcomeBadge ${decision.outcome.toLowerCase()}`}>{decision.outcome}</span>
+                  <div className="reasoningMode">
+                    <span>{decision.contextualFindings.length || decision.providerTrace ? "Deterministic + SERV" : "Deterministic"}</span>
+                    <small>{decision.contextualFindings.length ? `${decision.contextualFindings.length} contextual finding${decision.contextualFindings.length === 1 ? "" : "s"}` : "SERV skipped"}</small>
+                  </div>
+                  <span className="rowTime">{decision.display.relativeTime}</span>
+                  <Link className="rowLink" href={`/dashboard/decisions/${decision.receiptId}`}>Inspect →</Link>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="reviewSpotlight dashboardSection" id="reviews">
+            <div>
+              <p className="eyebrow">HUMAN REVIEW</p>
+              <h2>{health.unresolvedReviews ? `${health.unresolvedReviews} latest action${health.unresolvedReviews === 1 ? " is" : "s are"} waiting on judgment.` : "No latest actions are waiting on human judgment."}</h2>
+              <p className="muted">REVIEW is an operational state, not a model failure. VetoLayer preserves what is unresolved so people can change the evidence and re-run the same gate.</p>
+              <Link className="rowLink" href="/dashboard/reviews">Open Review Inbox →</Link>
+            </div>
+            {reviewDecision ? (
+              <article className="reviewCard">
+                <div className="reviewCardTop"><span className="outcomeBadge review">REVIEW</span><span>{reviewDecision.display.relativeTime}</span></div>
+                <h3>{reviewDecision.display.title}</h3>
+                <p>{reviewDecision.decisionSummary}</p>
+                <div className="requirementBox"><span>Required next</span><strong>{reviewDecision.requirementsToChangeOutcome[0] ?? "A human must resolve the outstanding policy condition."}</strong></div>
+                <Link className="primaryLink" href={`/dashboard/decisions/${reviewDecision.receiptId}`}>Open review context →</Link>
+              </article>
+            ) : null}
+          </section>
+        </>
+      )}
     </>
   );
 }
