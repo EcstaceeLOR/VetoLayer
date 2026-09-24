@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { IntegrationSetup } from "./integration-setup";
 import type { IntegrationReadiness } from "../../../lib/integration-contracts";
 import { getIntegrationReadiness } from "../../../lib/server/integration-health";
@@ -6,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default function IntegrationsPage() {
   const readiness = safeReadiness();
+  const anyReady = readiness.github.ready || readiness.developerApi.ready;
 
   return (
     <>
@@ -16,7 +18,22 @@ export default function IntegrationsPage() {
           <p className="dashboardIntro">Connect the GitHub gate or stable Developer API from one place. VetoLayer keeps secrets server-side and gives operators a clear connection state before autonomous actions depend on it.</p>
         </div>
       </header>
-      <IntegrationSetup initialReadiness={readiness} />
+
+      {!anyReady ? (
+        <section className="dashboardEmptyState compactEmptyState firstRunSurfaceNote">
+          <p className="eyebrow">NO EXECUTION PATH CONNECTED</p>
+          <h2>Choose one path to your first real decision.</h2>
+          <p>Use GitHub Gate if the protected action is a merge or deployment. Use the Developer API for any other agent or tool. You only need one ready path to start generating real Decision Receipts.</p>
+          <div className="emptyActions">
+            <a className="primaryLink" href="#integration-options">Configure below →</a>
+            <Link className="rowLink" href="/demo">Preview the full flow first →</Link>
+          </div>
+        </section>
+      ) : null}
+
+      <div id="integration-options">
+        <IntegrationSetup initialReadiness={readiness} />
+      </div>
     </>
   );
 }
