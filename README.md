@@ -8,9 +8,9 @@ VetoLayer is the reasoning and approval layer for autonomous AI actions. It eval
 
 Traditional access control answers: **Can this agent perform this action?**
 
-VetoLayer answers the harder question: **Should this agent perform this action right now, given policy, evidence, exceptions, and context?**
+VetoLayer answers: **Should this agent perform this action right now, given policy, evidence, exceptions, and context?**
 
-Hard restrictions stay deterministic. Ambiguous policy judgment is routed to SERV Reasoning. Every evaluation ends in a typed `ALLOW`, `REVIEW`, or `BLOCK` decision and, as the product evolves, an auditable Decision Receipt.
+Hard restrictions stay deterministic. Ambiguous policy judgment is routed to SERV Reasoning. Every evaluation ends in a typed `ALLOW`, `REVIEW`, or `BLOCK` decision plus a tamper-evident Decision Receipt.
 
 ## Decision path
 
@@ -28,7 +28,7 @@ Contextual judgment needed?
                   Decision Receipt
 ```
 
-See [`docs/architecture.md`](docs/architecture.md) for the architectural boundaries that future issues must preserve.
+See [`docs/architecture.md`](docs/architecture.md) for the architectural boundaries.
 
 ## Repository
 
@@ -37,9 +37,10 @@ VetoLayer/
 ├── apps/
 │   └── web/               # product UI + HTTP/API surface
 ├── packages/
-│   ├── core/              # domain contracts + orchestration
-│   ├── serv/              # SERV Reasoning adapter only
-│   └── policies/          # deterministic policy evaluation
+│   ├── core/              # contracts, orchestration, receipts, review records
+│   ├── policies/          # deterministic policy evaluation
+│   ├── serv/              # SERV Reasoning adapter
+│   └── sdk/               # tiny developer client
 ├── examples/
 │   └── github-gate/       # flagship coding-agent integration
 └── docs/
@@ -52,7 +53,7 @@ Requirements: Node.js 20.9+ and pnpm.
 ```bash
 corepack enable
 pnpm install
-cp apps/web/.env.example apps/web/.env.local
+cp .env.example .env.local
 pnpm dev
 ```
 
@@ -67,12 +68,69 @@ pnpm test
 pnpm build
 ```
 
+## Developer API
+
+`POST /api/v1/evaluate` accepts the same `ActionRequest`, `Policy`, and `Evidence` contracts used everywhere else in VetoLayer. `GET /api/v1/decisions/:receiptId` returns the stored status and Decision Receipt.
+
+For hosted environments, set `VETOLAYER_API_KEY` and send it as a bearer token. `X-VetoLayer-Workspace` scopes status/persistence to a workspace.
+
+### Tiny TypeScript client
+
+```ts
+import { createVetoLayerClient, guardedToolCall } from "@vetolayer/sdk";
+
+const veto = createVetoLayerClient({
+  baseUrl: "https://your-vetolayer.example",
+  apiKey: process.env.VETOLAYER_API_KEY,
+  workspaceId: "support-prod",
+});
+
+const guarded = await guardedToolCall({
+  client: veto,
+  evaluation: {
+    action: {
+      id: "refund-42",
+      actor: { id: "support-agent", kind: "agent" },
+      action: {
+        type: "customer-support",
+        tool: "billing-service",
+        operation: "issue-refund",
+        arguments: { accountId: "acct-42", amount: 750, currency: "USD" },
+      },
+      target: { type: "customer-account", id: "acct-42", environment: "production" },
+      context: { source: "support-agent", environment: "production" },
+      requestedAt: new Date().toISOString(),
+    },
+    policies: [largeRefundPolicy],
+    facts: { refundAmount: 750 },
+  },
+  execute: () => billing.issueRefund("acct-42", 750),
+});
+
+if (guarded.evaluation.decision.outcome !== "ALLOW") {
+  // Tool execution never happened.
+  console.log(guarded.evaluation.decision.outcome);
+}
+```
+
+The SDK is intentionally small. It does not introduce another agent framework; it only implements the `evaluate-before-execute` boundary.
+
+## Product surfaces
+
+- `/` — product landing page
+- `/onboarding` — guided first-project setup
+- `/dashboard` — control center
+- `/dashboard/policies` — Policy Studio
+- `/dashboard/reviews` — Human Review Inbox
+- `/demo` — flagship SERV-powered production deployment scenario
+- `/api/v1/evaluate` — framework-agnostic evaluation API
+
 ## Environment
 
-SERV credentials are server-only. Put them in `apps/web/.env.local`; never commit that file and never prefix SERV secrets with `NEXT_PUBLIC_`.
+SERV and persistence credentials are server-only. Copy `.env.example` and never expose `SERV_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, or `VETOLAYER_API_KEY` through `NEXT_PUBLIC_` variables.
 
-The actual SERV client is intentionally deferred to the dedicated SERV integration issue. This scaffold only establishes the secure configuration boundary.
+Without Supabase, the local/demo product uses safe fallback storage where supported. SERV provider failure never fails open; contextual evaluation falls back to `REVIEW`.
 
 ## MVP boundary
 
-VetoLayer starts with autonomous coding/deployment actions, but the core model must remain general enough to support other high-impact actions later. The MVP intentionally avoids unrelated infrastructure, generic multi-agent orchestration, blockchain dependencies, and premature enterprise complexity.
+VetoLayer starts with autonomous coding/deployment actions, but its core contracts and Developer API are deliberately horizontal. The project avoids unrelated infrastructure, generic multi-agent orchestration, blockchain dependencies, and premature enterprise complexity.

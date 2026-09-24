@@ -11,9 +11,34 @@ export type StoredDecision = {
 
 export type DecisionStore = {
   save(record: StoredDecision): Promise<void>;
+  get(workspaceId: string, id: string): Promise<StoredDecision | null>;
   list(workspaceId: string, limit?: number): Promise<StoredDecision[]>;
   clearDemo(workspaceId: string): Promise<void>;
 };
+
+const memoryDecisions = new Map<string, StoredDecision>();
+
+export function createMemoryDecisionStore(): DecisionStore {
+  return {
+    async save(record) {
+      memoryDecisions.set(`${record.workspaceId}:${record.id}`, record);
+    },
+    async get(workspaceId, id) {
+      return memoryDecisions.get(`${workspaceId}:${id}`) ?? null;
+    },
+    async list(workspaceId, limit = 50) {
+      return [...memoryDecisions.values()]
+        .filter((item) => item.workspaceId === workspaceId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, Math.max(1, Math.min(200, Math.trunc(limit))));
+    },
+    async clearDemo(workspaceId) {
+      for (const [key, record] of memoryDecisions.entries()) {
+        if (record.workspaceId === workspaceId && record.source === "demo") memoryDecisions.delete(key);
+      }
+    },
+  };
+}
 
 export function createSupabaseDecisionStore(
   config: {
@@ -35,6 +60,22 @@ export function createSupabaseDecisionStore(
     throw new Error(`Decision persistence ${operation} failed (${response.status})${body ? `: ${body.slice(0, 240)}` : ""}`);
   }
 
+  function mapRow(row: {
+    id: string;
+    workspace_id: string;
+    source: StoredDecision["source"];
+    receipt: DecisionReceipt;
+    created_at: string;
+  }): StoredDecision {
+    return {
+      id: row.id,
+      workspaceId: row.workspace_id,
+      source: row.source,
+      receipt: row.receipt,
+      createdAt: row.created_at,
+    };
+  }
+
   return {
     async save(record) {
       const response = await fetchImpl(`${baseUrl}/rest/v1/vetolayer_decisions`, {
@@ -51,6 +92,19 @@ export function createSupabaseDecisionStore(
       await requireSuccess(response, "save");
     },
 
+    async get(workspaceId, id) {
+      const query = new URLSearchParams({
+        select: "id,workspace_id,source,receipt,created_at",
+        workspace_id: `eq.${workspaceId}`,
+        id: `eq.${id}`,
+        limit: "1",
+      });
+      const response = await fetchImpl(`${baseUrl}/rest/v1/vetolayer_decisions?${query.toString()}`, { headers });
+      await requireSuccess(response, "get");
+      const rows = (await response.json()) as Array<Parameters<typeof mapRow>[0]>;
+      return rows[0] ? mapRow(rows[0]) : null;
+    },
+
     async list(workspaceId, limit = 50) {
       const safeLimit = Math.max(1, Math.min(200, Math.trunc(limit)));
       const query = new URLSearchParams({
@@ -64,20 +118,8 @@ export function createSupabaseDecisionStore(
         { headers },
       );
       await requireSuccess(response, "list");
-      const rows = (await response.json()) as Array<{
-        id: string;
-        workspace_id: string;
-        source: StoredDecision["source"];
-        receipt: DecisionReceipt;
-        created_at: string;
-      }>;
-      return rows.map((row) => ({
-        id: row.id,
-        workspaceId: row.workspace_id,
-        source: row.source,
-        receipt: row.receipt,
-        createdAt: row.created_at,
-      }));
+      const rows = (await response.json()) as Array<Parameters<typeof mapRow>[0]>;
+      return rows.map(mapRow);
     },
 
     async clearDemo(workspaceId) {
@@ -94,18 +136,27 @@ export function createSupabaseDecisionStore(
   };
 }
 
-export function getOptionalDecisionStore(): DecisionStore | null {
+const memoryStore = createMemoryDecisionStore();
+
+export function getDecisionStore(): { store: DecisionStore; persistence: "supabase" | "memory" } {
   const environment = readServerEnvironment();
   if (
-    !environment.persistenceConfigured ||
-    !environment.supabaseUrl ||
-    !environment.supabaseServiceRoleKey
+    environment.persistenceConfigured &&
+    environment.supabaseUrl &&
+    environment.supabaseServiceRoleKey
   ) {
-    return null;
+    return {
+      store: createSupabaseDecisionStore({
+        url: environment.supabaseUrl,
+        serviceRoleKey: environment.supabaseServiceRoleKey,
+      }),
+      persistence: "supabase",
+    };
   }
+  return { store: memoryStore, persistence: "memory" };
+}
 
-  return createSupabaseDecisionStore({
-    url: environment.supabaseUrl,
-    serviceRoleKey: environment.supabaseServiceRoleKey,
-  });
+export function getOptionalDecisionStore(): DecisionStore | null {
+  const result = getDecisionStore();
+  return result.persistence === "supabase" ? result.store : null;
 }
