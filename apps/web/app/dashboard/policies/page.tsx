@@ -43,7 +43,7 @@ async function workspaceHasPolicies() {
     const workspace = await getAuthenticatedWorkspace();
     const store = getOptionalPolicyStore();
     if (!workspace || !store) return false;
-    return (await store.list(workspace.id)).length > 0;
+    return (await store.list(workspace.workspaceId)).length > 0;
   } catch {
     return false;
   }
