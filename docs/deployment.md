@@ -2,12 +2,12 @@
 
 VetoLayer is a pnpm monorepo with one deployable Next.js application at `apps/web`. It does not require Kubernetes, a background worker, local filesystem persistence, or a custom gateway.
 
-The repository now includes `vercel.json`, so importing the **repository root** into Vercel is deterministic:
+The repository includes `pnpm-lock.yaml` and `vercel.json`, so importing the **repository root** into Vercel is deterministic:
 
 ```text
 Framework:         Next.js
 Root Directory:    repository root / blank
-Install Command:   pnpm install --no-frozen-lockfile
+Install Command:   pnpm install --frozen-lockfile
 Build Command:     pnpm --filter @vetolayer/web build
 Output Directory:  apps/web/.next
 ```
@@ -132,7 +132,7 @@ From the repository root:
 
 ```bash
 corepack enable
-pnpm install
+pnpm install --frozen-lockfile
 cp apps/web/.env.example apps/web/.env.local
 pnpm lint
 pnpm typecheck
