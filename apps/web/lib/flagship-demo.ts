@@ -15,6 +15,11 @@ export const FLAGSHIP_INCIDENT: GitHubIncidentContext = {
     "Active session-token replay weakness is exploitable in production; this patch closes the replay path and rotates validation logic.",
 };
 
+export const FLAGSHIP_ACTION_ID =
+  "github_vetolayer-labs_identity-api_312_deploy-production";
+export const FLAGSHIP_DECISION_ID = `decision_${FLAGSHIP_ACTION_ID}`;
+export const FLAGSHIP_REVIEW_CASE_ID = `review_${FLAGSHIP_DECISION_ID}`;
+
 const baseSnapshot: Omit<GitHubPullRequestSnapshot, "reviews"> = {
   owner: "vetolayer-labs",
   repo: "identity-api",
@@ -49,6 +54,31 @@ export function flagshipSnapshot(stage: DemoStage): GitHubPullRequestSnapshot {
             },
           ]
         : [],
+  };
+}
+
+/**
+ * Seeded public-demo human review. This is intentionally labelled as demo
+ * evidence in the UI; the actual policy engine, SERV call, orchestration, and
+ * receipt generation are still executed on every re-evaluation.
+ */
+export function createFlagshipDemoHumanReview(
+  now: Date = new Date(),
+): HumanReviewRecord {
+  return {
+    id: `demo-security-review_${now.getTime()}`,
+    decisionId: FLAGSHIP_DECISION_ID,
+    reviewer: {
+      id: "security-lead",
+      kind: "human",
+      name: "Security Lead",
+      metadata: { identitySource: "seeded-demo-review" },
+    },
+    action: "approve",
+    rationale:
+      "Approved for critical security remediation after reviewing the active incident and passing CI/security evidence.",
+    requestedEvidence: [],
+    submittedAt: now.toISOString(),
   };
 }
 

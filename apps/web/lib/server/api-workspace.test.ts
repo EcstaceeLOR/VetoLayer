@@ -29,7 +29,7 @@ describe("Developer API workspace binding", () => {
     ).toBe("service:prod-agents");
   });
 
-  it("falls back to a server-owned service workspace, never a caller value", () => {
-    expect(developerApiWorkspaceId(environment(), env())).toBe("service:demo");
+  it("falls back to a dedicated service workspace, never the demo workspace", () => {
+    expect(developerApiWorkspaceId(environment(), env())).toBe("service:developer-api");
   });
 });

@@ -26,7 +26,7 @@ export type IntegrationTestResult = {
   details?: {
     account?: string;
     endpoint?: string;
-    auth?: "enabled" | "disabled";
+    auth?: "enabled" | "disabled" | "required" | "local-only";
   };
   nextSteps?: string[];
 };

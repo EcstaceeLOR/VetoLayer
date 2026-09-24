@@ -1,0 +1,49 @@
+function normalizeOrigin(value?: string | null): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+
+  try {
+    const candidate = trimmed.includes("://") ? trimmed : `https://${trimmed}`;
+    const url = new URL(candidate);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return undefined;
+    return url.origin;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Resolve the canonical application origin without trusting a caller-controlled
+ * Origin header ahead of configured deployment metadata.
+ */
+export function resolveAppOrigin(
+  requestOrigin?: string | null,
+  env: NodeJS.ProcessEnv = process.env,
+): string | undefined {
+  return (
+    normalizeOrigin(env.NEXT_PUBLIC_APP_URL) ??
+    normalizeOrigin(env.VERCEL_PROJECT_PRODUCTION_URL) ??
+    normalizeOrigin(env.VERCEL_URL) ??
+    normalizeOrigin(requestOrigin)
+  );
+}
+
+/** Keep post-auth redirects on the VetoLayer origin, including backslash edge cases. */
+export function safeAppPath(
+  value?: string | null,
+  fallback = "/dashboard",
+): string {
+  const candidate = value?.trim();
+  if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//") || candidate.includes("\\")) {
+    return fallback;
+  }
+
+  try {
+    const base = new URL("https://vetolayer.invalid");
+    const parsed = new URL(candidate, base);
+    if (parsed.origin !== base.origin) return fallback;
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return fallback;
+  }
+}

@@ -25,17 +25,39 @@ export type ApiErrorBody = {
   };
 };
 
+export type ApiAuthorizationFailure = {
+  status: 401 | 503;
+  body: ApiErrorBody;
+};
+
 export function authorizeDeveloperRequest(
   request: Request,
   environment: ServerEnvironment,
-): ApiErrorBody | null {
-  if (!environment.apiAuthConfigured || !environment.apiKey) return null;
+  nodeEnv: string | undefined = process.env.NODE_ENV,
+): ApiAuthorizationFailure | null {
+  if (!environment.apiAuthConfigured || !environment.apiKey) {
+    if (nodeEnv !== "production") return null;
+    return {
+      status: 503,
+      body: {
+        error: {
+          code: "API_AUTH_NOT_CONFIGURED",
+          message:
+            "The VetoLayer Developer API is disabled until VETOLAYER_API_KEY is configured server-side.",
+        },
+      },
+    };
+  }
+
   const authorization = request.headers.get("authorization");
   if (authorization === `Bearer ${environment.apiKey}`) return null;
   return {
-    error: {
-      code: "UNAUTHORIZED",
-      message: "A valid VetoLayer API bearer token is required.",
+    status: 401,
+    body: {
+      error: {
+        code: "UNAUTHORIZED",
+        message: "A valid VetoLayer API bearer token is required.",
+      },
     },
   };
 }

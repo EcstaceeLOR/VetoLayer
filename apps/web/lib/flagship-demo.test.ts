@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { runFlagshipDemo } from "./flagship-demo";
+import {
+  createFlagshipDemoHumanReview,
+  runFlagshipDemo,
+} from "./flagship-demo";
 
 const servConfig = {
   apiKey: "test-key",
@@ -82,7 +85,7 @@ function evidenceAwareServFetch() {
 }
 
 describe("flagship deployment demo", () => {
-  it("re-evaluates the same action from REVIEW to ALLOW when approval evidence changes", async () => {
+  it("re-evaluates the same action from REVIEW to ALLOW while preserving separate receipts", async () => {
     const fetchMock = evidenceAwareServFetch();
     const fixedNow = new Date("2026-09-24T15:00:00.000Z");
 
@@ -91,15 +94,20 @@ describe("flagship deployment demo", () => {
       servFetch: fetchMock as typeof fetch,
       now: fixedNow,
     });
-    const resolved = await runFlagshipDemo("resolved", {
+    const humanReview = createFlagshipDemoHumanReview(fixedNow);
+    const resolved = await runFlagshipDemo("needs-approval", {
       servConfig,
       servFetch: fetchMock as typeof fetch,
       now: fixedNow,
+      humanReview,
     });
 
     expect(initial.orchestration.decision.actionRequestId).toBe(
       resolved.orchestration.decision.actionRequestId,
     );
+    expect(initial.receipt.decisionId).toBe(resolved.receipt.decisionId);
+    expect(humanReview.decisionId).toBe(initial.receipt.decisionId);
+    expect(initial.receipt.receiptId).not.toBe(resolved.receipt.receiptId);
     expect(initial.orchestration.decision.outcome).toBe("REVIEW");
     expect(resolved.orchestration.decision.outcome).toBe("ALLOW");
     expect(initial.receipt.requirementsToChangeOutcome.length).toBeGreaterThan(0);

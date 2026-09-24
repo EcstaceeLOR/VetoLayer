@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { safeAppPath } from "../../lib/server/app-origin";
 import { isSupabaseAuthConfigured } from "../../lib/supabase/server";
 import { signIn, signUp } from "./actions";
 import "./login.css";
@@ -18,7 +19,7 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; message?: string; next?: string }>;
 }) {
   const params = await searchParams;
-  const next = params.next?.startsWith("/") && !params.next.startsWith("//") ? params.next : "/dashboard";
+  const next = safeAppPath(params.next);
   const configured = isSupabaseAuthConfigured();
   const error = params.error ? errorMessages[params.error] ?? "Authentication could not be completed." : null;
   const message = params.message === "check_email" ? "Check your inbox to confirm your account, then return to VetoLayer." : null;

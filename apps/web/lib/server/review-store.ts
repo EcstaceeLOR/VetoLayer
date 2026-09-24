@@ -32,6 +32,7 @@ export type ReviewStore = {
   list(workspaceId: string): Promise<ReviewCase[]>;
   get(workspaceId: string, id: string): Promise<ReviewCase | null>;
   save(reviewCase: ReviewCase): Promise<void>;
+  clearDemo(workspaceId: string): Promise<void>;
 };
 
 const memoryCases = new Map<string, ReviewCase>();
@@ -53,6 +54,11 @@ export function createMemoryReviewStore(): ReviewStore {
     },
     async save(reviewCase) {
       memoryCases.set(storageId(reviewCase.workspaceId, reviewCase.id), reviewCase);
+    },
+    async clearDemo(workspaceId) {
+      for (const [key, item] of memoryCases.entries()) {
+        if (item.workspaceId === workspaceId && item.source === "demo") memoryCases.delete(key);
+      }
     },
   };
 }
@@ -116,6 +122,17 @@ export function createSupabaseReviewStore(
         }),
       });
       await requireSuccess(response, "save");
+    },
+    async clearDemo(workspaceId) {
+      const query = new URLSearchParams({
+        workspace_id: `eq.${workspaceId}`,
+        "payload->>source": "eq.demo",
+      });
+      const response = await fetchImpl(
+        `${baseUrl}/rest/v1/vetolayer_review_cases?${query.toString()}`,
+        { method: "DELETE", headers },
+      );
+      await requireSuccess(response, "clear-demo");
     },
   };
 }

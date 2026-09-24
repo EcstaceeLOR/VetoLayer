@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
 const refundRequest = {
@@ -38,12 +38,14 @@ const refundRequest = {
   environment: { region: "us-east", customerTier: "business" },
 };
 
+afterEach(() => vi.unstubAllEnvs());
+
 describe("POST /api/v1/evaluate", () => {
   it("validates and evaluates a non-GitHub customer-support action through the production pipeline", async () => {
     const response = await POST(
       new Request("http://localhost/api/v1/evaluate", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-VetoLayer-Workspace": "test-workspace" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(refundRequest),
       }),
     );
@@ -68,5 +70,22 @@ describe("POST /api/v1/evaluate", () => {
     const body = await response.json();
     expect(response.status).toBe(400);
     expect(body.error.code).toBe("INVALID_ACTION");
+  });
+
+  it("disables the production API when no bearer key is configured", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VETOLAYER_API_KEY", "");
+
+    const response = await POST(
+      new Request("https://vetolayer.example/api/v1/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(refundRequest),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body.error.code).toBe("API_AUTH_NOT_CONFIGURED");
   });
 });

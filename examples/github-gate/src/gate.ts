@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   createDecisionReceipt,
   evaluateAction,
@@ -53,6 +54,11 @@ export async function evaluateGitHubSnapshot(input: {
   });
   const policies = input.policies ?? githubGatePolicies;
 
+  // The decision ID is stable for one proposed action so re-evaluations remain
+  // part of the same decision lineage. Each receipt is unique, however, so a
+  // later evaluation can never overwrite an earlier audit artifact.
+  const decisionId = `decision_${bundle.action.id}`;
+
   const orchestration = await evaluateAction(
     {
       action: bundle.action,
@@ -61,7 +67,7 @@ export async function evaluateGitHubSnapshot(input: {
       facts: bundle.facts,
       environment: bundle.environment,
       now,
-      decisionId: `decision_${bundle.action.id}`,
+      decisionId,
     },
     {
       evaluateDeterministic: (deterministicInput) =>
@@ -81,7 +87,7 @@ export async function evaluateGitHubSnapshot(input: {
     policies,
     evidence: bundle.evidence,
     createdAt: now,
-    receiptId: `receipt_${bundle.action.id}`,
+    receiptId: `receipt_${bundle.action.id}_${randomUUID()}`,
   });
 
   return { snapshot: input.snapshot, orchestration, receipt };

@@ -20,7 +20,7 @@ export default function DemoPage() {
           decision only when the evidence changes.
         </p>
         <div className="demoTrustNote">
-          <strong>What is seeded:</strong> PR metadata, incident context, CI state, and approval state. <strong>What is real:</strong> the deterministic policy engine, SERV contextual judgment, orchestration, and Decision Receipt generation run when you evaluate.
+          <strong>What is seeded:</strong> PR metadata, incident context, CI state, and the demo security-lead review evidence. <strong>What is real:</strong> the deterministic policy engine, SERV contextual judgment, orchestration, and Decision Receipt generation run on every evaluation. The complete REVIEW → approval evidence → re-evaluation flow works on this page without signing in.
         </div>
       </header>
 
@@ -29,7 +29,7 @@ export default function DemoPage() {
       <section className="demoExplainer" aria-label="How the flagship scenario works">
         <article><span>01</span><h3>Same action</h3><p>The PR, commit, changed files, incident, and CI evidence stay fixed across both evaluations.</p></article>
         <article><span>02</span><h3>One missing condition</h3><p>The first pass has no authorized human approval, so VetoLayer refuses to silently promote it to ALLOW.</p></article>
-        <article><span>03</span><h3>Real re-evaluation</h3><p>After approval arrives, the entire deterministic + SERV pipeline runs again and issues a new receipt.</p></article>
+        <article><span>03</span><h3>Real re-evaluation</h3><p>The seeded security-lead approval is added as human-review evidence; then the entire deterministic + SERV pipeline runs again and issues a new receipt.</p></article>
       </section>
     </main>
   );
