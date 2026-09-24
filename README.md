@@ -176,6 +176,7 @@ VetoLayer/
 │   └── github-gate/       # flagship coding-agent integration
 ├── scripts/
 │   └── release-smoke.mjs  # release/deployment verifier
+├── pnpm-lock.yaml         # deterministic workspace dependency graph
 ├── vercel.json            # monorepo deployment configuration
 └── docs/
 ```
@@ -188,7 +189,7 @@ Requirements: Node.js 20.9+ and pnpm.
 
 ```bash
 corepack enable
-pnpm install
+pnpm install --frozen-lockfile
 cp apps/web/.env.example apps/web/.env.local
 pnpm dev
 ```
@@ -211,7 +212,7 @@ All credentials are server-only. Never expose `SERV_API_KEY`, `GITHUB_TOKEN`, `S
 Import the **repository root**. The committed [`vercel.json`](vercel.json) defines the monorepo build:
 
 ```text
-Install:  pnpm install --no-frozen-lockfile
+Install:  pnpm install --frozen-lockfile
 Build:    pnpm --filter @vetolayer/web build
 Output:   apps/web/.next
 ```
