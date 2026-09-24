@@ -1,0 +1,26 @@
+.demoModeLabel {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 8px 11px;
+  border: 1px solid rgba(255, 215, 130, .28);
+  border-radius: 999px;
+  background: rgba(255, 215, 130, .055);
+  color: var(--review);
+  font: 800 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .1em;
+}
+
+.demoTrustNote {
+  max-width: 860px;
+  margin-top: 24px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(12, 15, 22, .68);
+  color: #8f99aa;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.demoTrustNote strong { color: #dce2eb; }
