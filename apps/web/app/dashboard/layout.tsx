@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { ProductNavigation } from "../../components/product-navigation";
+import { VetoLayerLogo } from "../../components/vetolayer-logo";
 import { getAuthenticatedWorkspace } from "../../lib/server/workspace";
 import { signOut } from "../login/actions";
 import "./health.css";
@@ -18,7 +19,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <div className="productShell">
       <aside className="sidebar" aria-label="Workspace navigation">
-        <Link href="/" className="brand dashboardBrand"><span className="mark">V</span> VetoLayer</Link>
+        <Link href="/" className="brand dashboardBrand" aria-label="VetoLayer home"><VetoLayerLogo size="sm" /></Link>
         <div className="workspaceTag" title={workspace.email}><span className="workspaceDot" aria-hidden="true" /> {workspace.label}</div>
         <ProductNavigation />
         <div className="sideDemoCard">
