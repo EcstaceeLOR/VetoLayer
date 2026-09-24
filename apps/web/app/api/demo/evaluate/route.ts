@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import {
   FLAGSHIP_INCIDENT,
+  FLAGSHIP_REVIEW_CASE_ID,
   flagshipSnapshot,
   runFlagshipDemo,
-  type DemoStage,
 } from "../../../../lib/flagship-demo";
 import { getOptionalDecisionStore } from "../../../../lib/server/decision-store";
 import { readServerEnvironment } from "../../../../lib/server/env";
@@ -41,23 +41,21 @@ export async function POST(request: Request) {
     );
   }
 
-  let stage: DemoStage;
   try {
     const body = (await request.json()) as { stage?: string };
-    if (body.stage !== "needs-approval" && body.stage !== "resolved") {
+    if (body.stage !== undefined && body.stage !== "needs-approval") {
       return NextResponse.json(
-        { error: "stage must be needs-approval or resolved" },
+        { error: "the resolved demo state must be reached through the human-review endpoint" },
         { status: 400 },
       );
     }
-    stage = body.stage;
   } catch {
     return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
   }
 
   try {
     const now = new Date();
-    const result = await runFlagshipDemo(stage, { now });
+    const result = await runFlagshipDemo("needs-approval", { now });
     const store = getOptionalDecisionStore();
 
     if (store) {
@@ -79,9 +77,9 @@ export async function POST(request: Request) {
 
     let reviewCaseId: string | undefined;
     let reviewPersistence: "supabase" | "memory" | undefined;
-    if (stage === "needs-approval" && result.orchestration.decision.outcome === "REVIEW") {
+    if (result.orchestration.decision.outcome === "REVIEW") {
       const review = getReviewStore();
-      reviewCaseId = `review_${result.receipt.decisionId}`;
+      reviewCaseId = FLAGSHIP_REVIEW_CASE_ID;
       reviewPersistence = review.persistence;
       try {
         await review.store.save({
@@ -110,7 +108,7 @@ export async function POST(request: Request) {
     }
 
     logServerEvent("info", "demo.evaluation.completed", {
-      stage,
+      stage: "needs-approval",
       outcome: result.orchestration.decision.outcome,
       receiptId: result.receipt.receiptId,
       reviewCaseId,
@@ -118,7 +116,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
-      stage,
+      stage: "needs-approval" as const,
       outcome: result.orchestration.decision.outcome,
       summary: result.orchestration.decision.summary,
       deterministicFindings: result.orchestration.decision.deterministicFindings,
@@ -133,7 +131,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     logServerEvent("error", "demo.evaluation.failed", {
-      stage,
+      stage: "needs-approval",
       message: error instanceof Error ? error.message : "Evaluation failed",
     });
     return NextResponse.json(
