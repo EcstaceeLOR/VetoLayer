@@ -81,16 +81,18 @@ export type ServTrace = {
   };
 };
 
+export type ServErrorCode =
+  | "CONFIGURATION_ERROR"
+  | "NETWORK_ERROR"
+  | "HTTP_ERROR"
+  | "MALFORMED_RESPONSE"
+  | "INVALID_REASONING";
+
 export type ServEvaluationResult = {
   decision: ServReasoningDecision;
   trace: ServTrace;
   error?: {
-    code:
-      | "CONFIGURATION_ERROR"
-      | "NETWORK_ERROR"
-      | "HTTP_ERROR"
-      | "MALFORMED_RESPONSE"
-      | "INVALID_REASONING";
+    code: ServErrorCode;
     message: string;
   };
 };
