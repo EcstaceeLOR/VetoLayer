@@ -49,14 +49,14 @@ const evaluation = {
 };
 
 describe("VetoLayer SDK", () => {
-  it("sends workspace and auth headers through the tiny client", async () => {
+  it("sends bearer auth without a caller-selected workspace header", async () => {
     const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
       const headers = new Headers(init?.headers);
       expect(headers.get("Authorization")).toBe("Bearer secret");
-      expect(headers.get("X-VetoLayer-Workspace")).toBe("acme");
+      expect(headers.has("X-VetoLayer-Workspace")).toBe(false);
       return new Response(JSON.stringify(baseResponse), { status: 200 });
     });
-    const client = createVetoLayerClient({ baseUrl: "https://veto.example/", apiKey: "secret", workspaceId: "acme", fetch: fetchMock as typeof fetch });
+    const client = createVetoLayerClient({ baseUrl: "https://veto.example/", apiKey: "secret", fetch: fetchMock as typeof fetch });
     const result = await client.evaluate(evaluation);
     expect(result.decision.outcome).toBe("ALLOW");
   });
