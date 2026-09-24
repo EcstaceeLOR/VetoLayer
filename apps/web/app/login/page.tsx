@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { VetoLayerLogo } from "../../components/vetolayer-logo";
 import { safeAppPath } from "../../lib/server/app-origin";
 import { isSupabaseAuthConfigured } from "../../lib/supabase/server";
 import { signIn, signUp } from "./actions";
@@ -27,7 +28,7 @@ export default async function LoginPage({
   return (
     <main className="authShell" id="main-content" tabIndex={-1}>
       <div className="authFrame">
-        <Link href="/" className="brand authBrand"><span className="mark">V</span> VetoLayer</Link>
+        <Link href="/" className="brand authBrand" aria-label="VetoLayer home"><VetoLayerLogo size="md" /></Link>
         <section className="authIntro" aria-labelledby="auth-heading">
           <p className="eyebrow">WORKSPACE ACCESS</p>
           <h1 id="auth-heading">Own the decisions your agents make.</h1>

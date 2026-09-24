@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/brand/vetolayer-lockup.svg" alt="VetoLayer" width="520" />
+</p>
+
 # VetoLayer
 
 **Agents can think freely. They shouldn't act freely.**
@@ -7,7 +11,9 @@
 **SERV Hackathon:** Edition 01 · Open Track  
 **Core output:** `ALLOW | REVIEW | BLOCK` + tamper-evident Decision Receipt  
 **Initial market wedge:** AI coding and deployment agents  
-**Public demo:** `PENDING_PUBLIC_DEPLOYMENT` — replace only after a verified deployment passes the live smoke test.
+**Public deployment:** https://vetolayer.vercel.app — deployed; live SERV-readiness verification remains part of Issue #12.
+
+Brand usage and the Gate-V construction are documented in [`docs/brand.md`](docs/brand.md).
 
 ## 60-second judge view
 
@@ -94,7 +100,7 @@ VetoLayer → ALLOW   (only if SERV and policy evidence support it)
 The UI cannot request the resolved state directly. The second decision must pass through the demo human-review endpoint, and both evaluations produce a new Decision Receipt. If SERV is unavailable, the second pass remains `REVIEW` rather than pretending the live reasoning succeeded.
 
 **Demo route:** `/demo`  
-**Verified public URL:** `PENDING_PUBLIC_DEPLOYMENT`
+**Public URL:** https://vetolayer.vercel.app/demo
 
 See [`docs/demo-script.md`](docs/demo-script.md).
 
@@ -177,7 +183,7 @@ VetoLayer/
 ├── scripts/
 │   └── release-smoke.mjs  # release/deployment verifier
 ├── pnpm-lock.yaml         # deterministic workspace dependency graph
-├── vercel.json            # monorepo deployment configuration
+├── vercel.json            # Vercel deployment configuration
 └── docs/
 ```
 
@@ -209,22 +215,24 @@ All credentials are server-only. Never expose `SERV_API_KEY`, `GITHUB_TOKEN`, `S
 
 ## Vercel deployment
 
-Import the **repository root**. The committed [`vercel.json`](vercel.json) defines the monorepo build:
+The production Vercel project uses the web application as its project root:
 
 ```text
-Install:  pnpm install --frozen-lockfile
-Build:    pnpm --filter @vetolayer/web build
-Output:   apps/web/.next
+Root Directory: apps/web
+Framework:      Next.js
+Install:        pnpm install --frozen-lockfile
+Build:          pnpm build
+Output:         .next
 ```
 
-Do **not** set the Vercel Root Directory to `apps/web`; the app imports workspace packages outside that directory.
+The app still imports workspace packages outside `apps/web`, so Vercel must include source files outside the Root Directory during the build. The committed deployment configuration is aligned with this setup.
 
 The public hackathon demo requires `SERV_API_KEY` and `SERV_MODEL`. Authentication/persistence/GitHub/API variables are documented in [`docs/deployment.md`](docs/deployment.md). Production `/api/v1/*` routes fail closed if `VETOLAYER_API_KEY` is not configured.
 
 After deployment:
 
 ```bash
-SMOKE_BASE_URL=https://<your-production-domain> pnpm release:smoke
+SMOKE_BASE_URL=https://vetolayer.vercel.app pnpm release:smoke
 ```
 
 The live smoke probe checks public surfaces and `/api/health`, and requires `demoReady: true` before the release can be considered submission-ready.
@@ -266,7 +274,7 @@ Hosted users get a server-derived authenticated workspace. Developer API credent
 
 VetoLayer targets the **SERV Edition 01 Open Track**. The judge kit, capture checklist, copy-ready description, and pre-submit verification live in [`docs/submission.md`](docs/submission.md).
 
-> **Submission blocker:** replace every `PENDING_PUBLIC_DEPLOYMENT` marker only after a real deployment is reachable, `/demo` completes the live SERV-backed flow, and the deployed smoke test passes. Issue #12 remains open until then.
+> **Submission blocker:** Issue #12 remains open until the Product Completion Program (#49) reaches its required P0 bar and the public SERV-backed flow passes live verification.
 
 ---
 

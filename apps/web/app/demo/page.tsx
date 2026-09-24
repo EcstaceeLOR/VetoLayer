@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { VetoLayerLogo } from "../../components/vetolayer-logo";
 import { FlagshipDemoClient } from "./demo-client";
 import "./demo-mode.css";
 
@@ -6,7 +7,7 @@ export default function DemoPage() {
   return (
     <main className="demoPage" id="main-content" tabIndex={-1}>
       <nav className="demoNav" aria-label="Demo navigation">
-        <Link href="/" className="brand"><span className="mark">V</span> VetoLayer</Link>
+        <Link href="/" className="brand" aria-label="VetoLayer home"><VetoLayerLogo size="md" /></Link>
         <Link href="/dashboard" className="rowLink">Open control center →</Link>
       </nav>
 

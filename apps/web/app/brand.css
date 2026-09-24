@@ -1,0 +1,66 @@
+:root {
+  --brand-ink: #f4f7fb;
+  --brand-accent: #d8ff61;
+  --brand-dark: #080a0f;
+}
+
+.vetoLayerLogo {
+  --brand-fg: var(--brand-ink);
+  --brand-accent-local: var(--brand-accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.62em;
+  color: var(--brand-fg);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.vetoLayerLogo--light {
+  --brand-fg: #f7f9fc;
+  --brand-accent-local: #d8ff61;
+}
+
+.vetoLayerLogo--dark {
+  --brand-fg: #0a0c11;
+  --brand-accent-local: #6f8f17;
+}
+
+.vetoLayerLogo--mono {
+  --brand-accent-local: currentColor;
+}
+
+.vetoLayerLogoMark {
+  display: block;
+  flex: 0 0 auto;
+  color: var(--brand-fg);
+  --brand-accent: var(--brand-accent-local);
+}
+
+.vetoLayerWordmark {
+  display: inline-flex;
+  align-items: baseline;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+}
+
+.vetoLayerWordmarkAccent {
+  color: var(--brand-accent-local);
+}
+
+.vetoLayerLogo--sm .vetoLayerLogoMark { width: 26px; height: 26px; }
+.vetoLayerLogo--sm .vetoLayerWordmark { font-size: 15px; }
+.vetoLayerLogo--md .vetoLayerLogoMark { width: 32px; height: 32px; }
+.vetoLayerLogo--md .vetoLayerWordmark { font-size: 17px; }
+.vetoLayerLogo--lg .vetoLayerLogoMark { width: 42px; height: 42px; }
+.vetoLayerLogo--lg .vetoLayerWordmark { font-size: 22px; }
+
+.vetoLayerLogo--compact { gap: 0; }
+
+@media (forced-colors: active) {
+  .vetoLayerLogo,
+  .vetoLayerLogo--light,
+  .vetoLayerLogo--dark {
+    --brand-fg: CanvasText;
+    --brand-accent-local: CanvasText;
+  }
+}

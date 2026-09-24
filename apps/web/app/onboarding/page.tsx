@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { OnboardingFlow } from "../../components/onboarding-flow";
+import { VetoLayerLogo } from "../../components/vetolayer-logo";
 
 export default function OnboardingPage() {
   return (
     <main className="onboardingShell" id="main-content" tabIndex={-1}>
-      <nav className="onboardingNav" aria-label="Onboarding navigation"><Link href="/" className="brand"><span className="mark">V</span> VetoLayer</Link><Link href="/demo">View demo instead</Link></nav>
+      <nav className="onboardingNav" aria-label="Onboarding navigation">
+        <Link href="/" className="brand" aria-label="VetoLayer home"><VetoLayerLogo size="md" /></Link>
+        <Link href="/demo">View demo instead</Link>
+      </nav>
       <div className="onboardingLayout">
         <aside className="onboardingAside" aria-label="VetoLayer onboarding principles">
           <p className="eyebrow">GET TO YOUR FIRST DECISION</p>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { VetoLayerLogo } from "../components/vetolayer-logo";
 import { isSupabaseAuthConfigured } from "../lib/supabase/server";
 
 const controlPath = [
@@ -21,7 +22,7 @@ export default function HomePage() {
   return (
     <main className="marketingShell" id="main-content" tabIndex={-1}>
       <nav className="marketingNav" aria-label="Main navigation">
-        <Link href="/" className="brand"><span className="mark">V</span> VetoLayer</Link>
+        <Link href="/" className="brand" aria-label="VetoLayer home"><VetoLayerLogo size="md" /></Link>
         <div className="marketingNavLinks">
           <Link href="/demo">Live demo</Link>
           {authConfigured ? (
@@ -118,7 +119,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="marketingFooter"><span>VetoLayer</span><span>Reason before the action is real.</span><span>Powered by SERV Reasoning</span></footer>
+      <footer className="marketingFooter"><VetoLayerLogo size="sm" /><span>Reason before the action is real.</span><span>Powered by SERV Reasoning</span></footer>
     </main>
   );
 }
