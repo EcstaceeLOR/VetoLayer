@@ -10,9 +10,11 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
 NEXT_PUBLIC_APP_URL=https://<your-vetolayer-host>
 ```
 
-The publishable key is safe for browser use. `SUPABASE_SERVICE_ROLE_KEY` is separate and remains server-only.
+The publishable key is browser-safe. `SUPABASE_SERVICE_ROLE_KEY` is separate and remains server-only.
 
 Enable email/password authentication in Supabase Auth. Add the deployed VetoLayer origin and `/auth/callback` URL to the project's allowed redirect URLs.
+
+VetoLayer prefers the configured `NEXT_PUBLIC_APP_URL` for confirmation redirects, then trusted Vercel deployment metadata, and only then the current request origin. Post-auth continuation paths are validated as same-origin application paths, including backslash/protocol-relative edge cases.
 
 ## Ownership model
 
@@ -22,13 +24,15 @@ The server verifies the current Supabase user and derives a workspace ID as:
 user:<supabase-user-id>
 ```
 
-Clients cannot choose their workspace ID. Internal APIs ignore caller-supplied workspace headers and resolve ownership from the authenticated user instead.
+Clients cannot choose their hosted workspace ID. Internal APIs ignore caller-supplied workspace headers and resolve ownership from the authenticated user.
 
 The deliberately public hackathon demo keeps its own configured workspace (`VETOLAYER_DEMO_WORKSPACE_ID`) and is not mixed with authenticated product workspaces.
 
+The Developer API is also isolated from the demo workspace. Its bearer key maps to the server-owned `VETOLAYER_API_WORKSPACE_ID` (default `service:developer-api`). In production, the API is disabled with `503 API_AUTH_NOT_CONFIGURED` until `VETOLAYER_API_KEY` is configured.
+
 ## Durable tables
 
-The server-side stores use the Supabase service-role key after authentication has established the workspace boundary. RLS stays enabled and no browser policies are required for the MVP because application data is not queried directly from the browser.
+Server-side stores use the Supabase service-role key only after the application has established the workspace boundary. RLS stays enabled and no browser policies are required for the MVP because application data is not queried directly from the browser.
 
 ```sql
 create table if not exists public.vetolayer_decisions (
@@ -90,7 +94,7 @@ Public:
 - `/auth/callback`
 - `/api/demo/*`
 - `/api/health`
-- `/api/v1/*` (protected separately by the Developer API bearer-key model)
+- `/api/v1/*` — separate bearer-key boundary; fail-closed in production if unconfigured
 
 Authenticated product surface:
 
