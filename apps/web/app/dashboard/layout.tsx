@@ -1,14 +1,24 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { ProductNavigation } from "../../components/product-navigation";
+import { getAuthenticatedWorkspace } from "../../lib/server/workspace";
+import { signOut } from "../login/actions";
 import "./health.css";
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
+export const dynamic = "force-dynamic";
+
+export default async function DashboardLayout({ children }: { children: ReactNode }) {
+  const workspace = await getAuthenticatedWorkspace();
+  if (!workspace) redirect("/login?next=/dashboard");
+
+  const avatar = (workspace.email?.[0] ?? workspace.label[0] ?? "V").toUpperCase();
+
   return (
     <div className="productShell">
       <aside className="sidebar">
         <Link href="/" className="brand dashboardBrand"><span className="mark">V</span> VetoLayer</Link>
-        <div className="workspaceTag"><span className="workspaceDot" /> Acme Engineering</div>
+        <div className="workspaceTag" title={workspace.email}><span className="workspaceDot" /> {workspace.label}</div>
         <ProductNavigation />
         <div className="sideDemoCard">
           <span>FLAGSHIP SCENARIO</span>
@@ -23,8 +33,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </aside>
       <main className="dashboardMain">
         <div className="dashboardTopbar">
-          <div><span className="workspaceCrumb">Acme Engineering</span><span>/</span><strong>Production Gate</strong></div>
-          <div className="topbarActions"><Link href="/onboarding">New project</Link><span className="avatar" aria-label="Workspace owner">A</span></div>
+          <div><span className="workspaceCrumb">{workspace.label}</span><span>/</span><strong>Production Gate</strong></div>
+          <div className="topbarActions">
+            <Link href="/onboarding">New project</Link>
+            <span className="avatar" aria-label={`Signed in as ${workspace.email ?? workspace.label}`} title={workspace.email}>{avatar}</span>
+            <form action={signOut}><button className="topbarSignOut" type="submit">Sign out</button></form>
+          </div>
         </div>
         {children}
       </main>
