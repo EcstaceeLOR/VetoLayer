@@ -2,9 +2,9 @@ import {
   evaluateGitHubSnapshot,
   type GitHubPullRequestSnapshot,
 } from "@vetolayer/github-gate";
-import type { ServClientConfig } from "@vetolayer/serv";
 
 export type DemoStage = "needs-approval" | "resolved";
+type GitHubSnapshotInput = Parameters<typeof evaluateGitHubSnapshot>[0];
 
 const baseSnapshot: Omit<GitHubPullRequestSnapshot, "reviews"> = {
   owner: "vetolayer-labs",
@@ -46,7 +46,7 @@ export function flagshipSnapshot(stage: DemoStage): GitHubPullRequestSnapshot {
 export async function runFlagshipDemo(
   stage: DemoStage,
   options: {
-    servConfig?: ServClientConfig;
+    servConfig?: GitHubSnapshotInput["servConfig"];
     servFetch?: typeof fetch;
     now?: Date;
   } = {},
