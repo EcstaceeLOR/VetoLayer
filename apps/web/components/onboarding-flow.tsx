@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRightIcon } from "./ui/icons";
+import { Button, Card, Field, Input } from "./ui/primitives";
 
 type UseCase = "coding" | "support" | "finance";
 
@@ -28,41 +30,41 @@ export function OnboardingFlow() {
   }
 
   return (
-    <div className="onboardingCard">
+    <Card className="onboardingCard" raised>
       <div className="onboardingProgress" aria-label={`Onboarding step ${step} of 3`}>
         {[1, 2, 3].map((value) => <span key={value} className={value <= step ? "complete" : ""} />)}
       </div>
 
       {step === 1 ? (
         <section className="onboardingStep">
-          <p className="eyebrow">STEP 1 · YOUR CONTROL SURFACE</p>
+          <p className="vlEyebrow">Step 1 · Your control surface</p>
           <h1>Where will VetoLayer make decisions?</h1>
           <p className="muted">Create a lightweight workspace and first project. Authentication and durable ownership are added separately; this flow establishes the product model now.</p>
-          <label className="fieldLabel">Workspace name<input value={workspace} onChange={(event) => setWorkspace(event.target.value)} placeholder="Acme Engineering" autoFocus /></label>
-          <label className="fieldLabel">First project<input value={project} onChange={(event) => setProject(event.target.value)} placeholder="Production Gate" /></label>
-          <button className="primaryButton buttonReset" disabled={!canContinue} onClick={() => setStep(2)}>Choose a use case →</button>
+          <Field label="Workspace name"><Input value={workspace} onChange={(event) => setWorkspace(event.target.value)} placeholder="Acme Engineering" autoFocus /></Field>
+          <Field label="First project"><Input value={project} onChange={(event) => setProject(event.target.value)} placeholder="Production Gate" /></Field>
+          <Button tone="primary" size="lg" disabled={!canContinue} onClick={() => setStep(2)}>Choose a use case <ArrowRightIcon /></Button>
         </section>
       ) : null}
 
       {step === 2 ? (
         <section className="onboardingStep">
-          <p className="eyebrow">STEP 2 · INITIAL POLICY PACK</p>
+          <p className="vlEyebrow">Step 2 · Initial policy pack</p>
           <h1>Start with the action that matters most.</h1>
           <p className="muted">VetoLayer&apos;s core stays horizontal. Your first use case only determines the starter policy pack and onboarding guidance.</p>
           <div className="useCaseChooser">
             {useCases.map((item) => (
-              <button key={item.id} type="button" className={useCase === item.id ? "useCaseChoice selected" : "useCaseChoice"} onClick={() => setUseCase(item.id)}>
+              <button key={item.id} type="button" className={useCase === item.id ? "useCaseChoice selected vlCard vlCardInteractive" : "useCaseChoice vlCard vlCardInteractive"} onClick={() => setUseCase(item.id)}>
                 <span>{item.recommended ? "RECOMMENDED" : "POLICY PACK"}</span><strong>{item.title}</strong><p>{item.copy}</p><i>{useCase === item.id ? "Selected ✓" : "Select →"}</i>
               </button>
             ))}
           </div>
-          <div className="onboardingActions"><button className="textButton" onClick={() => setStep(1)}>← Back</button><button className="primaryButton buttonReset" onClick={() => setStep(3)}>Review setup →</button></div>
+          <div className="onboardingActions"><Button tone="ghost" onClick={() => setStep(1)}>← Back</Button><Button tone="primary" size="lg" onClick={() => setStep(3)}>Review setup <ArrowRightIcon /></Button></div>
         </section>
       ) : null}
 
       {step === 3 ? (
         <section className="onboardingStep">
-          <p className="eyebrow">STEP 3 · READY TO GATE</p>
+          <p className="vlEyebrow">Step 3 · Ready to gate</p>
           <h1>Your first VetoLayer project is ready.</h1>
           <div className="setupSummary">
             <div><span>Workspace</span><strong>{workspace}</strong></div>
@@ -71,9 +73,9 @@ export function OnboardingFlow() {
             <div><span>Decision model</span><strong>Deterministic policy + SERV contextual judgment</strong></div>
           </div>
           <div className="nextStepsPanel"><span>WHAT HAPPENS NEXT</span><ol><li>Create or review the starter policies.</li><li>Connect an integration or developer API.</li><li>Evaluate the first proposed agent action.</li></ol></div>
-          <div className="onboardingActions"><button className="textButton" onClick={() => setStep(2)}>← Back</button><button className="primaryButton buttonReset" onClick={finish}>Enter control center →</button></div>
+          <div className="onboardingActions"><Button tone="ghost" onClick={() => setStep(2)}>← Back</Button><Button tone="primary" size="lg" onClick={finish}>Enter control center <ArrowRightIcon /></Button></div>
         </section>
       ) : null}
-    </div>
+    </Card>
   );
 }
