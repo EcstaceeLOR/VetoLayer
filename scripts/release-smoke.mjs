@@ -37,6 +37,7 @@ const deploymentArtifacts = [
 ];
 
 const behavioralProof = [
+  "apps/web/app/api/demo/demo-flow.test.ts",
   "apps/web/lib/flagship-demo.test.ts",
   "apps/web/lib/policy-studio.test.ts",
   "apps/web/lib/server/app-origin.test.ts",
