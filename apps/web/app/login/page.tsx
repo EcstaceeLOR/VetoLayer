@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Badge, Button, Card, Field, Input, Notice } from "../../components/ui/primitives";
 import { VetoLayerLogo } from "../../components/vetolayer-logo";
 import { safeAppPath } from "../../lib/server/app-origin";
 import { isSupabaseAuthConfigured } from "../../lib/supabase/server";
@@ -30,38 +31,36 @@ export default async function LoginPage({
       <div className="authFrame">
         <Link href="/" className="brand authBrand" aria-label="VetoLayer home"><VetoLayerLogo size="md" /></Link>
         <section className="authIntro" aria-labelledby="auth-heading">
-          <p className="eyebrow">WORKSPACE ACCESS</p>
+          <p className="vlEyebrow">Workspace access</p>
           <h1 id="auth-heading">Own the decisions your agents make.</h1>
           <p>Sign in to a private VetoLayer workspace. Policies, decisions, review cases, and integration state stay scoped to the authenticated owner.</p>
         </section>
 
-        <section className="authCard" aria-label="Sign in or create an account">
+        <Card className="authCard" raised aria-label="Sign in or create an account">
           <div className="authCardHeader">
             <div><span className="authStatusDot" aria-hidden="true" /> Supabase Auth</div>
-            <span className={configured ? "authState ready" : "authState needsConfig"}>{configured ? "Configured" : "Needs setup"}</span>
+            <Badge tone={configured ? "success" : "warning"}>{configured ? "Configured" : "Needs setup"}</Badge>
           </div>
 
-          {error ? <div className="authNotice error" role="alert">{error}</div> : null}
-          {message ? <div className="authNotice success" role="status">{message}</div> : null}
+          {error ? <Notice tone="danger" title="Authentication unavailable" role="alert">{error}</Notice> : null}
+          {message ? <Notice tone="success" title="Check your email" role="status">{message}</Notice> : null}
 
           <form className="authForm">
             <input type="hidden" name="next" value={next} />
-            <label htmlFor="email">
-              <span>Email</span>
-              <input id="email" name="email" type="email" autoComplete="email" required placeholder="you@company.com" disabled={!configured} />
-            </label>
-            <label htmlFor="password">
-              <span>Password</span>
-              <input id="password" name="password" type="password" autoComplete="current-password" minLength={6} required placeholder="••••••••" disabled={!configured} />
-            </label>
+            <Field label="Email">
+              <Input id="email" name="email" type="email" autoComplete="email" required placeholder="you@company.com" disabled={!configured} />
+            </Field>
+            <Field label="Password" hint="Use the password associated with your VetoLayer account.">
+              <Input id="password" name="password" type="password" autoComplete="current-password" minLength={6} required placeholder="••••••••" disabled={!configured} />
+            </Field>
             <div className="authActions">
-              <button className="authPrimary" formAction={signIn} disabled={!configured}>Sign in</button>
-              <button className="authSecondary" formAction={signUp} disabled={!configured}>Create account</button>
+              <Button tone="primary" size="lg" formAction={signIn} disabled={!configured}>Sign in</Button>
+              <Button tone="secondary" size="lg" formAction={signUp} disabled={!configured}>Create account</Button>
             </div>
           </form>
 
           <p className="authFinePrint">VetoLayer uses Supabase-hosted authentication. Workspace identity is verified server-side before protected data is read or written.</p>
-        </section>
+        </Card>
       </div>
     </main>
   );
