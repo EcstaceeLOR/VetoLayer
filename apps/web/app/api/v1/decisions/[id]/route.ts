@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { developerApiWorkspaceId } from "../../../../../lib/server/api-workspace";
 import { getDecisionStore } from "../../../../../lib/server/decision-store";
 import { authorizeDeveloperRequest, type ApiErrorBody } from "../../../../../lib/server/developer-api";
 import { readServerEnvironment } from "../../../../../lib/server/env";
@@ -14,14 +15,14 @@ export async function GET(
   const authError = authorizeDeveloperRequest(request, environment);
   if (authError) return NextResponse.json(authError, { status: 401 });
 
-  const workspaceId = request.headers.get("x-vetolayer-workspace")?.trim() || environment.demoWorkspaceId;
+  const workspaceId = developerApiWorkspaceId(environment);
   const { store, persistence } = getDecisionStore();
 
   try {
     const record = await store.get(workspaceId, id);
     if (!record) {
       return NextResponse.json<ApiErrorBody>(
-        { error: { code: "DECISION_NOT_FOUND", message: "No Decision Receipt was found for this workspace and id." } },
+        { error: { code: "DECISION_NOT_FOUND", message: "No Decision Receipt was found for this API workspace and id." } },
         { status: 404 },
       );
     }
