@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="180" viewBox="0 0 720 180" role="img" aria-labelledby="title desc">
+  <title id="title">VetoLayer</title>
+  <desc id="desc">VetoLayer Gate-V logo and wordmark.</desc>
+  <rect width="720" height="180" rx="28" fill="#080A0F"/>
+  <g transform="translate(58 42) scale(3)">
+    <path d="M6.4 5.5 16 27 25.6 5.5" fill="none" stroke="#F4F7FB" stroke-width="4.25" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M5.2 15.25h21.6" fill="none" stroke="#D8FF61" stroke-width="4.25" stroke-linecap="round"/>
+  </g>
+  <text x="184" y="111" fill="#F4F7FB" font-family="Inter, Arial, sans-serif" font-size="62" font-weight="800" letter-spacing="-3">Veto<tspan fill="#D8FF61">Layer</tspan></text>
+</svg>
