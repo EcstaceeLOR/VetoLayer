@@ -11,7 +11,7 @@ export function logServerEvent(
     timestamp: new Date().toISOString(),
     level,
     event,
-    ...sanitize(metadata),
+    ...sanitizeRecord(metadata),
   };
 
   const line = JSON.stringify(entry);
@@ -20,14 +20,17 @@ export function logServerEvent(
   else console.info(line);
 }
 
-function sanitize(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sanitize);
-  if (!value || typeof value !== "object") return value;
-
+function sanitizeRecord(value: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>).map(([key, child]) => [
+    Object.entries(value).map(([key, child]) => [
       key,
-      SECRET_KEY_PATTERN.test(key) ? "[redacted]" : sanitize(child),
+      SECRET_KEY_PATTERN.test(key) ? "[redacted]" : sanitizeValue(child),
     ]),
   );
+}
+
+function sanitizeValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizeValue);
+  if (!value || typeof value !== "object") return value;
+  return sanitizeRecord(value as Record<string, unknown>);
 }
