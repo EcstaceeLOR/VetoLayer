@@ -27,11 +27,47 @@ export const githubGatePolicies: Policy[] = [
     },
   },
   {
+    id: "github-human-rejection",
+    name: "Human rejection blocks execution",
+    description: "A recorded VetoLayer human rejection is an explicit stop signal for this evaluation.",
+    severity: "critical",
+    priority: 2,
+    enabled: true,
+    mode: "deterministic",
+    requiredEvidence: [],
+    exceptions: [],
+    scope: { actionTypes: ["source-control"], tools: ["github"] },
+    rule: {
+      effect: "block",
+      match: "all",
+      conditions: [{ field: "facts.humanReviewRejected", operator: "equals", value: true }],
+    },
+  },
+  {
+    id: "github-review-evidence-request",
+    name: "Requested evidence keeps action in review",
+    description: "When a human reviewer requests more evidence, autonomous execution remains paused.",
+    severity: "high",
+    priority: 3,
+    enabled: true,
+    mode: "deterministic",
+    requiredEvidence: [],
+    exceptions: [],
+    scope: { actionTypes: ["source-control"], tools: ["github"] },
+    rule: {
+      effect: "review",
+      match: "all",
+      conditions: [
+        { field: "facts.humanReviewRequestedEvidence", operator: "equals", value: true },
+      ],
+    },
+  },
+  {
     id: "github-ci-must-pass",
     name: "CI must pass before autonomous execution",
     description: "A proposed GitHub action requires successful current check runs.",
     severity: "critical",
-    priority: 2,
+    priority: 4,
     enabled: true,
     mode: "deterministic",
     requiredEvidence: [
@@ -56,14 +92,14 @@ export const githubGatePolicies: Policy[] = [
     name: "At least one human approval is required",
     description: "Autonomous GitHub actions require a current approving human review.",
     severity: "high",
-    priority: 3,
+    priority: 5,
     enabled: true,
     mode: "deterministic",
     requiredEvidence: [
       {
         key: "review-approval",
         type: "review-approval",
-        description: "Verified pull request review state",
+        description: "Verified pull request or VetoLayer human review state",
         required: true,
         maxAgeSeconds: 300,
       },
@@ -82,7 +118,7 @@ export const githubGatePolicies: Policy[] = [
     description:
       "Authentication, security, workflow, infrastructure, or protected-configuration changes require contextual judgment before autonomous execution.",
     severity: "critical",
-    priority: 4,
+    priority: 6,
     enabled: true,
     mode: "contextual",
     requiredEvidence: [
@@ -124,10 +160,11 @@ export const githubGatePolicies: Policy[] = [
     ],
     scope: { actionTypes: ["source-control"], tools: ["github"] },
     instruction:
-      "Determine whether this coding-agent action should execute now. Give particular scrutiny to sensitive files, production deployment, protected configuration, security/authentication changes, and restricted deployment windows. Apply the critical-security-remediation exception only when the supplied context and evidence fully support it.",
+      "Determine whether this coding-agent action should execute now. Give particular scrutiny to sensitive files, production deployment, protected configuration, security/authentication changes, restricted deployment windows, and any recorded VetoLayer human review. Apply the critical-security-remediation exception only when the supplied context and evidence fully support it.",
     decisionCriteria: [
       "Do not invent approvals, check results, incidents, or risk facts",
       "Missing or ambiguous evidence requires REVIEW",
+      "A recorded human rejection must not be treated as approval",
       "A clearly unsafe sensitive action may be BLOCKed",
       "ALLOW only when the supplied evidence supports the action under the policy",
     ],
