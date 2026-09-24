@@ -19,13 +19,23 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
     return true;
   });
 
+  const filtered = Boolean(outcome || tool || reasoning);
+
   return (
     <>
       <header className="dashboardHeader compactHeader"><div><div className="headerModeRow"><p className="eyebrow">DECISIONS</p><span className={`dataModeBadge ${feed.mode}`}>{feed.mode === "demo" ? "DEMO DATA" : feed.mode === "live" ? "LIVE RECEIPTS" : "NO DATA YET"}</span></div><h1 className="dashboardTitle">Every proposed action, with the reason it earned its outcome.</h1><p className="dashboardIntro">Inspect deterministic checks, SERV contextual findings, evidence, and receipt integrity from one place.</p></div></header>
+
+      {feed.mode === "demo" ? (
+        <section className="demoDataNotice">
+          <div><span>DEMO MODE</span><strong>Seeded receipts are clearly separated from real workspace decisions.</strong><p>Use them to understand the interface, then run the flagship scenario to see the real pipeline evaluate changing evidence.</p></div>
+          <Link href="/demo">Run flagship scenario →</Link>
+        </section>
+      ) : null}
+
       <section className="dashboardSection">
         <div className="decisionFilterBar">
           <span>{decisions.length} decision{decisions.length === 1 ? "" : "s"}</span>
-          {(outcome || tool || reasoning) ? <Link href="/dashboard/decisions" className="rowLink">Clear filters ×</Link> : null}
+          {filtered ? <Link href="/dashboard/decisions" className="rowLink">Clear filters ×</Link> : null}
         </div>
         {decisions.length ? (
           <div className="decisionTable" role="table" aria-label="VetoLayer decisions">
@@ -40,8 +50,24 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
               </div>
             ))}
           </div>
+        ) : filtered ? (
+          <div className="dashboardEmptyState compactEmptyState">
+            <p className="eyebrow">FILTERED VIEW</p>
+            <h2>No decisions match these filters.</h2>
+            <p>Your decision history is intact. Clear the active filters to inspect the rest of the stream.</p>
+            <div className="emptyActions"><Link className="primaryLink" href="/dashboard/decisions">Clear filters →</Link></div>
+          </div>
         ) : (
-          <div className="dashboardEmptyState compactEmptyState"><h2>No decisions match this view.</h2><p>{feed.mode === "empty" ? "No persisted Decision Receipts exist yet." : "Change or clear the active filters to inspect another part of the decision stream."}</p></div>
+          <div className="dashboardEmptyState compactEmptyState">
+            <p className="eyebrow">FIRST DECISION</p>
+            <h2>No real Decision Receipts exist yet.</h2>
+            <p>A decision appears here only after an action has actually passed through VetoLayer. Connect an execution path, evaluate one action, and this becomes your auditable history.</p>
+            <div className="emptyActions">
+              <Link className="primaryLink" href="/dashboard/integrations">Connect an integration →</Link>
+              <Link className="rowLink" href="/dashboard/policies">Create a policy →</Link>
+              <Link className="rowLink" href="/demo">Run flagship demo →</Link>
+            </div>
+          </div>
         )}
       </section>
     </>

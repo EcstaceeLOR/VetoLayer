@@ -1,6 +1,11 @@
 import Link from "next/link";
+import { FirstRunChecklist } from "../../components/first-run-checklist";
 import { summarizeDecisionHealth } from "../../lib/decision-health";
+import { buildFirstRunGuide } from "../../lib/first-run";
 import { loadDashboardDecisionFeed } from "../../lib/server/dashboard-decisions";
+import { getIntegrationReadiness } from "../../lib/server/integration-health";
+import { getOptionalPolicyStore } from "../../lib/server/policy-store";
+import { getAuthenticatedWorkspace } from "../../lib/server/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +14,7 @@ export default async function DashboardPage() {
   const health = summarizeDecisionHealth(feed.decisions);
   const recentDecisions = feed.decisions.slice(0, 8);
   const reviewDecision = feed.decisions.find((decision) => decision.outcome === "REVIEW");
+  const guide = await loadFirstRunGuide(feed.mode === "live" ? feed.decisions.length : 0);
 
   return (
     <>
@@ -24,18 +30,28 @@ export default async function DashboardPage() {
         <div className="liveBadge"><span className="pulse" /> Decision health</div>
       </header>
 
+      <FirstRunChecklist guide={guide} />
+
       {feed.mode === "empty" ? (
         <section className="dashboardEmptyState">
           <p className="eyebrow">NO RECEIPTS YET</p>
           <h2>Your operational picture starts with the first evaluated action.</h2>
-          <p>Production analytics never substitute seeded data. Connect an integration or use the Developer API to create real Decision Receipts, or explicitly enable demo mode for a guided preview.</p>
+          <p>Production analytics never substitute seeded data. Create a policy, connect an execution path, and evaluate an action to generate your first real Decision Receipt. Or use the flagship scenario to see the complete experience immediately.</p>
           <div className="emptyActions">
-            <Link className="primaryLink" href="/dashboard/integrations">Connect an integration →</Link>
-            <Link className="rowLink" href="/demo">Open flagship demo →</Link>
+            <Link className="primaryLink" href="/dashboard/policies">Create a policy →</Link>
+            <Link className="rowLink" href="/dashboard/integrations">Connect an integration →</Link>
+            <Link className="rowLink" href="/demo">Run flagship demo →</Link>
           </div>
         </section>
       ) : (
         <>
+          {feed.mode === "demo" ? (
+            <section className="demoDataNotice">
+              <div><span>DEMO MODE</span><strong>These receipts are seeded examples, not workspace activity.</strong><p>They are here to preview the control center. Evaluations in the flagship demo still run through the real deterministic + SERV decision pipeline.</p></div>
+              <Link href="/demo">Run the real demo evaluation →</Link>
+            </section>
+          ) : null}
+
           <section className="metricGrid" aria-label="Decision summary">
             <Link href="/dashboard/decisions?outcome=ALLOW" className="metricCard metricLink"><span>Allowed</span><strong>{health.outcomes.ALLOW}</strong><small>safe to execute</small></Link>
             <Link href="/dashboard/decisions?outcome=REVIEW" className="metricCard metricLink"><span>Needs review</span><strong>{health.outcomes.REVIEW}</strong><small>{health.unresolvedReviews} unresolved latest action{health.unresolvedReviews === 1 ? "" : "s"}</small></Link>
@@ -118,4 +134,27 @@ export default async function DashboardPage() {
       )}
     </>
   );
+}
+
+async function loadFirstRunGuide(decisionCount: number) {
+  let policyCount = 0;
+  try {
+    const workspace = await getAuthenticatedWorkspace();
+    const policyStore = getOptionalPolicyStore();
+    if (workspace && policyStore) {
+      policyCount = (await policyStore.list(workspace.workspaceId)).length;
+    }
+  } catch {
+    policyCount = 0;
+  }
+
+  let integrationReady = false;
+  try {
+    const readiness = getIntegrationReadiness();
+    integrationReady = readiness.github.ready || readiness.developerApi.ready;
+  } catch {
+    integrationReady = false;
+  }
+
+  return buildFirstRunGuide({ policyCount, integrationReady, decisionCount });
 }

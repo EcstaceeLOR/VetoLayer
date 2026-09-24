@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FlagshipDemoClient } from "./demo-client";
+import "./demo-mode.css";
 
 export default function DemoPage() {
   return (
@@ -10,6 +11,7 @@ export default function DemoPage() {
       </nav>
 
       <header className="demoHero">
+        <div className="demoModeLabel">DEMO MODE · SEEDED SCENARIO · REAL DECISION PIPELINE</div>
         <p className="eyebrow">LIVE FLAGSHIP SCENARIO</p>
         <h1>The agent has permission.<br />Should it deploy?</h1>
         <p>
@@ -17,6 +19,9 @@ export default function DemoPage() {
           VetoLayer combines hard controls with SERV reasoning over the exception—and changes its
           decision only when the evidence changes.
         </p>
+        <div className="demoTrustNote">
+          <strong>What is seeded:</strong> PR metadata, incident context, CI state, and approval state. <strong>What is real:</strong> the deterministic policy engine, SERV contextual judgment, orchestration, and Decision Receipt generation run when you evaluate.
+        </div>
       </header>
 
       <FlagshipDemoClient />
