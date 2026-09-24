@@ -29,7 +29,7 @@ describe("public MVP hardening", () => {
     expect(consumeRateLimit({ key: "demo:test", limit: 2, now: 3 }).allowed).toBe(false);
   });
 
-  it("persists and reads Decision Receipts through the Supabase REST boundary", async () => {
+  it("persists workspace-namespaced Decision Receipts through the Supabase REST boundary", async () => {
     const receipt = dashboardDecisions[0]!;
     const fetchMock = vi
       .fn()
@@ -38,7 +38,7 @@ describe("public MVP hardening", () => {
         new Response(
           JSON.stringify([
             {
-              id: receipt.receiptId,
+              id: `demo:${receipt.receiptId}`,
               workspace_id: "demo",
               source: "demo",
               receipt,
@@ -66,8 +66,11 @@ describe("public MVP hardening", () => {
     await store.clearDemo("demo");
 
     expect(history).toHaveLength(1);
+    expect(history[0]?.id).toBe(receipt.receiptId);
     expect(history[0]?.receipt.decisionId).toBe(receipt.decisionId);
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/rest/v1/vetolayer_decisions");
+    const saveInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(String(saveInit.body)).id).toBe(`demo:${receipt.receiptId}`);
   });
 });
