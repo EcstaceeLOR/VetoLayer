@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 type DemoResponse = {
@@ -12,21 +13,22 @@ type DemoResponse = {
   trace: Array<{ step: string; status: string; summary: string }>;
   providerTrace?: Record<string, unknown>;
   receipt: { integrity: { hash: string }; receiptId: string };
+  reviewCaseId?: string;
 };
 
 export function FlagshipDemoClient() {
   const [result, setResult] = useState<DemoResponse | null>(null);
-  const [loading, setLoading] = useState<"needs-approval" | "resolved" | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function evaluate(stage: "needs-approval" | "resolved") {
-    setLoading(stage);
+  async function evaluate() {
+    setLoading(true);
     setError(null);
     try {
       const response = await fetch("/api/demo/evaluate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage }),
+        body: JSON.stringify({ stage: "needs-approval" }),
       });
       const payload = (await response.json()) as DemoResponse | { error: string };
       if (!response.ok || "error" in payload) {
@@ -36,7 +38,7 @@ export function FlagshipDemoClient() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Evaluation failed");
     } finally {
-      setLoading(null);
+      setLoading(false);
     }
   }
 
@@ -57,11 +59,15 @@ export function FlagshipDemoClient() {
           <div><span>CI</span><strong>3/3 passing</strong></div>
           <div><span>Files</span><strong>Auth + security</strong></div>
           <div><span>Incident</span><strong>INC-2041</strong></div>
-          <div><span>Human approval</span><strong className={result?.stage === "resolved" ? "factGood" : "factWarn"}>{result?.stage === "resolved" ? "Security lead ✓" : "Missing"}</strong></div>
+          <div><span>Human approval</span><strong className="factWarn">Missing</strong></div>
         </div>
         <div className="demoControls">
-          <button className="demoButton secondaryDemoButton" disabled={loading !== null} onClick={() => evaluate("needs-approval")}>{loading === "needs-approval" ? "Evaluating…" : "1. Evaluate current action"}</button>
-          <button className="demoButton" disabled={loading !== null} onClick={() => evaluate("resolved")}>{loading === "resolved" ? "Re-evaluating…" : "2. Add approval & re-evaluate"}</button>
+          <button className="demoButton secondaryDemoButton" disabled={loading} onClick={evaluate}>{loading ? "Evaluating…" : "1. Evaluate current action"}</button>
+          {result?.outcome === "REVIEW" && result.reviewCaseId ? (
+            <Link className="demoButton demoReviewLink" href={`/dashboard/reviews?case=${encodeURIComponent(result.reviewCaseId)}`}>2. Open Human Review →</Link>
+          ) : (
+            <button className="demoButton" disabled>2. Human review appears after REVIEW</button>
+          )}
         </div>
         {error ? <p className="demoError">{error}</p> : null}
       </section>
@@ -95,6 +101,14 @@ export function FlagshipDemoClient() {
             ) : (
               <div className="demoResolution successResolution"><span>Execution gate satisfied</span><p>Deterministic requirements and SERV contextual judgment both permit the action.</p></div>
             )}
+
+            {result.outcome === "REVIEW" ? (
+              <div className="demoReviewHandoff">
+                <span>HUMAN REVIEW CREATED</span>
+                <p>The action is paused. Approval, rejection, or a request for more evidence will be recorded and then the exact same policy + SERV pipeline runs again.</p>
+                {result.reviewCaseId ? <Link href={`/dashboard/reviews?case=${encodeURIComponent(result.reviewCaseId)}`}>Open review case →</Link> : null}
+              </div>
+            ) : null}
 
             <div className="demoReceipt"><span>Decision Receipt</span><code>{result.receipt.integrity.hash.slice(0, 26)}…</code></div>
           </>

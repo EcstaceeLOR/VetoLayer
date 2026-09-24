@@ -1,10 +1,19 @@
 import {
   evaluateGitHubSnapshot,
+  type GitHubIncidentContext,
   type GitHubPullRequestSnapshot,
 } from "@vetolayer/github-gate";
+import type { HumanReviewRecord } from "@vetolayer/core";
 
 export type DemoStage = "needs-approval" | "resolved";
 type GitHubSnapshotInput = Parameters<typeof evaluateGitHubSnapshot>[0];
+
+export const FLAGSHIP_INCIDENT: GitHubIncidentContext = {
+  id: "INC-2041",
+  severity: "critical",
+  summary:
+    "Active session-token replay weakness is exploitable in production; this patch closes the replay path and rotates validation logic.",
+};
 
 const baseSnapshot: Omit<GitHubPullRequestSnapshot, "reviews"> = {
   owner: "vetolayer-labs",
@@ -49,18 +58,15 @@ export async function runFlagshipDemo(
     servConfig?: GitHubSnapshotInput["servConfig"];
     servFetch?: typeof fetch;
     now?: Date;
+    humanReview?: HumanReviewRecord;
   } = {},
 ) {
   return evaluateGitHubSnapshot({
     snapshot: flagshipSnapshot(stage),
     operation: "deploy-production",
     restrictedWindow: true,
-    incident: {
-      id: "INC-2041",
-      severity: "critical",
-      summary:
-        "Active session-token replay weakness is exploitable in production; this patch closes the replay path and rotates validation logic.",
-    },
+    incident: FLAGSHIP_INCIDENT,
+    ...(options.humanReview ? { humanReview: options.humanReview } : {}),
     ...(options.servConfig ? { servConfig: options.servConfig } : {}),
     ...(options.servFetch ? { servFetch: options.servFetch } : {}),
     ...(options.now ? { now: options.now } : {}),

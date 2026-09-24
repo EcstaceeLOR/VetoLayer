@@ -1,0 +1,116 @@
+/* Human Review Inbox */
+.reviewPageHeader { padding-bottom: 30px; }
+.reviewLoading { min-height: 240px; display: flex; align-items: center; justify-content: center; gap: 10px; color: #788396; font-size: 12px; }
+.reviewEmptyState { min-height: 420px; border: 1px dashed var(--line); border-radius: 18px; display: grid; place-items: center; align-content: center; text-align: center; padding: 40px; }
+.reviewEmptyState h2 { margin: 16px 0 8px; }
+.reviewEmptyState p { max-width: 560px; color: #7c8798; line-height: 1.65; margin: 0 0 22px; }
+.reviewEmptyMark { width: 56px; height: 56px; border-radius: 99px; border: 1px solid #39543c; color: var(--allow); display: grid; place-items: center; font-size: 24px; }
+
+.reviewWorkspace { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 14px; align-items: start; }
+.reviewQueuePane { position: sticky; top: 16px; border: 1px solid var(--line); border-radius: 16px; background: #0a0e14; overflow: hidden; max-height: calc(100vh - 32px); }
+.reviewQueueHeader { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border-bottom: 1px solid var(--line); }
+.reviewQueueHeader > div { display: grid; gap: 5px; }
+.reviewQueueHeader span { color: #687286; font: 800 8px/1 ui-monospace, monospace; letter-spacing: .1em; }
+.reviewQueueHeader strong { font-size: 12px; }
+.reviewQueueHeader small { color: #586274; font: 700 8px/1 ui-monospace, monospace; text-transform: uppercase; }
+.reviewCaseList { padding: 7px; overflow: auto; max-height: calc(100vh - 110px); display: grid; gap: 6px; }
+.reviewCaseItem { width: 100%; text-align: left; color: inherit; background: transparent; border: 1px solid transparent; border-radius: 11px; padding: 13px; cursor: pointer; }
+.reviewCaseItem:hover, .reviewCaseItem.active { border-color: var(--line); background: var(--panel); }
+.reviewCaseItem.active { box-shadow: inset 2px 0 var(--accent); }
+.reviewCaseItem > div { display: flex; align-items: center; gap: 7px; }
+.reviewCaseItem strong { display: block; margin-top: 12px; font-size: 12px; line-height: 1.4; }
+.reviewCaseItem small { display: block; color: #677285; font-size: 9px; margin-top: 5px; }
+.reviewCaseItem time { display: block; color: #515b6c; font-size: 8px; margin-top: 10px; }
+.caseStatus { margin-left: auto; color: #687286; font: 800 7px/1 ui-monospace, monospace; text-transform: uppercase; }
+.caseStatus.pending { color: var(--review); }
+
+.reviewDetailPane { min-width: 0; border: 1px solid var(--line); border-radius: 18px; background: rgba(13,16,23,.78); overflow: hidden; }
+.reviewDetailTop { display: flex; justify-content: space-between; align-items: flex-start; gap: 28px; padding: 26px 28px; border-bottom: 1px solid var(--line); }
+.reviewDetailTop h2 { margin: 0 0 9px; font-size: clamp(27px, 3vw, 40px); }
+.reviewDetailTop > div > p:last-child { color: #8b95a6; font-size: 12px; line-height: 1.55; max-width: 760px; }
+.reviewOutcome { border: 1px solid currentColor; border-radius: 10px; padding: 9px 11px; font: 900 12px/1 ui-monospace, monospace; letter-spacing: .09em; }
+.reviewOutcome.allow { color: var(--allow); }
+.reviewOutcome.review { color: var(--review); }
+.reviewOutcome.block { color: var(--block); }
+.reviewContextStrip { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); }
+.reviewContextStrip > div { padding: 15px 18px; border-right: 1px solid var(--line); display: grid; gap: 5px; }
+.reviewContextStrip > div:last-child { border-right: 0; }
+.reviewContextStrip span { color: #606b7d; font: 800 8px/1 ui-monospace, monospace; text-transform: uppercase; letter-spacing: .08em; }
+.reviewContextStrip strong { font-size: 10px; overflow: hidden; text-overflow: ellipsis; }
+.reviewEvidenceLayout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; }
+.reviewReasoningColumn { padding: 18px; border-right: 1px solid var(--line); display: grid; gap: 14px; }
+.reviewCard { border: 1px solid var(--line); border-radius: 13px; overflow: hidden; background: #0a0e14; }
+.reviewCardHead { min-height: 44px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); }
+.reviewCardHead span { color: #727d8f; font: 800 8px/1 ui-monospace, monospace; letter-spacing: .09em; }
+.reviewCardHead small { color: #566173; font-size: 8px; }
+.reviewFinding { display: grid; grid-template-columns: 54px 1fr auto; gap: 11px; align-items: start; padding: 13px 14px; border-bottom: 1px solid var(--line-soft); }
+.reviewFinding:last-child { border-bottom: 0; }
+.findingSource { border: 1px solid var(--line); border-radius: 999px; padding: 5px 6px; color: #818b9c; font: 800 7px/1 ui-monospace, monospace; text-align: center; }
+.findingSource.contextual { color: var(--accent); border-color: #465526; }
+.reviewFinding strong { font-size: 10px; }
+.reviewFinding p { color: #788395; font-size: 10px; line-height: 1.45; margin: 5px 0 0; }
+.reviewFinding i { font-style: normal; text-transform: uppercase; font: 800 7px/1 ui-monospace, monospace; }
+.reviewFinding i.pass { color: var(--allow); }
+.reviewFinding i.fail { color: var(--block); }
+.reviewFinding i.uncertain { color: var(--review); }
+.reviewEvidence { border-bottom: 1px solid var(--line-soft); }
+.reviewEvidence:last-child { border-bottom: 0; }
+.reviewEvidence summary { list-style: none; cursor: pointer; padding: 12px 14px; display: grid; grid-template-columns: 22px 1fr auto; gap: 9px; align-items: center; }
+.reviewEvidence summary::-webkit-details-marker { display: none; }
+.reviewEvidence summary > div { display: grid; gap: 3px; }
+.reviewEvidence summary strong { font-size: 10px; }
+.reviewEvidence summary small, .reviewEvidence summary > span:last-child { color: #647083; font-size: 8px; }
+.evidenceVerified { width: 18px; height: 18px; border-radius: 99px; border: 1px solid #3a5b3d; color: var(--allow); display: grid; place-items: center; font-size: 8px; }
+.reviewEvidence pre { margin: 0; padding: 13px 14px 16px 44px; border-top: 1px solid var(--line-soft); color: #8d97a8; background: #080c12; font-size: 9px; line-height: 1.55; overflow: auto; }
+.unresolvedCard { border-color: #493e25; }
+.unresolvedItem { margin: 0; padding: 11px 14px; color: #b5a274; font-size: 10px; line-height: 1.5; border-bottom: 1px solid rgba(255,215,130,.08); }
+
+.reviewActionPanel { padding: 20px; background: radial-gradient(circle at 100% 0%, rgba(216,255,97,.06), transparent 32%), #0b0f15; }
+.reviewActionIntro > span { color: var(--accent); font: 800 8px/1 ui-monospace, monospace; letter-spacing: .1em; }
+.reviewActionIntro h3 { margin: 12px 0 7px; font-size: 20px; }
+.reviewActionIntro p { color: #788395; font-size: 10px; line-height: 1.55; }
+.recordedReview { margin: 17px 0; border: 1px solid var(--line); border-radius: 11px; padding: 13px; background: #0a0e14; }
+.recordedReview span { color: var(--accent); font: 800 8px/1 ui-monospace, monospace; }
+.recordedReview strong { display: block; margin-top: 9px; font-size: 11px; }
+.recordedReview p { color: #7b8596; font-size: 10px; line-height: 1.45; }
+.recordedReview time { color: #596476; font-size: 8px; }
+.reviewField { display: grid; gap: 7px; margin-top: 14px; color: #7a8596; font-size: 9px; font-weight: 700; }
+.reviewField input, .reviewField textarea { width: 100%; border: 1px solid #293140; border-radius: 9px; background: #080c12; color: var(--text); padding: 10px 11px; resize: vertical; outline: none; }
+.reviewField input:focus, .reviewField textarea:focus { border-color: #687c32; }
+.reviewField small { color: #596476; line-height: 1.4; font-weight: 400; }
+.reviewActionButtons { display: grid; gap: 8px; margin-top: 18px; }
+.reviewActionButtons button { min-height: 42px; border-radius: 9px; font-weight: 800; cursor: pointer; border: 1px solid currentColor; background: transparent; }
+.reviewActionButtons button:disabled { opacity: .45; cursor: wait; }
+.reviewApprove { color: var(--allow); }
+.reviewRequest { color: var(--review); }
+.reviewReject { color: var(--block); }
+.reviewError { margin-top: 12px; border-left: 2px solid var(--block); padding: 9px 10px; color: #d89393; background: rgba(255,155,155,.04); font-size: 9px; line-height: 1.45; }
+.resolvedReviewMessage { margin-top: 20px; border: 1px solid var(--line); border-radius: 12px; padding: 15px; display: grid; gap: 9px; }
+.resolvedReviewMessage > span { color: #687286; font: 800 8px/1 ui-monospace, monospace; }
+.resolvedReviewMessage > strong { font: 900 20px/1 ui-monospace, monospace; }
+.resolvedReviewMessage > strong.allow { color: var(--allow); }
+.resolvedReviewMessage > strong.block { color: var(--block); }
+.resolvedReviewMessage > strong.review { color: var(--review); }
+.resolvedReviewMessage p { color: #768193; font-size: 10px; line-height: 1.5; margin: 0; }
+
+@media (max-width: 1120px) {
+  .reviewWorkspace { grid-template-columns: 1fr; }
+  .reviewQueuePane { position: static; max-height: none; }
+  .reviewCaseList { max-height: 280px; }
+}
+@media (max-width: 860px) {
+  .reviewEvidenceLayout { grid-template-columns: 1fr; }
+  .reviewReasoningColumn { border-right: 0; border-bottom: 1px solid var(--line); }
+  .reviewContextStrip { grid-template-columns: 1fr 1fr; }
+  .reviewContextStrip > div:nth-child(2) { border-right: 0; }
+  .reviewContextStrip > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 600px) {
+  .reviewDetailTop { flex-direction: column; padding: 20px; }
+  .reviewContextStrip { grid-template-columns: 1fr; }
+  .reviewContextStrip > div { border-right: 0; border-bottom: 1px solid var(--line); }
+  .reviewContextStrip > div:last-child { border-bottom: 0; }
+  .reviewReasoningColumn, .reviewActionPanel { padding: 13px; }
+  .reviewFinding { grid-template-columns: 48px 1fr; }
+  .reviewFinding i { grid-column: 2; }
+}
