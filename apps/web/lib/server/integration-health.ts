@@ -144,8 +144,8 @@ export function testDeveloperApiIntegration(input?: {
       ok: false,
       level: "warning",
       code: "API_KEY_MISSING",
-      message: "The Developer API route is available, but production bearer authentication is not configured.",
-      details: { endpoint: "/api/v1/evaluate", auth: "disabled" },
+      message: "The Developer API is disabled in production until bearer authentication is configured.",
+      details: { endpoint: "/api/v1/evaluate", auth: "required" },
       nextSteps: [
         "Set VETOLAYER_API_KEY as a server-side environment variable.",
         "Redeploy, then test the Developer API configuration again.",
@@ -160,10 +160,10 @@ export function testDeveloperApiIntegration(input?: {
     code: environment.apiAuthConfigured ? "DEVELOPER_API_READY" : "DEVELOPER_API_LOCAL_ONLY",
     message: environment.apiAuthConfigured
       ? "The Developer API is ready and bearer authentication is enabled."
-      : "The Developer API is available for local/demo use without bearer authentication.",
+      : "The Developer API is available only for local development until a bearer key is configured.",
     details: {
       endpoint: "/api/v1/evaluate",
-      auth: environment.apiAuthConfigured ? "enabled" : "disabled",
+      auth: environment.apiAuthConfigured ? "enabled" : "local-only",
     },
   };
 }
