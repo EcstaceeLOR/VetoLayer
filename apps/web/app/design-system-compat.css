@@ -1,0 +1,191 @@
+/*
+ * Transitional compatibility layer for product surfaces that predate Issue #51.
+ * Standard controls/status must look and behave like the shared system even before
+ * Issue #52 replaces their feature-specific composition.
+ */
+
+.eyebrow {
+  color: var(--vl-accent);
+  font-size: var(--vl-text-xs);
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.primaryButton,
+.secondaryButton,
+.textButton,
+.topbarSignOut,
+.studioListHeader button,
+.studioActionBar button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--vl-space-2);
+  padding: 0 15px;
+  border-radius: var(--vl-radius-md);
+  font: 750 var(--vl-text-sm)/1 var(--vl-font-sans);
+  cursor: pointer;
+  transition: background var(--vl-motion-base) var(--vl-ease), border-color var(--vl-motion-base) var(--vl-ease), color var(--vl-motion-base) var(--vl-ease), transform var(--vl-motion-fast) var(--vl-ease);
+}
+
+.primaryButton {
+  border: 1px solid var(--vl-accent);
+  background: var(--vl-accent);
+  color: #0a0d08;
+}
+.secondaryButton,
+.studioListHeader button {
+  border: 1px solid var(--vl-border-default);
+  background: var(--vl-surface-2);
+  color: var(--vl-text-primary);
+}
+.textButton,
+.topbarSignOut {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--vl-text-secondary);
+}
+.primaryButton:hover:not(:disabled),
+.secondaryButton:hover:not(:disabled),
+.textButton:hover:not(:disabled),
+.topbarSignOut:hover:not(:disabled),
+.studioListHeader button:hover:not(:disabled),
+.studioActionBar button:hover:not(:disabled) { transform: translateY(-1px); }
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.textButton:focus-visible,
+.topbarSignOut:focus-visible,
+.studioListHeader button:focus-visible,
+.studioActionBar button:focus-visible { outline: 0; box-shadow: var(--vl-shadow-focus); }
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.studioActionBar button:disabled { cursor: not-allowed; opacity: .48; transform: none; }
+
+/* Policy Studio standard fields adopt the same field language as the shared primitives. */
+.studioField {
+  color: var(--vl-text-secondary);
+  font-size: var(--vl-text-sm);
+  font-weight: 650;
+}
+.studioField input,
+.studioField select,
+.studioField textarea,
+.inlineFields select {
+  width: 100%;
+  border: 1px solid var(--vl-border-default);
+  border-radius: var(--vl-radius-md);
+  background: #090d13;
+  color: var(--vl-text-primary);
+  padding: 10px 12px;
+  outline: 0;
+  font: 500 var(--vl-text-sm)/1.45 var(--vl-font-sans);
+  transition: border-color var(--vl-motion-base) var(--vl-ease), background var(--vl-motion-base) var(--vl-ease), box-shadow var(--vl-motion-base) var(--vl-ease);
+}
+.studioField input,
+.studioField select,
+.inlineFields select { min-height: 42px; }
+.studioField textarea { min-height: 92px; resize: vertical; }
+.studioField input:hover,
+.studioField select:hover,
+.studioField textarea:hover,
+.inlineFields select:hover { border-color: var(--vl-border-strong); }
+.studioField input:focus,
+.studioField select:focus,
+.studioField textarea:focus,
+.inlineFields select:focus { border-color: rgba(216, 255, 97, .58); box-shadow: var(--vl-shadow-focus); }
+.studioField small { color: var(--vl-text-tertiary); font-size: var(--vl-text-xs); font-weight: 500; }
+
+.policyModeSwitch {
+  padding: 3px;
+  border: 1px solid var(--vl-border-subtle);
+  border-radius: var(--vl-radius-md);
+  background: #090c11;
+}
+.policyModeSwitch button {
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--vl-text-tertiary);
+  transition: background var(--vl-motion-base) var(--vl-ease), color var(--vl-motion-base) var(--vl-ease), box-shadow var(--vl-motion-base) var(--vl-ease);
+}
+.policyModeSwitch button.selected {
+  background: var(--vl-surface-3);
+  color: var(--vl-text-primary);
+  box-shadow: inset 0 0 0 1px var(--vl-border-default);
+}
+
+.studioRulePanel,
+.simulationPanel,
+.reviewCard,
+.healthPanel,
+.metricCard,
+.decisionTable,
+.railCard,
+.finding,
+.integrationCard {
+  border-color: var(--vl-border-subtle);
+}
+
+/* Normalize legacy outcome/status badges that remain on receipt/detail pages. */
+.outcomeBadge,
+.modeTag,
+.severityTag,
+.dataModeBadge,
+.caseStatus,
+.findingStatus,
+.studioMode,
+.studioSeverity,
+.servStudioBadge {
+  border-radius: var(--vl-radius-pill);
+  font-family: var(--vl-font-mono);
+  letter-spacing: .055em;
+}
+.outcomeBadge.allow,
+.findingStatus.pass { color: var(--vl-success); background: var(--vl-success-bg); border-color: rgba(158, 232, 173, .25); }
+.outcomeBadge.review,
+.findingStatus.uncertain { color: var(--vl-warning); background: var(--vl-warning-bg); border-color: rgba(240, 202, 115, .25); }
+.outcomeBadge.block,
+.findingStatus.fail { color: var(--vl-danger); background: var(--vl-danger-bg); border-color: rgba(241, 143, 150, .25); }
+
+/* Product navigation gets a consistent icon + label rhythm. */
+.sideNav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: var(--vl-radius-md);
+}
+.sideNav a svg { flex: 0 0 auto; color: var(--vl-text-tertiary); }
+.sideNav a:hover { border-color: var(--vl-border-subtle); background: var(--vl-surface-1); }
+.sideNav a[aria-current="page"] {
+  border-color: var(--vl-border-default);
+  background: var(--vl-surface-2);
+  color: var(--vl-text-primary);
+}
+.sideNav a[aria-current="page"] svg { color: var(--vl-accent); }
+
+/* Shared code/data presentation. */
+pre, code, .mono { font-family: var(--vl-font-mono); }
+pre { scrollbar-color: var(--vl-border-strong) transparent; }
+
+/* Consistent focus treatment for interactive legacy controls. */
+.reviewCaseItem:focus-visible,
+.studioPolicy:focus-visible,
+.useCaseChoice:focus-visible,
+.healthListRow:focus-visible,
+.metricLink:focus-visible {
+  outline: 0;
+  box-shadow: var(--vl-shadow-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryButton,
+  .secondaryButton,
+  .textButton,
+  .topbarSignOut,
+  .studioListHeader button,
+  .studioActionBar button { transition: none; }
+}
