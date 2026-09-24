@@ -1,6 +1,7 @@
 import { buildServReasoningPrompt } from "./prompt";
 import {
   ServReasoningDecisionSchema,
+  type ServErrorCode,
   type ServEvaluationResult,
   type ServReasoningDecision,
   type ServReasoningInput,
@@ -244,11 +245,7 @@ function fallbackResult(
     requestId?: string;
     latencyMs: number;
     receivedAt: string;
-    code: ServEvaluationResult["error"] extends infer T
-      ? T extends { code: infer C }
-        ? C
-        : never
-      : never;
+    code: ServErrorCode;
     message: string;
   },
 ): ServEvaluationResult {
