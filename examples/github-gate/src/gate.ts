@@ -41,7 +41,6 @@ export async function evaluateGitHubSnapshot(input: {
     restrictedWindow: input.restrictedWindow,
   });
   const policies = input.policies ?? githubGatePolicies;
-  const servConfig = input.servConfig ?? readServEnvironment();
 
   const orchestration = await evaluateAction(
     {
@@ -56,8 +55,12 @@ export async function evaluateGitHubSnapshot(input: {
     {
       evaluateDeterministic: (deterministicInput) =>
         evaluateDeterministicPolicies(deterministicInput),
-      evaluateContextual: (contextualInput) =>
-        evaluateWithServ(contextualInput, servConfig, input.servFetch),
+      evaluateContextual: (contextualInput) => {
+        const servConfig = input.servConfig ?? readServEnvironment();
+        return input.servFetch
+          ? evaluateWithServ(contextualInput, servConfig, input.servFetch)
+          : evaluateWithServ(contextualInput, servConfig);
+      },
     },
   );
 
@@ -86,10 +89,10 @@ export async function evaluateGitHubPullRequest(input: {
   now?: Date;
   restrictedWindow?: boolean;
 }): Promise<GitHubGateResult> {
-  const client = createGitHubEvidenceClient(
-    { token: input.githubToken },
-    input.githubFetch,
-  );
+  const client = input.githubFetch
+    ? createGitHubEvidenceClient({ token: input.githubToken }, input.githubFetch)
+    : createGitHubEvidenceClient({ token: input.githubToken });
+
   const snapshot = await client.collectPullRequest(
     input.owner,
     input.repo,
@@ -98,11 +101,13 @@ export async function evaluateGitHubPullRequest(input: {
 
   return evaluateGitHubSnapshot({
     snapshot,
-    operation: input.operation,
-    policies: input.policies,
-    servConfig: input.servConfig,
-    servFetch: input.servFetch,
-    now: input.now,
-    restrictedWindow: input.restrictedWindow,
+    ...(input.operation ? { operation: input.operation } : {}),
+    ...(input.policies ? { policies: input.policies } : {}),
+    ...(input.servConfig ? { servConfig: input.servConfig } : {}),
+    ...(input.servFetch ? { servFetch: input.servFetch } : {}),
+    ...(input.now ? { now: input.now } : {}),
+    ...(input.restrictedWindow !== undefined
+      ? { restrictedWindow: input.restrictedWindow }
+      : {}),
   });
 }
