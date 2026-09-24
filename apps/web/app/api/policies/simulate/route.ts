@@ -13,8 +13,12 @@ import {
   policyStudioSampleEvidence,
   policyStudioSampleFacts,
 } from "../../../../lib/policy-studio";
+import { requireApiWorkspace } from "../../../../lib/server/api-auth";
 
 export async function POST(request: Request) {
+  const auth = await requireApiWorkspace();
+  if (!auth.ok) return auth.response;
+
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -53,6 +57,7 @@ export async function POST(request: Request) {
       environment: {
         source: "policy-studio",
         sample: true,
+        workspaceId: auth.workspace.workspaceId,
         incident: {
           id: "INC-2041",
           severity: "critical",
