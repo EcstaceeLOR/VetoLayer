@@ -12,8 +12,10 @@ export async function GET(
 ) {
   const { id } = await context.params;
   const environment = readServerEnvironment();
-  const authError = authorizeDeveloperRequest(request, environment);
-  if (authError) return NextResponse.json(authError, { status: 401 });
+  const authFailure = authorizeDeveloperRequest(request, environment);
+  if (authFailure) {
+    return NextResponse.json(authFailure.body, { status: authFailure.status });
+  }
 
   const workspaceId = developerApiWorkspaceId(environment);
   const { store, persistence } = getDecisionStore();
