@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveAppOrigin } from "./app-origin";
+import { resolveAppOrigin, safeAppPath } from "./app-origin";
 
 function env(values: Record<string, string> = {}): NodeJS.ProcessEnv {
   return { NODE_ENV: "test", ...values };
@@ -27,5 +27,22 @@ describe("resolveAppOrigin", () => {
 
   it("rejects non-http origins", () => {
     expect(resolveAppOrigin("javascript:alert(1)", env())).toBeUndefined();
+  });
+});
+
+describe("safeAppPath", () => {
+  it("preserves internal paths and query strings", () => {
+    expect(safeAppPath("/dashboard/reviews?case=review_1")).toBe(
+      "/dashboard/reviews?case=review_1",
+    );
+  });
+
+  it("rejects protocol-relative and backslash redirect tricks", () => {
+    expect(safeAppPath("//evil.example")).toBe("/dashboard");
+    expect(safeAppPath("/\\evil.example")).toBe("/dashboard");
+  });
+
+  it("rejects absolute external URLs", () => {
+    expect(safeAppPath("https://evil.example/path")).toBe("/dashboard");
   });
 });
