@@ -1,5 +1,6 @@
 export type ServerEnvironment = {
   servConfigured: boolean;
+  githubTokenConfigured: boolean;
   persistenceConfigured: boolean;
   supabaseUrl?: string;
   supabaseServiceRoleKey?: string;
@@ -15,6 +16,7 @@ export function readServerEnvironment(
 ): ServerEnvironment {
   const servApiKey = env.SERV_API_KEY?.trim();
   const servModel = env.SERV_MODEL?.trim();
+  const githubToken = env.GITHUB_TOKEN?.trim();
   const supabaseUrl = env.SUPABASE_URL?.trim();
   const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   const demoRateLimitValue = env.VETOLAYER_DEMO_RATE_LIMIT_PER_MINUTE?.trim();
@@ -40,6 +42,7 @@ export function readServerEnvironment(
 
   return {
     servConfigured: Boolean(servApiKey && servModel),
+    githubTokenConfigured: Boolean(githubToken),
     persistenceConfigured: Boolean(supabaseUrl && supabaseServiceRoleKey),
     ...(supabaseUrl ? { supabaseUrl } : {}),
     ...(supabaseServiceRoleKey ? { supabaseServiceRoleKey } : {}),
