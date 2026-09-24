@@ -5,6 +5,7 @@ import { ProductNavigation } from "../../components/product-navigation";
 import { getAuthenticatedWorkspace } from "../../lib/server/workspace";
 import { signOut } from "../login/actions";
 import "./health.css";
+import "./auth-workspace.css";
 
 export const dynamic = "force-dynamic";
 
