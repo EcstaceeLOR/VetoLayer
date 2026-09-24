@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FirstRunChecklist } from "../../components/first-run-checklist";
+import { Badge, ButtonLink, EmptyState, OutcomeBadge } from "../../components/ui/primitives";
 import { summarizeDecisionHealth } from "../../lib/decision-health";
 import { buildFirstRunGuide } from "../../lib/first-run";
 import { loadDashboardDecisionFeed } from "../../lib/server/dashboard-decisions";
@@ -21,53 +22,57 @@ export default async function DashboardPage() {
       <header className="dashboardHeader">
         <div>
           <div className="headerModeRow">
-            <p className="eyebrow">CONTROL CENTER</p>
-            <span className={`dataModeBadge ${feed.mode}`}>{feed.mode === "demo" ? "DEMO DATA" : feed.mode === "live" ? "LIVE RECEIPTS" : "NO DATA YET"}</span>
+            <p className="vlEyebrow">Control center</p>
+            <Badge tone={feed.mode === "live" ? "success" : feed.mode === "demo" ? "info" : "neutral"}>
+              {feed.mode === "demo" ? "Demo data" : feed.mode === "live" ? "Live receipts" : "No data yet"}
+            </Badge>
           </div>
           <h1 className="dashboardTitle">Every action has to earn execution.</h1>
           <p className="dashboardIntro">See what autonomous agents attempted, which policies create friction, where SERV reasoned over context, and whether evidence quality is improving.</p>
         </div>
-        <div className="liveBadge"><span className="pulse" /> Decision health</div>
+        <Badge tone="accent"><span className="pulse" /> Decision health</Badge>
       </header>
 
       <FirstRunChecklist guide={guide} />
 
       {feed.mode === "empty" ? (
-        <section className="dashboardEmptyState">
-          <p className="eyebrow">NO RECEIPTS YET</p>
-          <h2>Your operational picture starts with the first evaluated action.</h2>
-          <p>Production analytics never substitute seeded data. Create a policy, connect an execution path, and evaluate an action to generate your first real Decision Receipt. Or use the flagship scenario to see the complete experience immediately.</p>
-          <div className="emptyActions">
-            <Link className="primaryLink" href="/dashboard/policies">Create a policy →</Link>
-            <Link className="rowLink" href="/dashboard/integrations">Connect an integration →</Link>
-            <Link className="rowLink" href="/demo">Run flagship demo →</Link>
-          </div>
-        </section>
+        <EmptyState
+          eyebrow="No receipts yet"
+          title="Your operational picture starts with the first evaluated action."
+          copy="Production analytics never substitute seeded data. Create a policy, connect an execution path, and evaluate an action to generate your first real Decision Receipt. Or use the flagship scenario to see the complete experience immediately."
+          action={
+            <div className="vlCluster">
+              <ButtonLink tone="primary" href="/dashboard/policies">Create a policy →</ButtonLink>
+              <ButtonLink tone="secondary" href="/dashboard/integrations">Connect an integration →</ButtonLink>
+              <ButtonLink tone="ghost" href="/demo">Run flagship demo →</ButtonLink>
+            </div>
+          }
+        />
       ) : (
         <>
           {feed.mode === "demo" ? (
-            <section className="demoDataNotice">
-              <div><span>DEMO MODE</span><strong>These receipts are seeded examples, not workspace activity.</strong><p>They are here to preview the control center. Evaluations in the flagship demo still run through the real deterministic + SERV decision pipeline.</p></div>
+            <section className="demoDataNotice vlCard">
+              <div><Badge tone="info">Demo mode</Badge><strong>These receipts are seeded examples, not workspace activity.</strong><p>They are here to preview the control center. Evaluations in the flagship demo still run through the real deterministic + SERV decision pipeline.</p></div>
               <Link href="/demo">Run the real demo evaluation →</Link>
             </section>
           ) : null}
 
           <section className="metricGrid" aria-label="Decision summary">
-            <Link href="/dashboard/decisions?outcome=ALLOW" className="metricCard metricLink"><span>Allowed</span><strong>{health.outcomes.ALLOW}</strong><small>safe to execute</small></Link>
-            <Link href="/dashboard/decisions?outcome=REVIEW" className="metricCard metricLink"><span>Needs review</span><strong>{health.outcomes.REVIEW}</strong><small>{health.unresolvedReviews} unresolved latest action{health.unresolvedReviews === 1 ? "" : "s"}</small></Link>
-            <Link href="/dashboard/decisions?outcome=BLOCK" className="metricCard metricLink"><span>Blocked</span><strong>{health.outcomes.BLOCK}</strong><small>stopped before execution</small></Link>
-            <Link href="/dashboard/decisions?reasoning=serv" className="metricCard accentMetric metricLink"><span>SERV-assisted</span><strong>{health.servAssisted}</strong><small>{health.deterministicOnly} deterministic-only</small></Link>
+            <Link href="/dashboard/decisions?outcome=ALLOW" className="metricCard metricLink vlCard vlCardInteractive"><span>Allowed</span><strong>{health.outcomes.ALLOW}</strong><small>safe to execute</small></Link>
+            <Link href="/dashboard/decisions?outcome=REVIEW" className="metricCard metricLink vlCard vlCardInteractive"><span>Needs review</span><strong>{health.outcomes.REVIEW}</strong><small>{health.unresolvedReviews} unresolved latest action{health.unresolvedReviews === 1 ? "" : "s"}</small></Link>
+            <Link href="/dashboard/decisions?outcome=BLOCK" className="metricCard metricLink vlCard vlCardInteractive"><span>Blocked</span><strong>{health.outcomes.BLOCK}</strong><small>stopped before execution</small></Link>
+            <Link href="/dashboard/decisions?reasoning=serv" className="metricCard accentMetric metricLink vlCard vlCardInteractive"><span>SERV-assisted</span><strong>{health.servAssisted}</strong><small>{health.deterministicOnly} deterministic-only</small></Link>
           </section>
 
           <section className="healthGrid dashboardSection" aria-label="Decision health">
-            <article className="healthPanel">
-              <div className="healthPanelTop"><div><p className="eyebrow">EVIDENCE HEALTH</p><h2>{health.evidenceCompleteness}%</h2></div><span className={health.evidenceTrendDelta >= 0 ? "trendUp" : "trendDown"}>{health.evidenceTrendDelta >= 0 ? "+" : ""}{health.evidenceTrendDelta} pts</span></div>
+            <article className="healthPanel vlCard">
+              <div className="healthPanelTop"><div><p className="vlEyebrow">Evidence health</p><h2>{health.evidenceCompleteness}%</h2></div><span className={health.evidenceTrendDelta >= 0 ? "trendUp" : "trendDown"}>{health.evidenceTrendDelta >= 0 ? "+" : ""}{health.evidenceTrendDelta} pts</span></div>
               <p>Average evidence completeness across the newest half of recent actions versus the previous half.</p>
               <Link href="/dashboard/decisions" className="rowLink">Inspect evidence trails →</Link>
             </article>
 
-            <article className="healthPanel">
-              <div className="sectionHeading compactSectionHeading"><div><p className="eyebrow">ACTIONS BY TOOL</p><h3>Where agents are acting</h3></div></div>
+            <article className="healthPanel vlCard">
+              <div className="sectionHeading compactSectionHeading"><div><p className="vlEyebrow">Actions by tool</p><h3>Where agents are acting</h3></div></div>
               <div className="healthList">
                 {health.tools.slice(0, 5).map((tool) => (
                   <Link href={`/dashboard/decisions?tool=${encodeURIComponent(tool.tool)}`} key={tool.tool} className="healthListRow">
@@ -77,8 +82,8 @@ export default async function DashboardPage() {
               </div>
             </article>
 
-            <article className="healthPanel">
-              <div className="sectionHeading compactSectionHeading"><div><p className="eyebrow">POLICY FRICTION</p><h3>What stops execution</h3></div></div>
+            <article className="healthPanel vlCard">
+              <div className="sectionHeading compactSectionHeading"><div><p className="vlEyebrow">Policy friction</p><h3>What stops execution</h3></div></div>
               <div className="healthList">
                 {health.topPolicies.length ? health.topPolicies.map((policy) => (
                   <Link href={`/dashboard/policies?focus=${encodeURIComponent(policy.policyId)}`} key={policy.policyId} className="healthListRow">
@@ -91,17 +96,17 @@ export default async function DashboardPage() {
 
           <section className="dashboardSection" id="decisions">
             <div className="sectionHeading">
-              <div><p className="eyebrow">DECISION STREAM</p><h2>Recent agent actions</h2></div>
+              <div><p className="vlEyebrow">Decision stream</p><h2>Recent agent actions</h2></div>
               <span className="sectionMeta">{feed.mode === "demo" ? "Clearly labeled seeded demo receipts" : `Source: ${feed.persistence} Decision Receipts`}</span>
             </div>
-            <div className="decisionTable" role="table" aria-label="Recent VetoLayer decisions">
+            <div className="decisionTable vlCard" role="table" aria-label="Recent VetoLayer decisions">
               <div className="decisionTableHead" role="row">
                 <span>Action</span><span>Outcome</span><span>Reasoning</span><span>Time</span><span />
               </div>
               {recentDecisions.map((decision) => (
                 <div className="decisionTableRow" role="row" key={decision.receiptId}>
                   <div><strong>{decision.display.title}</strong><small>{decision.display.repository}</small></div>
-                  <span className={`outcomeBadge ${decision.outcome.toLowerCase()}`}>{decision.outcome}</span>
+                  <OutcomeBadge outcome={decision.outcome} />
                   <div className="reasoningMode">
                     <span>{decision.contextualFindings.length || decision.providerTrace ? "Deterministic + SERV" : "Deterministic"}</span>
                     <small>{decision.contextualFindings.length ? `${decision.contextualFindings.length} contextual finding${decision.contextualFindings.length === 1 ? "" : "s"}` : "SERV skipped"}</small>
@@ -115,14 +120,14 @@ export default async function DashboardPage() {
 
           <section className="reviewSpotlight dashboardSection" id="reviews">
             <div>
-              <p className="eyebrow">HUMAN REVIEW</p>
+              <p className="vlEyebrow">Human review</p>
               <h2>{health.unresolvedReviews ? `${health.unresolvedReviews} latest action${health.unresolvedReviews === 1 ? " is" : "s are"} waiting on judgment.` : "No latest actions are waiting on human judgment."}</h2>
               <p className="muted">REVIEW is an operational state, not a model failure. VetoLayer preserves what is unresolved so people can change the evidence and re-run the same gate.</p>
               <Link className="rowLink" href="/dashboard/reviews">Open Review Inbox →</Link>
             </div>
             {reviewDecision ? (
-              <article className="reviewCard">
-                <div className="reviewCardTop"><span className="outcomeBadge review">REVIEW</span><span>{reviewDecision.display.relativeTime}</span></div>
+              <article className="reviewCard vlCard vlCardRaised">
+                <div className="reviewCardTop"><OutcomeBadge outcome="REVIEW" /><span>{reviewDecision.display.relativeTime}</span></div>
                 <h3>{reviewDecision.display.title}</h3>
                 <p>{reviewDecision.decisionSummary}</p>
                 <div className="requirementBox"><span>Required next</span><strong>{reviewDecision.requirementsToChangeOutcome[0] ?? "A human must resolve the outstanding policy condition."}</strong></div>
