@@ -2,20 +2,25 @@ import { NextResponse } from "next/server";
 import { getOptionalDecisionStore } from "../../../../lib/server/decision-store";
 import { readServerEnvironment } from "../../../../lib/server/env";
 import { logServerEvent } from "../../../../lib/server/observability";
+import { getReviewStore } from "../../../../lib/server/review-store";
 
 export const runtime = "nodejs";
 
 export async function DELETE() {
   try {
     const environment = readServerEnvironment();
-    const store = getOptionalDecisionStore();
-    if (!store) {
-      return new NextResponse(null, { status: 204 });
-    }
+    const decisions = getOptionalDecisionStore();
+    const reviews = getReviewStore();
 
-    await store.clearDemo(environment.demoWorkspaceId);
+    await Promise.all([
+      decisions?.clearDemo(environment.demoWorkspaceId) ?? Promise.resolve(),
+      reviews.store.clearDemo(environment.demoWorkspaceId),
+    ]);
+
     logServerEvent("info", "demo.history.reset", {
       workspaceId: environment.demoWorkspaceId,
+      decisionPersistence: decisions ? "supabase" : "disabled",
+      reviewPersistence: reviews.persistence,
     });
     return new NextResponse(null, { status: 204 });
   } catch (error) {
