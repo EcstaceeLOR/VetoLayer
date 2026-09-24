@@ -29,7 +29,7 @@ describe("integration readiness", () => {
 
   it("requires bearer authentication for the public production Developer API", () => {
     const readiness = getIntegrationReadiness({
-      environment: environment({ apiAuthConfigured: false, apiKey: undefined }),
+      environment: environment({ apiAuthConfigured: false }),
       nodeEnv: "production",
     });
 
@@ -39,7 +39,7 @@ describe("integration readiness", () => {
 
   it("allows an unauthenticated Developer API only as a local/demo state", () => {
     const readiness = getIntegrationReadiness({
-      environment: environment({ apiAuthConfigured: false, apiKey: undefined }),
+      environment: environment({ apiAuthConfigured: false }),
       nodeEnv: "development",
     });
 
@@ -97,7 +97,7 @@ describe("integration tests", () => {
 
   it("flags missing production API authentication", () => {
     const result = testDeveloperApiIntegration({
-      environment: environment({ apiAuthConfigured: false, apiKey: undefined }),
+      environment: environment({ apiAuthConfigured: false }),
       nodeEnv: "production",
     });
 
