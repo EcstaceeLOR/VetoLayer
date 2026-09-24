@@ -4,17 +4,21 @@ import { createSupabaseDecisionStore } from "./decision-store";
 import { readServerEnvironment } from "./env";
 import { consumeRateLimit, resetRateLimitsForTests } from "./rate-limit";
 
+function env(values: Record<string, string> = {}): NodeJS.ProcessEnv {
+  return { NODE_ENV: "test", ...values };
+}
+
 describe("public MVP hardening", () => {
   beforeEach(() => resetRateLimitsForTests());
 
   it("rejects partial persistence configuration", () => {
     expect(() =>
-      readServerEnvironment({ SUPABASE_URL: "https://example.supabase.co" } as NodeJS.ProcessEnv),
+      readServerEnvironment(env({ SUPABASE_URL: "https://example.supabase.co" })),
     ).toThrow("must be configured together");
   });
 
   it("never requires SERV credentials merely to boot the web app", () => {
-    const environment = readServerEnvironment({} as NodeJS.ProcessEnv);
+    const environment = readServerEnvironment(env());
     expect(environment.servConfigured).toBe(false);
     expect(environment.persistenceConfigured).toBe(false);
   });
