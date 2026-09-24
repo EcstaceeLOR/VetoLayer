@@ -29,8 +29,12 @@ export function SearchIcon({ size = 16, ...props }: IconProps) {
   return <svg {...base(size, props)}><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>;
 }
 
+export function OverviewIcon({ size = 16, ...props }: IconProps) {
+  return <svg {...base(size, props)}><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><rect x="14" y="14" width="6" height="6" rx="1" /></svg>;
+}
+
 export function SettingsIcon({ size = 16, ...props }: IconProps) {
-  return <svg {...base(size, props)}><circle cx="12" cy="12" r="3" /><path d="M19 13.5v-3l-2.2-.7a7.3 7.3 0 0 0-.7-1.6l1.1-2.1-2.1-2.1L13 5.1a7.3 7.3 0 0 0-1.6-.7L10.5 2h-3l-.7 2.4a7.3 7.3 0 0 0-1.6.7L3.1 4 1 6.1l1.1 2.1a7.3 7.3 0 0 0-.7 1.6L-1 10.5v3l2.4.7c.2.6.4 1.1.7 1.6L1 17.9 3.1 20l2.1-1.1c.5.3 1 .5 1.6.7l.7 2.4h3l.7-2.4c.6-.2 1.1-.4 1.6-.7l2.1 1.1 2.1-2.1-1.1-2.1c.3-.5.5-1 .7-1.6L19 13.5Z" transform="translate(2) scale(.83)" /></svg>;
+  return <svg {...base(size, props)}><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.8-1L14.4 3h-4.8l-.3 3.1a7 7 0 0 0-1.8 1l-2.4-1-2 3.4L5.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.8 1l.3 3.1h4.8l.3-3.1a7 7 0 0 0 1.8-1l2.4 1 2-3.4-2-1.5a7 7 0 0 0 .1-1Z" /></svg>;
 }
 
 export function DecisionIcon({ size = 16, ...props }: IconProps) {
