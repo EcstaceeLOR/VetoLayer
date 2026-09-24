@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FlagshipDemoClient } from "./demo-client";
+import "./demo-mode.css";
 
 export default function DemoPage() {
   return (
