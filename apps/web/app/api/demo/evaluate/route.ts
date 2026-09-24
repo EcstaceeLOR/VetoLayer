@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
-import { runFlagshipDemo, type DemoStage } from "../../../../lib/flagship-demo";
+import {
+  FLAGSHIP_INCIDENT,
+  flagshipSnapshot,
+  runFlagshipDemo,
+  type DemoStage,
+} from "../../../../lib/flagship-demo";
 import { getOptionalDecisionStore } from "../../../../lib/server/decision-store";
 import { readServerEnvironment } from "../../../../lib/server/env";
 import { logServerEvent } from "../../../../lib/server/observability";
 import { consumeRateLimit, requestClientKey } from "../../../../lib/server/rate-limit";
+import { getReviewStore } from "../../../../lib/server/review-store";
 
 export const runtime = "nodejs";
 
@@ -50,7 +56,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await runFlagshipDemo(stage, { now: new Date() });
+    const now = new Date();
+    const result = await runFlagshipDemo(stage, { now });
     const store = getOptionalDecisionStore();
 
     if (store) {
@@ -70,10 +77,43 @@ export async function POST(request: Request) {
       }
     }
 
+    let reviewCaseId: string | undefined;
+    let reviewPersistence: "supabase" | "memory" | undefined;
+    if (stage === "needs-approval" && result.orchestration.decision.outcome === "REVIEW") {
+      const review = getReviewStore();
+      reviewCaseId = `review_${result.receipt.decisionId}`;
+      reviewPersistence = review.persistence;
+      try {
+        await review.store.save({
+          id: reviewCaseId,
+          workspaceId: environment.demoWorkspaceId,
+          status: "pending",
+          title: "Deploy auth security patch to production",
+          source: "demo",
+          receipt: result.receipt,
+          context: {
+            kind: "github",
+            snapshot: flagshipSnapshot("needs-approval"),
+            operation: "deploy-production",
+            restrictedWindow: true,
+            incident: FLAGSHIP_INCIDENT,
+          },
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        });
+      } catch (error) {
+        logServerEvent("warn", "review.persistence.failed", {
+          reviewCaseId,
+          message: error instanceof Error ? error.message : "Review persistence failed",
+        });
+      }
+    }
+
     logServerEvent("info", "demo.evaluation.completed", {
       stage,
       outcome: result.orchestration.decision.outcome,
       receiptId: result.receipt.receiptId,
+      reviewCaseId,
       providerStatus: result.orchestration.contextualTrace?.providerStatus,
     });
 
@@ -88,6 +128,8 @@ export async function POST(request: Request) {
       providerTrace: result.orchestration.contextualTrace,
       receipt: result.receipt,
       persistence: store ? "stored" : "disabled",
+      reviewCaseId,
+      reviewPersistence,
     });
   } catch (error) {
     logServerEvent("error", "demo.evaluation.failed", {
