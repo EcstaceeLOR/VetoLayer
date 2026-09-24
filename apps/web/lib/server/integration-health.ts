@@ -17,7 +17,7 @@ export function getIntegrationReadiness(input?: {
 
   return {
     github: {
-      configured: environment.githubTokenConfigured,
+      configured: Boolean(environment.githubTokenConfigured),
       servConfigured: environment.servConfigured,
       ready: githubMissing.length === 0,
       state: githubMissing.length === 0 ? "ready" : "needs-config",
