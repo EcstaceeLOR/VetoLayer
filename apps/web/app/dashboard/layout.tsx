@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ProductNavigation } from "../../components/product-navigation";
+import "./health.css";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
