@@ -2,19 +2,14 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { resolveAppOrigin } from "../../lib/server/app-origin";
+import { resolveAppOrigin, safeAppPath } from "../../lib/server/app-origin";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 
 function readCredentials(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const next = safeNextPath(String(formData.get("next") ?? "/dashboard"));
+  const next = safeAppPath(String(formData.get("next") ?? "/dashboard"));
   return { email, password, next };
-}
-
-function safeNextPath(value: string) {
-  if (!value.startsWith("/") || value.startsWith("//")) return "/dashboard";
-  return value;
 }
 
 function loginRedirect(params: Record<string, string>) {
