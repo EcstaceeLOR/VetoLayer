@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import type { ZodError } from "zod";
 import {
   ActionRequestSchema,
   DecisionSchema,
@@ -24,7 +24,7 @@ export function parseDecision(input: unknown) {
 
 export type ValidationResult<T> =
   | { success: true; data: T }
-  | { success: false; error: z.ZodError };
+  | { success: false; error: ZodError };
 
 export function safeParseActionRequest(
   input: unknown,
