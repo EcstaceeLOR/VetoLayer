@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { resolveAppOrigin } from "../../lib/server/app-origin";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 
 function readCredentials(formData: FormData) {
@@ -41,7 +42,7 @@ export async function signUp(formData: FormData) {
   }
 
   const requestHeaders = await headers();
-  const origin = requestHeaders.get("origin") || process.env.NEXT_PUBLIC_APP_URL?.trim();
+  const origin = resolveAppOrigin(requestHeaders.get("origin"));
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signUp({
     email,
