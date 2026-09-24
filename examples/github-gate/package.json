@@ -3,8 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vetolayer/core": "workspace:*",
+    "@vetolayer/policies": "workspace:*",
+    "@vetolayer/serv": "workspace:*"
   }
 }
