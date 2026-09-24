@@ -15,7 +15,7 @@ const useCases = [
 
 export default function HomePage() {
   return (
-    <main className="marketingShell">
+    <main className="marketingShell" id="main-content" tabIndex={-1}>
       <nav className="marketingNav" aria-label="Main navigation">
         <Link href="/" className="brand"><span className="mark">V</span> VetoLayer</Link>
         <div className="marketingNavLinks">
@@ -52,9 +52,9 @@ export default function HomePage() {
             <span>Autonomous Coding Agent · identity-api</span>
           </div>
           <div className="consoleChecks">
-            <div><span className="checkPass">✓</span><p><b>CI passed</b><small>3 required checks verified</small></p></div>
-            <div><span className="checkPass">✓</span><p><b>Critical incident confirmed</b><small>INC-2041 · active exposure</small></p></div>
-            <div><span className="checkWarn">!</span><p><b>Security approval missing</b><small>Contextual exception incomplete</small></p></div>
+            <div><span className="checkPass" aria-hidden="true">✓</span><p><b>CI passed</b><small>3 required checks verified</small></p></div>
+            <div><span className="checkPass" aria-hidden="true">✓</span><p><b>Critical incident confirmed</b><small>INC-2041 · active exposure</small></p></div>
+            <div><span className="checkWarn" aria-hidden="true">!</span><p><b>Security approval missing</b><small>Contextual exception incomplete</small></p></div>
           </div>
           <div className="consoleVerdict"><span className="outcomeBadge review">REVIEW</span><p>SERV found the emergency exception plausible, but one required condition is unresolved.</p></div>
           <div className="consoleFooter"><span>SERV reasoning trace attached</span><span>Receipt integrity ✓</span></div>
