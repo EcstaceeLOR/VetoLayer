@@ -12,7 +12,8 @@
     "build": "pnpm -r --if-present build",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test"
+    "test": "pnpm -r --if-present test",
+    "release:smoke": "node scripts/release-smoke.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
