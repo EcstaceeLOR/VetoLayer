@@ -1,4 +1,9 @@
-import type { ActionRequest, Evidence, JsonValue } from "@vetolayer/core";
+import type {
+  ActionRequest,
+  Evidence,
+  HumanReviewRecord,
+  JsonValue,
+} from "@vetolayer/core";
 import type { GitHubPullRequestSnapshot } from "./github-client";
 
 export type GitHubGateOperation =
@@ -35,16 +40,40 @@ export function buildGitHubGateBundle(input: {
   requestedAt?: Date;
   restrictedWindow?: boolean;
   incident?: GitHubIncidentContext;
+  humanReview?: HumanReviewRecord;
 }): GitHubGateBundle {
   const operation = input.operation ?? "merge-pull-request";
   const requestedAt = input.requestedAt ?? new Date();
   const approvals = latestApprovedReviewers(input.snapshot);
+  if (input.humanReview?.action === "approve") {
+    approvals.push(input.humanReview.reviewer.id);
+  }
+  const uniqueApprovals = [...new Set(approvals)];
   const failingChecks = input.snapshot.checks.filter(
     (check) => check.status !== "completed" || check.conclusion !== "success",
   );
   const sensitiveFiles = input.snapshot.changedFiles
     .map((file) => file.filename)
     .filter(isSensitivePath);
+
+  const reviewData: Record<string, JsonValue> = {
+    count: uniqueApprovals.length,
+    approvers: uniqueApprovals,
+  };
+  if (input.humanReview) {
+    reviewData.vetoLayerReview = {
+      reviewId: input.humanReview.id,
+      decisionId: input.humanReview.decisionId,
+      reviewer: {
+        id: input.humanReview.reviewer.id,
+        name: input.humanReview.reviewer.name ?? input.humanReview.reviewer.id,
+      },
+      action: input.humanReview.action,
+      rationale: input.humanReview.rationale,
+      requestedEvidence: input.humanReview.requestedEvidence,
+      submittedAt: input.humanReview.submittedAt,
+    };
+  }
 
   const evidence: Evidence[] = [
     {
@@ -76,10 +105,16 @@ export function buildGitHubGateBundle(input: {
     {
       id: `github-reviews-${input.snapshot.number}`,
       type: "review-approval",
-      source: { kind: "github-reviews", label: "Pull request reviews" },
-      data: { count: approvals.length, approvers: approvals },
+      source: {
+        kind: input.humanReview ? "github-plus-vetolayer-review" : "github-reviews",
+        label: input.humanReview ? "GitHub + VetoLayer human review state" : "Pull request reviews",
+      },
+      data: reviewData,
       observedAt: requestedAt.toISOString(),
-      verification: { status: "verified", verifier: "github-api" },
+      verification: {
+        status: "verified",
+        verifier: input.humanReview ? "github-api+vetolayer-review-loop" : "github-api",
+      },
     },
     {
       id: `github-files-${input.snapshot.number}`,
@@ -138,6 +173,12 @@ export function buildGitHubGateBundle(input: {
           pullRequestUrl: input.snapshot.url,
           sensitiveChange: sensitiveFiles.length > 0,
           restrictedWindow: input.restrictedWindow ?? false,
+          ...(input.humanReview
+            ? {
+                humanReviewAction: input.humanReview.action,
+                humanReviewerId: input.humanReview.reviewer.id,
+              }
+            : {}),
           ...(input.incident
             ? {
                 incidentId: input.incident.id,
@@ -153,18 +194,21 @@ export function buildGitHubGateBundle(input: {
     facts: {
       isDraft: input.snapshot.draft,
       alreadyMerged: input.snapshot.merged,
-      approvalCount: approvals.length,
+      approvalCount: uniqueApprovals.length,
       ciPassed: input.snapshot.checks.length > 0 && failingChecks.length === 0,
       changedFileCount: input.snapshot.changedFiles.length,
       sensitiveChange: sensitiveFiles.length > 0,
       restrictedWindow: input.restrictedWindow ?? false,
       incidentSeverity: input.incident?.severity ?? "none",
+      humanReviewRejected: input.humanReview?.action === "reject",
+      humanReviewRequestedEvidence: input.humanReview?.action === "request_evidence",
     },
     environment: {
       repository: `${input.snapshot.owner}/${input.snapshot.repo}`,
       baseBranch: input.snapshot.baseBranch,
       sensitiveFiles,
       restrictedWindow: input.restrictedWindow ?? false,
+      ...(input.humanReview ? { humanReview: input.humanReview } : {}),
       ...(input.incident ? { incident: input.incident } : {}),
     },
   };
