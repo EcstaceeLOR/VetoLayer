@@ -1,7 +1,7 @@
 import type { DecisionReceipt } from "@vetolayer/core";
 import { dashboardDecisions, type DashboardDecision } from "../dashboard-data";
 import { getDecisionStore } from "./decision-store";
-import { readServerEnvironment } from "./env";
+import { getAuthenticatedWorkspace } from "./workspace";
 
 export type DashboardDataMode = "live" | "demo" | "empty";
 
@@ -13,7 +13,6 @@ export type DashboardDecisionFeed = {
 
 export async function loadDashboardDecisionFeed(limit = 100): Promise<DashboardDecisionFeed> {
   const explicitMode = process.env.VETOLAYER_DASHBOARD_MODE?.trim().toLowerCase();
-  const environment = readServerEnvironment();
   const { store, persistence } = getDecisionStore();
 
   if (explicitMode === "demo") {
@@ -24,23 +23,14 @@ export async function loadDashboardDecisionFeed(limit = 100): Promise<DashboardD
     };
   }
 
-  if (persistence === "supabase") {
-    const records = await store.list(environment.demoWorkspaceId, limit);
-    if (records.length > 0) {
-      return {
-        decisions: records.map((record) => presentReceipt(record.receipt)),
-        mode: "live",
-        persistence,
-      };
-    }
+  const workspace = await getAuthenticatedWorkspace();
+  if (!workspace) return { decisions: [], mode: "empty", persistence };
 
-    return { decisions: [], mode: "empty", persistence };
-  }
-
-  if (process.env.NODE_ENV !== "production") {
+  const records = await store.list(workspace.workspaceId, limit);
+  if (records.length > 0) {
     return {
-      decisions: dashboardDecisions.slice(0, limit),
-      mode: "demo",
+      decisions: records.map((record) => presentReceipt(record.receipt)),
+      mode: "live",
       persistence,
     };
   }
@@ -56,20 +46,16 @@ export async function loadDashboardDecision(id: string): Promise<DashboardDecisi
 
   if (explicitMode === "demo") return seeded;
 
-  const environment = readServerEnvironment();
-  const { store, persistence } = getDecisionStore();
+  const workspace = await getAuthenticatedWorkspace();
+  if (!workspace) return undefined;
 
-  if (persistence === "supabase") {
-    const direct = await store.get(environment.demoWorkspaceId, id);
-    if (direct) return presentReceipt(direct.receipt);
+  const { store } = getDecisionStore();
+  const direct = await store.get(workspace.workspaceId, id);
+  if (direct) return presentReceipt(direct.receipt);
 
-    const recent = await store.list(environment.demoWorkspaceId, 200);
-    const byDecisionId = recent.find((record) => record.receipt.decisionId === id);
-    if (byDecisionId) return presentReceipt(byDecisionId.receipt);
-  }
-
-  if (process.env.NODE_ENV !== "production") return seeded;
-  return undefined;
+  const recent = await store.list(workspace.workspaceId, 200);
+  const byDecisionId = recent.find((record) => record.receipt.decisionId === id);
+  return byDecisionId ? presentReceipt(byDecisionId.receipt) : undefined;
 }
 
 export function presentReceipt(receipt: DecisionReceipt): DashboardDecision {
