@@ -1,0 +1,38 @@
+name: Generate lockfile
+
+on:
+  push:
+    branches: [issue-12-deploy-readiness-audit]
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: issue-12-deploy-readiness-audit
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate lockfile
+        run: pnpm install --lockfile-only --ignore-scripts
+      - name: Commit lockfile if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo "Lockfile already current."
+            exit 0
+          fi
+          git commit -m "chore: lock deployment dependencies"
+          git push origin HEAD:issue-12-deploy-readiness-audit
