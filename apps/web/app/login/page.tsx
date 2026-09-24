@@ -24,18 +24,18 @@ export default async function LoginPage({
   const message = params.message === "check_email" ? "Check your inbox to confirm your account, then return to VetoLayer." : null;
 
   return (
-    <main className="authShell">
+    <main className="authShell" id="main-content" tabIndex={-1}>
       <div className="authFrame">
         <Link href="/" className="brand authBrand"><span className="mark">V</span> VetoLayer</Link>
-        <section className="authIntro">
+        <section className="authIntro" aria-labelledby="auth-heading">
           <p className="eyebrow">WORKSPACE ACCESS</p>
-          <h1>Own the decisions your agents make.</h1>
+          <h1 id="auth-heading">Own the decisions your agents make.</h1>
           <p>Sign in to a private VetoLayer workspace. Policies, decisions, review cases, and integration state stay scoped to the authenticated owner.</p>
         </section>
 
-        <section className="authCard">
+        <section className="authCard" aria-label="Sign in or create an account">
           <div className="authCardHeader">
-            <div><span className="authStatusDot" /> Supabase Auth</div>
+            <div><span className="authStatusDot" aria-hidden="true" /> Supabase Auth</div>
             <span className={configured ? "authState ready" : "authState needsConfig"}>{configured ? "Configured" : "Needs setup"}</span>
           </div>
 
@@ -44,13 +44,13 @@ export default async function LoginPage({
 
           <form className="authForm">
             <input type="hidden" name="next" value={next} />
-            <label>
+            <label htmlFor="email">
               <span>Email</span>
-              <input name="email" type="email" autoComplete="email" required placeholder="you@company.com" disabled={!configured} />
+              <input id="email" name="email" type="email" autoComplete="email" required placeholder="you@company.com" disabled={!configured} />
             </label>
-            <label>
+            <label htmlFor="password">
               <span>Password</span>
-              <input name="password" type="password" autoComplete="current-password" minLength={6} required placeholder="••••••••" disabled={!configured} />
+              <input id="password" name="password" type="password" autoComplete="current-password" minLength={6} required placeholder="••••••••" disabled={!configured} />
             </label>
             <div className="authActions">
               <button className="authPrimary" formAction={signIn} disabled={!configured}>Sign in</button>
