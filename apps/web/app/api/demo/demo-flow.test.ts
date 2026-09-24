@@ -88,7 +88,7 @@ afterEach(() => {
 });
 
 describe("public flagship demo HTTP flow", () => {
-  it("moves the same action from REVIEW to ALLOW through review evidence", async () => {
+  it("moves the same action from REVIEW to ALLOW through review evidence without overwriting its first receipt", async () => {
     configureServ();
 
     const first = await evaluate(
@@ -117,6 +117,8 @@ describe("public flagship demo HTTP flow", () => {
     expect(secondBody.stage).toBe("resolved");
     expect(secondBody.outcome).toBe("ALLOW");
     expect(secondBody.receipt.action.requestId).toBe(firstBody.receipt.action.requestId);
+    expect(secondBody.receipt.decisionId).toBe(firstBody.receipt.decisionId);
+    expect(secondBody.receipt.receiptId).not.toBe(firstBody.receipt.receiptId);
     expect(secondBody.receipt.integrity.hash).not.toBe(firstBody.receipt.integrity.hash);
   });
 
