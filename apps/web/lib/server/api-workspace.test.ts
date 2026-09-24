@@ -15,16 +15,21 @@ function environment(): ServerEnvironment {
   };
 }
 
+function env(values: Record<string, string> = {}): NodeJS.ProcessEnv {
+  return { NODE_ENV: "test", ...values };
+}
+
 describe("Developer API workspace binding", () => {
   it("uses the server-configured API workspace", () => {
     expect(
-      developerApiWorkspaceId(environment(), {
-        VETOLAYER_API_WORKSPACE_ID: "service:prod-agents",
-      }),
+      developerApiWorkspaceId(
+        environment(),
+        env({ VETOLAYER_API_WORKSPACE_ID: "service:prod-agents" }),
+      ),
     ).toBe("service:prod-agents");
   });
 
   it("falls back to a server-owned service workspace, never a caller value", () => {
-    expect(developerApiWorkspaceId(environment(), {})).toBe("service:demo");
+    expect(developerApiWorkspaceId(environment(), env())).toBe("service:demo");
   });
 });
