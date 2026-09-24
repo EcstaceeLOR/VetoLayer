@@ -29,6 +29,19 @@ export type VetoLayerEvaluationResponse = {
   persistence: "supabase" | "memory";
 };
 
+export type VetoLayerDecisionStatusResponse = {
+  status: {
+    decisionId: string;
+    outcome: "ALLOW" | "REVIEW" | "BLOCK";
+    summary: string;
+    decidedAt: string;
+  };
+  receipt: DecisionReceipt;
+  source: string;
+  createdAt: string;
+  persistence: "supabase" | "memory";
+};
+
 export type VetoLayerApiErrorBody = {
   error: {
     code: string;
@@ -89,7 +102,7 @@ export function createVetoLayerClient(config: VetoLayerClientConfig) {
     },
 
     getDecision(receiptId: string) {
-      return request<{ decision: VetoLayerEvaluationResponse["decision"]; receipt: DecisionReceipt; source: string; createdAt: string }>(
+      return request<VetoLayerDecisionStatusResponse>(
         `/api/v1/decisions/${encodeURIComponent(receiptId)}`,
       );
     },
