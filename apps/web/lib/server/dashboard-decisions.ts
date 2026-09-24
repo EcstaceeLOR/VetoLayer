@@ -73,11 +73,13 @@ export async function loadDashboardDecision(id: string): Promise<DashboardDecisi
 }
 
 export function presentReceipt(receipt: DecisionReceipt): DashboardDecision {
+  const targetLabel = receipt.action.targetId ?? receipt.action.targetType;
+
   return {
     ...receipt,
     display: {
-      title: `${humanize(receipt.action.operation)} — ${receipt.action.targetId}`,
-      repository: receipt.action.targetId,
+      title: `${humanize(receipt.action.operation)} — ${targetLabel}`,
+      repository: targetLabel,
       relativeTime: formatRelativeTime(receipt.timestamps.decidedAt),
     },
   };
