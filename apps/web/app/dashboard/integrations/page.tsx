@@ -2,6 +2,8 @@ import { IntegrationSetup } from "./integration-setup";
 import type { IntegrationReadiness } from "../../../lib/integration-contracts";
 import { getIntegrationReadiness } from "../../../lib/server/integration-health";
 
+export const dynamic = "force-dynamic";
+
 export default function IntegrationsPage() {
   const readiness = safeReadiness();
 
