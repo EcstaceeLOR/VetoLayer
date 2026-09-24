@@ -1,0 +1,24 @@
+{
+  "name": "vetolayer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The reasoning and approval layer for autonomous AI actions.",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "packageManager": "pnpm@10.17.1",
+  "scripts": {
+    "dev": "pnpm --filter @vetolayer/web dev",
+    "build": "pnpm -r --if-present build",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.2.0"
+  }
+}
