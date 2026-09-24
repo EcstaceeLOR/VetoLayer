@@ -1,7 +1,6 @@
 "use client";
 
 import type { DecisionReceipt, HumanReviewRecord } from "@vetolayer/core";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Button, ButtonLink, EmptyState, Field, Input, Notice, OutcomeBadge, Textarea } from "./ui/primitives";
