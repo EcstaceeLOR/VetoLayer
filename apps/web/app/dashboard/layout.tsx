@@ -17,9 +17,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <div className="productShell">
-      <aside className="sidebar">
+      <aside className="sidebar" aria-label="Workspace navigation">
         <Link href="/" className="brand dashboardBrand"><span className="mark">V</span> VetoLayer</Link>
-        <div className="workspaceTag" title={workspace.email}><span className="workspaceDot" /> {workspace.label}</div>
+        <div className="workspaceTag" title={workspace.email}><span className="workspaceDot" aria-hidden="true" /> {workspace.label}</div>
         <ProductNavigation />
         <div className="sideDemoCard">
           <span>FLAGSHIP SCENARIO</span>
@@ -27,14 +27,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <p>See SERV reason over a live policy exception and changing evidence.</p>
           <Link href="/demo">Open demo →</Link>
         </div>
-        <div className="sideFoot">
-          <span><i className="pulse" /> SERV reasoning online</span>
+        <div className="sideFoot" role="status">
+          <span><i className="pulse" aria-hidden="true" /> SERV reasoning online</span>
           <small>Hard policy + contextual judgment</small>
         </div>
       </aside>
-      <main className="dashboardMain">
+      <main className="dashboardMain" id="main-content" tabIndex={-1}>
         <div className="dashboardTopbar">
-          <div><span className="workspaceCrumb">{workspace.label}</span><span>/</span><strong>Production Gate</strong></div>
+          <div><span className="workspaceCrumb">{workspace.label}</span><span aria-hidden="true">/</span><strong>Production Gate</strong></div>
           <div className="topbarActions">
             <Link href="/onboarding">New project</Link>
             <span className="avatar" aria-label={`Signed in as ${workspace.email ?? workspace.label}`} title={workspace.email}>{avatar}</span>
