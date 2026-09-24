@@ -3,6 +3,7 @@ import {
   evaluateAction,
   type DecisionOrchestrationResult,
   type DecisionReceipt,
+  type HumanReviewRecord,
   type Policy,
 } from "@vetolayer/core";
 import { evaluateDeterministicPolicies } from "@vetolayer/policies";
@@ -37,6 +38,7 @@ export async function evaluateGitHubSnapshot(input: {
   now?: Date;
   restrictedWindow?: boolean;
   incident?: GitHubIncidentContext;
+  humanReview?: HumanReviewRecord;
 }): Promise<GitHubGateResult> {
   const now = input.now ?? new Date();
   const bundle = buildGitHubGateBundle({
@@ -47,6 +49,7 @@ export async function evaluateGitHubSnapshot(input: {
       ? { restrictedWindow: input.restrictedWindow }
       : {}),
     ...(input.incident ? { incident: input.incident } : {}),
+    ...(input.humanReview ? { humanReview: input.humanReview } : {}),
   });
   const policies = input.policies ?? githubGatePolicies;
 
@@ -97,6 +100,7 @@ export async function evaluateGitHubPullRequest(input: {
   now?: Date;
   restrictedWindow?: boolean;
   incident?: GitHubIncidentContext;
+  humanReview?: HumanReviewRecord;
 }): Promise<GitHubGateResult> {
   const client = input.githubFetch
     ? createGitHubEvidenceClient({ token: input.githubToken }, input.githubFetch)
@@ -119,5 +123,6 @@ export async function evaluateGitHubPullRequest(input: {
       ? { restrictedWindow: input.restrictedWindow }
       : {}),
     ...(input.incident ? { incident: input.incident } : {}),
+    ...(input.humanReview ? { humanReview: input.humanReview } : {}),
   });
 }
