@@ -1,0 +1,4 @@
+.topbarActions form { margin: 0; }
+.topbarSignOut { border: 1px solid var(--line); background: transparent; color: #929aaa; border-radius: 9px; padding: 8px 10px; font-size: 11px; cursor: pointer; }
+.topbarSignOut:hover, .topbarSignOut:focus-visible { color: var(--text); border-color: #465064; outline: none; }
+.workspaceTag { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

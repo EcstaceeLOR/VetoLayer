@@ -1,8 +1,8 @@
 import { HumanReviewRecordSchema } from "@vetolayer/core";
 import { evaluateGitHubSnapshot } from "@vetolayer/github-gate";
 import { NextResponse } from "next/server";
+import { requireApiWorkspace } from "../../../../../lib/server/api-auth";
 import { getOptionalDecisionStore } from "../../../../../lib/server/decision-store";
-import { readServerEnvironment } from "../../../../../lib/server/env";
 import { logServerEvent } from "../../../../../lib/server/observability";
 import { getReviewStore } from "../../../../../lib/server/review-store";
 
@@ -12,9 +12,11 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const auth = await requireApiWorkspace();
+  if (!auth.ok) return auth.response;
+
   const { id } = await context.params;
-  const environment = readServerEnvironment();
-  const workspaceId = request.headers.get("x-vetolayer-workspace")?.trim() || environment.demoWorkspaceId;
+  const workspaceId = auth.workspace.workspaceId;
   const { store, persistence } = getReviewStore();
   const reviewCase = await store.get(workspaceId, id);
 
@@ -34,7 +36,6 @@ export async function POST(
   let body: {
     action?: string;
     rationale?: string;
-    reviewer?: { id?: string; name?: string };
     requestedEvidence?: string[];
   };
   try {
@@ -48,10 +49,10 @@ export async function POST(
     id: `${reviewCase.id}_${now.getTime()}`,
     decisionId: reviewCase.receipt.decisionId,
     reviewer: {
-      id: body.reviewer?.id?.trim() || "demo-security-lead",
+      id: auth.workspace.userId,
       kind: "human",
-      name: body.reviewer?.name?.trim() || "Security Lead",
-      metadata: { identitySource: "review-inbox" },
+      name: auth.workspace.email ?? "Workspace owner",
+      metadata: { identitySource: "supabase-auth" },
     },
     action: body.action,
     rationale: body.rationale,
@@ -102,6 +103,7 @@ export async function POST(
       } catch (error) {
         logServerEvent("warn", "review.decision.persistence.failed", {
           reviewCaseId: id,
+          workspaceId,
           message: error instanceof Error ? error.message : "Decision persistence failed",
         });
       }
@@ -109,6 +111,7 @@ export async function POST(
 
     logServerEvent("info", "human_review.completed", {
       reviewCaseId: id,
+      workspaceId,
       reviewAction: parsedReview.data.action,
       reviewerId: parsedReview.data.reviewer.id,
       resultingOutcome: result.orchestration.decision.outcome,
@@ -126,6 +129,7 @@ export async function POST(
   } catch (error) {
     logServerEvent("error", "human_review.reevaluation.failed", {
       reviewCaseId: id,
+      workspaceId,
       message: error instanceof Error ? error.message : "Re-evaluation failed",
     });
     return NextResponse.json(

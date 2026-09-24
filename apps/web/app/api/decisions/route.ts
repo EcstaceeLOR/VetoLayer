@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
+import { requireApiWorkspace } from "../../../lib/server/api-auth";
 import { getOptionalDecisionStore } from "../../../lib/server/decision-store";
-import { readServerEnvironment } from "../../../lib/server/env";
 import { logServerEvent } from "../../../lib/server/observability";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  let environment;
-  try {
-    environment = readServerEnvironment();
-  } catch {
-    return NextResponse.json({ error: "server configuration is invalid" }, { status: 500 });
-  }
+  const auth = await requireApiWorkspace();
+  if (!auth.ok) return auth.response;
 
   const store = getOptionalDecisionStore();
   if (!store) {
@@ -29,11 +25,12 @@ export async function GET(request: Request) {
   }
 
   try {
-    const decisions = await store.list(environment.demoWorkspaceId, limit);
+    const decisions = await store.list(auth.workspace.workspaceId, limit);
     return NextResponse.json({ decisions, persistence: "supabase" });
   } catch (error) {
     logServerEvent("error", "decision.persistence.read_failed", {
       message: error instanceof Error ? error.message : "Decision list failed",
+      workspaceId: auth.workspace.workspaceId,
     });
     return NextResponse.json(
       { error: "decision history is temporarily unavailable" },

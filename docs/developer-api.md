@@ -33,15 +33,24 @@ The endpoint never turns provider failure into ALLOW; contextual provider/config
 
 `GET /api/v1/decisions/:receiptId`
 
-Returns the decision id, current outcome, summary, timestamp, complete Decision Receipt, source, and persistence mode for the requested workspace.
+Returns the decision id, current outcome, summary, timestamp, complete Decision Receipt, source, and persistence mode for the API workspace associated with the configured bearer key.
 
 ## Workspace and authentication
 
-Use `X-VetoLayer-Workspace` to scope persisted receipts. In hosted environments set `VETOLAYER_API_KEY`; when configured, all `/api/v1/*` calls require:
+The Developer API does **not** trust a caller-supplied workspace header. Configure one server-owned workspace for the API credential:
+
+```text
+VETOLAYER_API_KEY=<secret bearer key>
+VETOLAYER_API_WORKSPACE_ID=service:developer-api
+```
+
+When `VETOLAYER_API_KEY` is configured, all `/api/v1/*` calls require:
 
 ```text
 Authorization: Bearer <VETOLAYER_API_KEY>
 ```
+
+Every receipt written or read through that bearer key is scoped to `VETOLAYER_API_WORKSPACE_ID`. A client cannot switch tenants by sending `X-VetoLayer-Workspace` or another request-controlled identifier.
 
 Rate limiting is configured with `VETOLAYER_API_RATE_LIMIT_PER_MINUTE`.
 

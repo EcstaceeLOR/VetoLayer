@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
-import { readServerEnvironment } from "../../../lib/server/env";
+import { requireApiWorkspace } from "../../../lib/server/api-auth";
 import { getReviewStore } from "../../../lib/server/review-store";
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request) {
-  const environment = readServerEnvironment();
-  const workspaceId = request.headers.get("x-vetolayer-workspace")?.trim() || environment.demoWorkspaceId;
+export async function GET() {
+  const auth = await requireApiWorkspace();
+  if (!auth.ok) return auth.response;
+
   const { store, persistence } = getReviewStore();
 
   try {
-    const cases = await store.list(workspaceId);
+    const cases = await store.list(auth.workspace.workspaceId);
     return NextResponse.json({
       cases: cases.map((item) => ({
         id: item.id,

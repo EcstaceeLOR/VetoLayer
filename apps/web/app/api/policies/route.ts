@@ -1,20 +1,20 @@
 import { PolicySchema } from "@vetolayer/core";
 import { NextResponse } from "next/server";
 import { policyStudioStarters } from "../../../lib/policy-studio";
+import { requireApiWorkspace } from "../../../lib/server/api-auth";
 import { getOptionalPolicyStore } from "../../../lib/server/policy-store";
 
-const DEFAULT_WORKSPACE = "demo-workspace";
+export async function GET() {
+  const auth = await requireApiWorkspace();
+  if (!auth.ok) return auth.response;
 
-export async function GET(request: Request) {
-  const workspaceId = request.headers.get("x-vetolayer-workspace")?.trim() || DEFAULT_WORKSPACE;
   const store = getOptionalPolicyStore();
-
   if (!store) {
     return NextResponse.json({ policies: policyStudioStarters, persistence: "browser-fallback" });
   }
 
   try {
-    const stored = await store.list(workspaceId);
+    const stored = await store.list(auth.workspace.workspaceId);
     return NextResponse.json({
       policies: stored.length ? stored.map((row) => row.policy) : policyStudioStarters,
       persistence: "supabase",
@@ -28,7 +28,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const workspaceId = request.headers.get("x-vetolayer-workspace")?.trim() || DEFAULT_WORKSPACE;
+  const auth = await requireApiWorkspace();
+  if (!auth.ok) return auth.response;
+
   let payload: unknown;
   try {
     payload = await request.json();
@@ -50,7 +52,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    await store.save({ workspaceId, policy: parsed.data, updatedAt: new Date().toISOString() });
+    await store.save({ workspaceId: auth.workspace.workspaceId, policy: parsed.data, updatedAt: new Date().toISOString() });
     return NextResponse.json({ policy: parsed.data, persisted: true, persistence: "supabase" });
   } catch (error) {
     return NextResponse.json(

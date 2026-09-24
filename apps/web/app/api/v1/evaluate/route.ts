@@ -2,6 +2,7 @@ import { createDecisionReceipt, evaluateAction } from "@vetolayer/core";
 import { evaluateDeterministicPolicies } from "@vetolayer/policies";
 import { evaluateWithServ, readServEnvironment } from "@vetolayer/serv";
 import { NextResponse } from "next/server";
+import { developerApiWorkspaceId } from "../../../../lib/server/api-workspace";
 import { getDecisionStore } from "../../../../lib/server/decision-store";
 import {
   authorizeDeveloperRequest,
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
       receiptId: `receipt_${parsed.data.action.id}_${now.getTime()}`,
     });
 
-    const workspaceId = request.headers.get("x-vetolayer-workspace")?.trim() || environment.demoWorkspaceId;
+    const workspaceId = developerApiWorkspaceId(environment);
     const { store, persistence } = getDecisionStore();
     try {
       await store.save({
@@ -89,12 +90,14 @@ export async function POST(request: Request) {
       logServerEvent("warn", "api.decision.persistence.failed", {
         requestId,
         receiptId: receipt.receiptId,
+        workspaceId,
         message: error instanceof Error ? error.message : "Decision persistence failed",
       });
     }
 
     logServerEvent("info", "api.evaluation.completed", {
       requestId,
+      workspaceId,
       actionRequestId: parsed.data.action.id,
       outcome: orchestration.decision.outcome,
       receiptId: receipt.receiptId,

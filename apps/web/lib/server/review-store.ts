@@ -36,6 +36,10 @@ export type ReviewStore = {
 
 const memoryCases = new Map<string, ReviewCase>();
 
+function storageId(workspaceId: string, id: string) {
+  return `${workspaceId}:${id}`;
+}
+
 export function createMemoryReviewStore(): ReviewStore {
   return {
     async list(workspaceId) {
@@ -44,11 +48,11 @@ export function createMemoryReviewStore(): ReviewStore {
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     },
     async get(workspaceId, id) {
-      const item = memoryCases.get(`${workspaceId}:${id}`);
+      const item = memoryCases.get(storageId(workspaceId, id));
       return item ?? null;
     },
     async save(reviewCase) {
-      memoryCases.set(`${reviewCase.workspaceId}:${reviewCase.id}`, reviewCase);
+      memoryCases.set(storageId(reviewCase.workspaceId, reviewCase.id), reviewCase);
     },
   };
 }
@@ -90,7 +94,7 @@ export function createSupabaseReviewStore(
       const query = new URLSearchParams({
         select: "payload",
         workspace_id: `eq.${workspaceId}`,
-        id: `eq.${id}`,
+        id: `eq.${storageId(workspaceId, id)}`,
         limit: "1",
       });
       const response = await fetchImpl(`${baseUrl}/rest/v1/vetolayer_review_cases?${query.toString()}`, { headers });
@@ -103,7 +107,7 @@ export function createSupabaseReviewStore(
         method: "POST",
         headers: { ...headers, Prefer: "resolution=merge-duplicates,return=minimal" },
         body: JSON.stringify({
-          id: reviewCase.id,
+          id: storageId(reviewCase.workspaceId, reviewCase.id),
           workspace_id: reviewCase.workspaceId,
           status: reviewCase.status,
           payload: reviewCase,

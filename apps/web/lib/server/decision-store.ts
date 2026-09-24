@@ -18,13 +18,17 @@ export type DecisionStore = {
 
 const memoryDecisions = new Map<string, StoredDecision>();
 
+function storageId(workspaceId: string, id: string) {
+  return `${workspaceId}:${id}`;
+}
+
 export function createMemoryDecisionStore(): DecisionStore {
   return {
     async save(record) {
-      memoryDecisions.set(`${record.workspaceId}:${record.id}`, record);
+      memoryDecisions.set(storageId(record.workspaceId, record.id), record);
     },
     async get(workspaceId, id) {
-      return memoryDecisions.get(`${workspaceId}:${id}`) ?? null;
+      return memoryDecisions.get(storageId(workspaceId, id)) ?? null;
     },
     async list(workspaceId, limit = 50) {
       return [...memoryDecisions.values()]
@@ -68,7 +72,7 @@ export function createSupabaseDecisionStore(
     created_at: string;
   }): StoredDecision {
     return {
-      id: row.id,
+      id: row.receipt.receiptId,
       workspaceId: row.workspace_id,
       source: row.source,
       receipt: row.receipt,
@@ -82,7 +86,7 @@ export function createSupabaseDecisionStore(
         method: "POST",
         headers: { ...headers, Prefer: "resolution=merge-duplicates,return=minimal" },
         body: JSON.stringify({
-          id: record.id,
+          id: storageId(record.workspaceId, record.id),
           workspace_id: record.workspaceId,
           source: record.source,
           receipt: record.receipt,
@@ -96,7 +100,7 @@ export function createSupabaseDecisionStore(
       const query = new URLSearchParams({
         select: "id,workspace_id,source,receipt,created_at",
         workspace_id: `eq.${workspaceId}`,
-        id: `eq.${id}`,
+        id: `eq.${storageId(workspaceId, id)}`,
         limit: "1",
       });
       const response = await fetchImpl(`${baseUrl}/rest/v1/vetolayer_decisions?${query.toString()}`, { headers });

@@ -20,6 +20,7 @@ export default function HomePage() {
         <Link href="/" className="brand"><span className="mark">V</span> VetoLayer</Link>
         <div className="marketingNavLinks">
           <Link href="/demo">Live demo</Link>
+          <Link href="/login">Sign in</Link>
           <Link href="/dashboard">Control center</Link>
           <Link className="navCta" href="/onboarding">Start building</Link>
         </div>
