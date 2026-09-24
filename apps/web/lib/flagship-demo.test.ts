@@ -85,7 +85,7 @@ function evidenceAwareServFetch() {
 }
 
 describe("flagship deployment demo", () => {
-  it("re-evaluates the same action from REVIEW to ALLOW when human-review evidence changes", async () => {
+  it("re-evaluates the same action from REVIEW to ALLOW while preserving separate receipts", async () => {
     const fetchMock = evidenceAwareServFetch();
     const fixedNow = new Date("2026-09-24T15:00:00.000Z");
 
@@ -105,7 +105,9 @@ describe("flagship deployment demo", () => {
     expect(initial.orchestration.decision.actionRequestId).toBe(
       resolved.orchestration.decision.actionRequestId,
     );
+    expect(initial.receipt.decisionId).toBe(resolved.receipt.decisionId);
     expect(humanReview.decisionId).toBe(initial.receipt.decisionId);
+    expect(initial.receipt.receiptId).not.toBe(resolved.receipt.receiptId);
     expect(initial.orchestration.decision.outcome).toBe("REVIEW");
     expect(resolved.orchestration.decision.outcome).toBe("ALLOW");
     expect(initial.receipt.requirementsToChangeOutcome.length).toBeGreaterThan(0);
