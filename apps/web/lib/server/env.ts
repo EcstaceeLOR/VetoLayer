@@ -1,6 +1,6 @@
 export type ServerEnvironment = {
   servConfigured: boolean;
-  githubTokenConfigured: boolean;
+  githubTokenConfigured?: boolean;
   persistenceConfigured: boolean;
   supabaseUrl?: string;
   supabaseServiceRoleKey?: string;
