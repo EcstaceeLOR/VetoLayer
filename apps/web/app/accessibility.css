@@ -1,0 +1,212 @@
+/* Issue #21 — accessibility, keyboard navigation, and responsive polish */
+
+.skipLink {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 9999;
+  transform: translateY(-160%);
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #080a0f;
+  font-weight: 900;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+}
+
+.skipLink:focus-visible { transform: translateY(0); }
+
+:where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+:where(button, input, textarea, select):disabled {
+  cursor: not-allowed;
+}
+
+/* Outcome/status language remains visible even if color is unavailable. */
+.outcomeBadge.allow::before,
+.heroOutcome.allow::before,
+.simulationOutcome.allow::before,
+.reviewOutcome.allow::before { content: "✓ "; }
+
+.outcomeBadge.review::before,
+.heroOutcome.review::before,
+.simulationOutcome.review::before,
+.reviewOutcome.review::before { content: "! "; }
+
+.outcomeBadge.block::before,
+.heroOutcome.block::before,
+.simulationOutcome.block::before,
+.reviewOutcome.block::before { content: "× "; }
+
+/* Long technical values and code should never force the viewport wider. */
+pre,
+code,
+.mono,
+.hashText {
+  overflow-wrap: anywhere;
+}
+
+pre { overflow-x: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .pulse { box-shadow: none !important; }
+}
+
+@media (forced-colors: active) {
+  .outcomeBadge,
+  .heroOutcome,
+  .simulationOutcome,
+  .reviewOutcome,
+  .dataModeBadge,
+  .authState,
+  .queueCount {
+    border: 1px solid CanvasText;
+  }
+}
+
+@media (max-width: 980px) {
+  .productShell { display: block; }
+
+  .sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    padding: 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .dashboardBrand { padding-bottom: 14px; }
+  .workspaceTag { margin: 14px 0 8px; }
+
+  .sideNav {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 8px 0 4px;
+    scrollbar-width: thin;
+  }
+
+  .sideNav a {
+    flex: 0 0 auto;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .sideDemoCard,
+  .sideFoot { display: none !important; }
+
+  .dashboardMain {
+    max-width: none;
+    padding: 0 18px 64px !important;
+  }
+
+  .dashboardTopbar {
+    min-height: auto;
+    padding: 14px 0;
+    margin-bottom: 26px;
+    flex-wrap: wrap;
+  }
+
+  .dashboardHeader,
+  .detailHeader,
+  .finalCta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .metricGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .detailColumns,
+  .reviewSpotlight,
+  .policyStudio,
+  .reviewWorkspace,
+  .marketingHero,
+  .marketingProof,
+  .marketSection,
+  .onboardingLayout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .detailMetaGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .evidenceGrid { grid-template-columns: 1fr; }
+  .onboardingAside { position: static; }
+
+  .decisionTable {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .decisionTableHead,
+  .decisionTableRow { min-width: 760px; }
+
+  .controlPathGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .marketingShell,
+  .onboardingShell { padding-inline: 22px; }
+
+  .marketingNav {
+    align-items: flex-start;
+    padding: 18px 0;
+    flex-wrap: wrap;
+  }
+
+  .marketingNavLinks { flex-wrap: wrap; gap: 12px 18px; }
+}
+
+@media (max-width: 640px) {
+  .dashboardMain { padding-inline: 14px !important; }
+  .dashboardTitle { font-size: clamp(36px, 12vw, 54px); }
+
+  .metricGrid,
+  .detailMetaGrid,
+  .controlPathGrid { grid-template-columns: 1fr; }
+
+  .metricCard { min-height: 130px; }
+
+  .dashboardTopbar > div,
+  .topbarActions,
+  .authActions,
+  .heroActions,
+  .emptyActions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .topbarActions { justify-content: flex-start; }
+
+  .marketingShell,
+  .onboardingShell { padding-inline: 16px; }
+  .marketingHero { min-height: auto; padding: 58px 0 72px; }
+  .marketingHero h1 { font-size: clamp(48px, 15vw, 72px); }
+
+  .reviewQueue,
+  .integrationGrid { grid-template-columns: 1fr !important; }
+
+  .reviewQueuePane,
+  .policyStudioList {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .firstRunPanel,
+  .dashboardEmptyState,
+  .reviewCard,
+  .healthPanel,
+  .onboardingCard { border-radius: 16px; }
+}

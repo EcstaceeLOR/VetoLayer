@@ -3,10 +3,10 @@ import { OnboardingFlow } from "../../components/onboarding-flow";
 
 export default function OnboardingPage() {
   return (
-    <main className="onboardingShell">
-      <nav className="onboardingNav"><Link href="/" className="brand"><span className="mark">V</span> VetoLayer</Link><Link href="/demo">View demo instead</Link></nav>
+    <main className="onboardingShell" id="main-content" tabIndex={-1}>
+      <nav className="onboardingNav" aria-label="Onboarding navigation"><Link href="/" className="brand"><span className="mark">V</span> VetoLayer</Link><Link href="/demo">View demo instead</Link></nav>
       <div className="onboardingLayout">
-        <aside className="onboardingAside">
+        <aside className="onboardingAside" aria-label="VetoLayer onboarding principles">
           <p className="eyebrow">GET TO YOUR FIRST DECISION</p>
           <h2>Set up the control layer, not another AI dashboard.</h2>
           <p>VetoLayer only needs enough context to know what an agent is trying to do, which policies apply, and what evidence should be trusted.</p>
