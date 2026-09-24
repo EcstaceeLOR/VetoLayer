@@ -27,3 +27,23 @@ export function resolveAppOrigin(
     normalizeOrigin(requestOrigin)
   );
 }
+
+/** Keep post-auth redirects on the VetoLayer origin, including backslash edge cases. */
+export function safeAppPath(
+  value?: string | null,
+  fallback = "/dashboard",
+): string {
+  const candidate = value?.trim();
+  if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//") || candidate.includes("\\")) {
+    return fallback;
+  }
+
+  try {
+    const base = new URL("https://vetolayer.invalid");
+    const parsed = new URL(candidate, base);
+    if (parsed.origin !== base.origin) return fallback;
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return fallback;
+  }
+}
