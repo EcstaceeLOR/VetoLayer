@@ -1,0 +1,108 @@
+import {
+  createDecisionReceipt,
+  evaluateAction,
+  type DecisionOrchestrationResult,
+  type DecisionReceipt,
+  type Policy,
+} from "@vetolayer/core";
+import { evaluateDeterministicPolicies } from "@vetolayer/policies";
+import {
+  evaluateWithServ,
+  readServEnvironment,
+  type ServClientConfig,
+} from "@vetolayer/serv";
+import { buildGitHubGateBundle, type GitHubGateOperation } from "./adapter";
+import {
+  createGitHubEvidenceClient,
+  type GitHubPullRequestSnapshot,
+} from "./github-client";
+import { githubGatePolicies } from "./policies";
+
+export type GitHubGateResult = {
+  snapshot: GitHubPullRequestSnapshot;
+  orchestration: DecisionOrchestrationResult;
+  receipt: DecisionReceipt;
+};
+
+export async function evaluateGitHubSnapshot(input: {
+  snapshot: GitHubPullRequestSnapshot;
+  operation?: GitHubGateOperation;
+  policies?: Policy[];
+  servConfig?: ServClientConfig;
+  servFetch?: typeof fetch;
+  now?: Date;
+  restrictedWindow?: boolean;
+}): Promise<GitHubGateResult> {
+  const now = input.now ?? new Date();
+  const bundle = buildGitHubGateBundle({
+    snapshot: input.snapshot,
+    operation: input.operation,
+    requestedAt: now,
+    restrictedWindow: input.restrictedWindow,
+  });
+  const policies = input.policies ?? githubGatePolicies;
+  const servConfig = input.servConfig ?? readServEnvironment();
+
+  const orchestration = await evaluateAction(
+    {
+      action: bundle.action,
+      policies,
+      evidence: bundle.evidence,
+      facts: bundle.facts,
+      environment: bundle.environment,
+      now,
+      decisionId: `decision_${bundle.action.id}`,
+    },
+    {
+      evaluateDeterministic: (deterministicInput) =>
+        evaluateDeterministicPolicies(deterministicInput),
+      evaluateContextual: (contextualInput) =>
+        evaluateWithServ(contextualInput, servConfig, input.servFetch),
+    },
+  );
+
+  const receipt = await createDecisionReceipt({
+    orchestration,
+    action: bundle.action,
+    policies,
+    evidence: bundle.evidence,
+    createdAt: now,
+    receiptId: `receipt_${bundle.action.id}`,
+  });
+
+  return { snapshot: input.snapshot, orchestration, receipt };
+}
+
+export async function evaluateGitHubPullRequest(input: {
+  owner: string;
+  repo: string;
+  pullRequest: number;
+  githubToken: string;
+  operation?: GitHubGateOperation;
+  policies?: Policy[];
+  servConfig?: ServClientConfig;
+  githubFetch?: typeof fetch;
+  servFetch?: typeof fetch;
+  now?: Date;
+  restrictedWindow?: boolean;
+}): Promise<GitHubGateResult> {
+  const client = createGitHubEvidenceClient(
+    { token: input.githubToken },
+    input.githubFetch,
+  );
+  const snapshot = await client.collectPullRequest(
+    input.owner,
+    input.repo,
+    input.pullRequest,
+  );
+
+  return evaluateGitHubSnapshot({
+    snapshot,
+    operation: input.operation,
+    policies: input.policies,
+    servConfig: input.servConfig,
+    servFetch: input.servFetch,
+    now: input.now,
+    restrictedWindow: input.restrictedWindow,
+  });
+}
