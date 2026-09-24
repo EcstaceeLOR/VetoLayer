@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
 type DemoResponse = {
@@ -21,20 +20,24 @@ export function FlagshipDemoClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  async function requestDemo(path: string, body?: unknown) {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+    });
+    const payload = (await response.json()) as DemoResponse | { error: string };
+    if (!response.ok || "error" in payload) {
+      throw new Error("error" in payload ? payload.error : "Evaluation failed");
+    }
+    return payload;
+  }
+
   async function evaluate() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/demo/evaluate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage: "needs-approval" }),
-      });
-      const payload = (await response.json()) as DemoResponse | { error: string };
-      if (!response.ok || "error" in payload) {
-        throw new Error("error" in payload ? payload.error : "Evaluation failed");
-      }
-      setResult(payload);
+      setResult(await requestDemo("/api/demo/evaluate", { stage: "needs-approval" }));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Evaluation failed");
     } finally {
@@ -42,11 +45,36 @@ export function FlagshipDemoClient() {
     }
   }
 
-  function resetDemo() {
-    setResult(null);
+  async function approveAndReevaluate() {
+    if (!result?.reviewCaseId) return;
+    setLoading(true);
     setError(null);
-    setLoading(false);
+    try {
+      setResult(
+        await requestDemo("/api/demo/review", { reviewCaseId: result.reviewCaseId }),
+      );
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Re-evaluation failed");
+    } finally {
+      setLoading(false);
+    }
   }
+
+  async function resetDemo() {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/demo/reset", { method: "DELETE" });
+      if (!response.ok) throw new Error("Demo reset failed");
+      setResult(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Demo reset failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const approvalResolved = result?.stage === "resolved";
 
   return (
     <div className="demoExperience">
@@ -65,17 +93,20 @@ export function FlagshipDemoClient() {
           <div><span>CI</span><strong>3/3 passing</strong></div>
           <div><span>Files</span><strong>Auth + security</strong></div>
           <div><span>Incident</span><strong>INC-2041</strong></div>
-          <div><span>Human approval</span><strong className="factWarn">Missing</strong></div>
+          <div><span>Human approval</span><strong className={approvalResolved ? "" : "factWarn"}>{approvalResolved ? "Verified" : "Missing"}</strong></div>
         </div>
         <div className="demoControls">
-          <button className="demoButton secondaryDemoButton" disabled={loading} onClick={evaluate}>{loading ? "Evaluating…" : "1. Evaluate current action"}</button>
-          {result?.outcome === "REVIEW" && result.reviewCaseId ? (
-            <Link className="demoButton demoReviewLink" href={`/dashboard/reviews?case=${encodeURIComponent(result.reviewCaseId)}`}>2. Open Human Review →</Link>
+          <button className="demoButton secondaryDemoButton" disabled={loading} onClick={evaluate}>{loading && !result ? "Evaluating…" : "1. Evaluate current action"}</button>
+          {result?.stage === "needs-approval" && result.outcome === "REVIEW" && result.reviewCaseId ? (
+            <button className="demoButton" disabled={loading} onClick={approveAndReevaluate}>{loading ? "Re-evaluating…" : "2. Add demo security-lead approval & re-evaluate"}</button>
+          ) : approvalResolved ? (
+            <button className="demoButton" disabled>2. Approval evidence added</button>
           ) : (
             <button className="demoButton" disabled>2. Human review appears after REVIEW</button>
           )}
           {result || error ? <button className="demoButton secondaryDemoButton" disabled={loading} onClick={resetDemo}>Reset demo</button> : null}
         </div>
+        <p className="demoControlNote">The security-lead approval is seeded demo evidence. The deterministic engine, SERV call, orchestration, and receipt generation are executed again for the second decision.</p>
         {error ? <p className="demoError" role="alert">{error}</p> : null}
       </section>
 
@@ -111,9 +142,8 @@ export function FlagshipDemoClient() {
 
             {result.outcome === "REVIEW" ? (
               <div className="demoReviewHandoff">
-                <span>HUMAN REVIEW CREATED</span>
-                <p>The action is paused. Approval, rejection, or a request for more evidence will be recorded and then the exact same policy + SERV pipeline runs again.</p>
-                {result.reviewCaseId ? <Link href={`/dashboard/reviews?case=${encodeURIComponent(result.reviewCaseId)}`}>Open review case →</Link> : null}
+                <span>{result.stage === "resolved" ? "REVIEW REMAINS REQUIRED" : "HUMAN REVIEW CREATED"}</span>
+                <p>{result.stage === "resolved" ? "The demo approval was added, but VetoLayer still requires review because another condition or SERV validation remains unresolved." : "The action is paused. Add the seeded security-lead approval above and the exact same policy + SERV pipeline will run again."}</p>
               </div>
             ) : null}
 
