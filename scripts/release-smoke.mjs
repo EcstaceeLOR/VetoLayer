@@ -23,24 +23,47 @@ const routes = [
   "apps/web/app/demo/page.tsx",
   "apps/web/app/dashboard/page.tsx",
   "apps/web/app/dashboard/layout.tsx",
+  "apps/web/app/api/demo/evaluate/route.ts",
+  "apps/web/app/api/demo/review/route.ts",
+  "apps/web/app/api/demo/reset/route.ts",
+  "apps/web/app/api/health/route.ts",
+];
+
+const deploymentArtifacts = [
+  "vercel.json",
+  "apps/web/next.config.ts",
+  "apps/web/.env.example",
+  "docs/deployment.md",
 ];
 
 const behavioralProof = [
   "apps/web/lib/flagship-demo.test.ts",
   "apps/web/lib/policy-studio.test.ts",
+  "apps/web/lib/server/app-origin.test.ts",
   "packages/core/src/orchestrator.test.ts",
   "packages/core/src/receipts.test.ts",
   "packages/serv/src/client.test.ts",
 ];
 
 for (const path of routes) requireFile(path);
+for (const path of deploymentArtifacts) requireFile(path);
 for (const path of behavioralProof) requireFile(path);
 
 const demoClient = requireFile("apps/web/app/demo/demo-client.tsx");
 if (existsSync(demoClient)) {
   const source = readFileSync(demoClient, "utf8");
-  check(source.includes("Reset demo"), "flagship demo exposes an explicit reset control");
-  check(source.includes("/api/demo/evaluate"), "flagship demo exercises the real evaluation API");
+  check(source.includes("/api/demo/evaluate"), "flagship demo calls the initial evaluation API");
+  check(source.includes("/api/demo/review"), "flagship demo reaches the human-review re-evaluation API");
+  check(source.includes("/api/demo/reset"), "flagship demo reset calls the server reset API");
+}
+
+const evaluateRoute = requireFile("apps/web/app/api/demo/evaluate/route.ts");
+if (existsSync(evaluateRoute)) {
+  const source = readFileSync(evaluateRoute, "utf8");
+  check(
+    source.includes("resolved demo state must be reached through the human-review endpoint"),
+    "public demo cannot skip directly to the resolved state",
+  );
 }
 
 const buildRoot = join(root, "apps/web/.next");
@@ -49,7 +72,12 @@ check(existsSync(buildRoot), "production Next.js build exists");
 check(existsSync(staticRoot), "client static bundle exists for leak scan");
 
 if (existsSync(staticRoot)) {
-  const sensitiveKeys = ["SERV_API_KEY", "GITHUB_TOKEN", "VETOLAYER_API_KEY", "SUPABASE_SERVICE_ROLE_KEY"];
+  const sensitiveKeys = [
+    "SERV_API_KEY",
+    "GITHUB_TOKEN",
+    "VETOLAYER_API_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+  ];
   const sensitiveValues = sensitiveKeys
     .map((key) => [key, process.env[key]])
     .filter(([, value]) => typeof value === "string" && value.length >= 8);
@@ -72,6 +100,7 @@ if (baseUrl) {
   await probe(baseUrl, "/demo", [200]);
   await probe(baseUrl, "/onboarding", [200, 302, 303, 307, 308]);
   await probe(baseUrl, "/dashboard", [200, 302, 303, 307, 308]);
+  await probeHealth(baseUrl);
 } else {
   passes.push("live HTTP probes skipped; set SMOKE_BASE_URL to verify a deployed release");
 }
@@ -100,5 +129,20 @@ async function probe(origin, path, allowedStatuses) {
     check(allowedStatuses.includes(response.status), `${path} returned expected release status (${response.status})`);
   } catch (error) {
     failures.push(`${path} could not be reached: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+async function probeHealth(origin) {
+  try {
+    const response = await fetch(`${origin}/api/health`, { redirect: "manual" });
+    if (!response.ok) {
+      failures.push(`/api/health returned ${response.status}`);
+      return;
+    }
+    const body = await response.json();
+    check(body.status === "ok", "/api/health reports service status ok");
+    check(body.demoReady === true, "/api/health confirms SERV-backed public demo readiness");
+  } catch (error) {
+    failures.push(`/api/health could not be verified: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
