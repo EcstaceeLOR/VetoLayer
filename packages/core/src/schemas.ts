@@ -222,6 +222,7 @@ export type ActionRequest = z.infer<typeof ActionRequestSchema>;
 export type Evidence = z.infer<typeof EvidenceSchema>;
 export type EvidenceRequirement = z.infer<typeof EvidenceRequirementSchema>;
 export type PolicyException = z.infer<typeof PolicyExceptionSchema>;
+export type DeterministicCondition = z.infer<typeof DeterministicConditionSchema>;
 export type DeterministicPolicy = z.infer<typeof DeterministicPolicySchema>;
 export type ContextualPolicy = z.infer<typeof ContextualPolicySchema>;
 export type Policy = z.infer<typeof PolicySchema>;
