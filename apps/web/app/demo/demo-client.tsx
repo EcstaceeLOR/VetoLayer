@@ -42,6 +42,12 @@ export function FlagshipDemoClient() {
     }
   }
 
+  function resetDemo() {
+    setResult(null);
+    setError(null);
+    setLoading(false);
+  }
+
   return (
     <div className="demoExperience">
       <section className="demoScenario">
@@ -68,11 +74,12 @@ export function FlagshipDemoClient() {
           ) : (
             <button className="demoButton" disabled>2. Human review appears after REVIEW</button>
           )}
+          {result || error ? <button className="demoButton secondaryDemoButton" disabled={loading} onClick={resetDemo}>Reset demo</button> : null}
         </div>
-        {error ? <p className="demoError">{error}</p> : null}
+        {error ? <p className="demoError" role="alert">{error}</p> : null}
       </section>
 
-      <section className="demoDecisionPanel">
+      <section className="demoDecisionPanel" aria-live="polite">
         {!result ? (
           <div className="demoEmpty">
             <span className="demoOrb">V</span>
