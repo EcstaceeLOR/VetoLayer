@@ -7,6 +7,12 @@ export type GitHubGateOperation =
   | "modify-protected-configuration"
   | "security-sensitive-change";
 
+export type GitHubIncidentContext = {
+  id: string;
+  severity: "low" | "medium" | "high" | "critical";
+  summary: string;
+};
+
 export type GitHubGateBundle = {
   action: ActionRequest;
   evidence: Evidence[];
@@ -28,6 +34,7 @@ export function buildGitHubGateBundle(input: {
   operation?: GitHubGateOperation;
   requestedAt?: Date;
   restrictedWindow?: boolean;
+  incident?: GitHubIncidentContext;
 }): GitHubGateBundle {
   const operation = input.operation ?? "merge-pull-request";
   const requestedAt = input.requestedAt ?? new Date();
@@ -87,6 +94,17 @@ export function buildGitHubGateBundle(input: {
     },
   ];
 
+  if (input.incident) {
+    evidence.push({
+      id: `incident-${input.incident.id}`,
+      type: "security-incident",
+      source: { kind: "incident-context", label: "Active security incident" },
+      data: input.incident,
+      observedAt: requestedAt.toISOString(),
+      verification: { status: "verified", verifier: "demo-incident-feed" },
+    });
+  }
+
   return {
     action: {
       id: `github_${input.snapshot.owner}_${input.snapshot.repo}_${input.snapshot.number}_${operation}`,
@@ -120,6 +138,13 @@ export function buildGitHubGateBundle(input: {
           pullRequestUrl: input.snapshot.url,
           sensitiveChange: sensitiveFiles.length > 0,
           restrictedWindow: input.restrictedWindow ?? false,
+          ...(input.incident
+            ? {
+                incidentId: input.incident.id,
+                incidentSeverity: input.incident.severity,
+                incidentSummary: input.incident.summary,
+              }
+            : {}),
         },
       },
       requestedAt: requestedAt.toISOString(),
@@ -133,12 +158,14 @@ export function buildGitHubGateBundle(input: {
       changedFileCount: input.snapshot.changedFiles.length,
       sensitiveChange: sensitiveFiles.length > 0,
       restrictedWindow: input.restrictedWindow ?? false,
+      incidentSeverity: input.incident?.severity ?? "none",
     },
     environment: {
       repository: `${input.snapshot.owner}/${input.snapshot.repo}`,
       baseBranch: input.snapshot.baseBranch,
       sensitiveFiles,
       restrictedWindow: input.restrictedWindow ?? false,
+      ...(input.incident ? { incident: input.incident } : {}),
     },
   };
 }

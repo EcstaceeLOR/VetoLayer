@@ -11,7 +11,11 @@ import {
   readServEnvironment,
   type ServClientConfig,
 } from "@vetolayer/serv";
-import { buildGitHubGateBundle, type GitHubGateOperation } from "./adapter";
+import {
+  buildGitHubGateBundle,
+  type GitHubGateOperation,
+  type GitHubIncidentContext,
+} from "./adapter";
 import {
   createGitHubEvidenceClient,
   type GitHubPullRequestSnapshot,
@@ -32,13 +36,17 @@ export async function evaluateGitHubSnapshot(input: {
   servFetch?: typeof fetch;
   now?: Date;
   restrictedWindow?: boolean;
+  incident?: GitHubIncidentContext;
 }): Promise<GitHubGateResult> {
   const now = input.now ?? new Date();
   const bundle = buildGitHubGateBundle({
     snapshot: input.snapshot,
-    operation: input.operation,
+    ...(input.operation ? { operation: input.operation } : {}),
     requestedAt: now,
-    restrictedWindow: input.restrictedWindow,
+    ...(input.restrictedWindow !== undefined
+      ? { restrictedWindow: input.restrictedWindow }
+      : {}),
+    ...(input.incident ? { incident: input.incident } : {}),
   });
   const policies = input.policies ?? githubGatePolicies;
 
@@ -88,6 +96,7 @@ export async function evaluateGitHubPullRequest(input: {
   servFetch?: typeof fetch;
   now?: Date;
   restrictedWindow?: boolean;
+  incident?: GitHubIncidentContext;
 }): Promise<GitHubGateResult> {
   const client = input.githubFetch
     ? createGitHubEvidenceClient({ token: input.githubToken }, input.githubFetch)
@@ -109,5 +118,6 @@ export async function evaluateGitHubPullRequest(input: {
     ...(input.restrictedWindow !== undefined
       ? { restrictedWindow: input.restrictedWindow }
       : {}),
+    ...(input.incident ? { incident: input.incident } : {}),
   });
 }
