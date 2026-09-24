@@ -67,7 +67,6 @@ export class VetoLayerApiError extends Error {
 export type VetoLayerClientConfig = {
   baseUrl: string;
   apiKey?: string;
-  workspaceId?: string;
   fetch?: typeof fetch;
 };
 
@@ -80,7 +79,6 @@ export function createVetoLayerClient(config: VetoLayerClientConfig) {
     headers.set("Accept", "application/json");
     if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
     if (config.apiKey) headers.set("Authorization", `Bearer ${config.apiKey}`);
-    if (config.workspaceId) headers.set("X-VetoLayer-Workspace", config.workspaceId);
 
     const response = await fetchImpl(`${baseUrl}${path}`, { ...init, headers });
     const payload = (await response.json().catch(() => null)) as T | VetoLayerApiErrorBody | null;
@@ -112,6 +110,10 @@ export function createVetoLayerClient(config: VetoLayerClientConfig) {
 /**
  * Convenience wrapper for the common evaluate-before-execute pattern.
  * The tool is called only when VetoLayer returns ALLOW.
+ *
+ * Workspace ownership is intentionally server-controlled. The SDK never sends
+ * a caller-selected workspace header; the API key is bound to the service
+ * workspace configured by the VetoLayer deployment.
  */
 export async function guardedToolCall<T>(input: {
   client: ReturnType<typeof createVetoLayerClient>;
