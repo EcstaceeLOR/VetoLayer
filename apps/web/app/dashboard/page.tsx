@@ -142,7 +142,7 @@ async function loadFirstRunGuide(decisionCount: number) {
     const workspace = await getAuthenticatedWorkspace();
     const policyStore = getOptionalPolicyStore();
     if (workspace && policyStore) {
-      policyCount = (await policyStore.list(workspace.id)).length;
+      policyCount = (await policyStore.list(workspace.workspaceId)).length;
     }
   } catch {
     policyCount = 0;
