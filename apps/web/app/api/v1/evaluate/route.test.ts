@@ -72,7 +72,7 @@ describe("POST /api/v1/evaluate", () => {
     expect(body.error.code).toBe("INVALID_ACTION");
   });
 
-  it("disables the production API when no bearer key is configured", async () => {
+  it("requires a project bearer key in production instead of a global deployment key", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("VETOLAYER_API_KEY", "");
 
@@ -85,7 +85,27 @@ describe("POST /api/v1/evaluate", () => {
     );
     const body = await response.json();
 
-    expect(response.status).toBe(503);
-    expect(body.error.code).toBe("API_AUTH_NOT_CONFIGURED");
+    expect(response.status).toBe(401);
+    expect(body.error.code).toBe("API_KEY_REQUIRED");
+  });
+
+  it("keeps the legacy server-managed bearer key working during migration", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VETOLAYER_API_KEY", "legacy-secret");
+    vi.stubEnv("VETOLAYER_API_WORKSPACE_ID", "legacy-workspace");
+    vi.stubEnv("VETOLAYER_API_PROJECT_ID", "legacy-project");
+    vi.stubEnv("VETOLAYER_API_ENVIRONMENT_ID", "legacy-production");
+
+    const response = await POST(
+      new Request("https://vetolayer.example/api/v1/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer legacy-secret" },
+        body: JSON.stringify(refundRequest),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.scope).toEqual({ workspaceId: "legacy-workspace", projectId: "legacy-project", environmentId: "legacy-production" });
   });
 });

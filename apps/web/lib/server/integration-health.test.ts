@@ -42,14 +42,20 @@ describe("integration readiness", () => {
     expect(readiness.github.missing).toEqual(["GitHub App registration", "SERV_API_KEY + SERV_MODEL"]);
   });
 
-  it("requires bearer authentication for the public production Developer API", () => {
-    const readiness = getIntegrationReadiness({ environment: environment({ apiAuthConfigured: false }), nodeEnv: "production" });
+  it("uses durable persistence as the production project-key credential store", () => {
+    const readiness = getIntegrationReadiness({ environment: environment({ apiAuthConfigured: false, persistenceConfigured: true }), nodeEnv: "production" });
+    expect(readiness.developerApi.state).toBe("ready");
+    expect(readiness.developerApi.missing).toEqual([]);
+  });
+
+  it("flags production Developer API when neither project-key persistence nor the legacy key exists", () => {
+    const readiness = getIntegrationReadiness({ environment: environment({ apiAuthConfigured: false, persistenceConfigured: false }), nodeEnv: "production" });
     expect(readiness.developerApi.state).toBe("needs-config");
-    expect(readiness.developerApi.missing).toEqual(["VETOLAYER_API_KEY"]);
+    expect(readiness.developerApi.missing).toEqual(["Supabase persistence for project API keys"]);
   });
 
   it("allows an unauthenticated Developer API only as a local/demo state", () => {
-    const readiness = getIntegrationReadiness({ environment: environment({ apiAuthConfigured: false }), nodeEnv: "development" });
+    const readiness = getIntegrationReadiness({ environment: environment({ apiAuthConfigured: false, persistenceConfigured: false }), nodeEnv: "development" });
     expect(readiness.developerApi.ready).toBe(true);
     expect(readiness.developerApi.state).toBe("local-only");
   });
@@ -91,9 +97,15 @@ describe("integration tests", () => {
     expect(result.code).toBe("GITHUB_APP_AUTH_FAILED");
   });
 
-  it("flags missing production API authentication", () => {
-    const result = testDeveloperApiIntegration({ environment: environment({ apiAuthConfigured: false }), nodeEnv: "production" });
+  it("reports project-key readiness when persistence is configured", () => {
+    const result = testDeveloperApiIntegration({ environment: environment({ apiAuthConfigured: false, persistenceConfigured: true }), nodeEnv: "production" });
+    expect(result.ok).toBe(true);
+    expect(result.code).toBe("DEVELOPER_API_PROJECT_KEYS_READY");
+  });
+
+  it("flags production API when no credential store is available", () => {
+    const result = testDeveloperApiIntegration({ environment: environment({ apiAuthConfigured: false, persistenceConfigured: false }), nodeEnv: "production" });
     expect(result.ok).toBe(false);
-    expect(result.code).toBe("API_KEY_MISSING");
+    expect(result.code).toBe("API_KEY_STORE_MISSING");
   });
 });
