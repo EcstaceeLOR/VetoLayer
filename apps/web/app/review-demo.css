@@ -1,5 +1,0 @@
-.demoReviewLink { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
-.demoReviewHandoff { margin-top: 14px; border: 1px solid #4a432c; border-radius: 12px; padding: 15px; background: rgba(255,215,130,.035); }
-.demoReviewHandoff > span { color: var(--review); font: 800 8px/1 ui-monospace, monospace; letter-spacing: .1em; }
-.demoReviewHandoff p { margin: 9px 0; color: #998c6f; font-size: 10px; line-height: 1.55; }
-.demoReviewHandoff a { color: var(--review); font-size: 10px; font-weight: 800; }

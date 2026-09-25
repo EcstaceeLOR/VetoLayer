@@ -1,4 +1,4 @@
-# VetoLayer judge demo script
+# VetoLayer judge production walkthrough
 
 Target length: **2–3 minutes**.
 
@@ -6,7 +6,7 @@ The presentation should prove one thing clearly:
 
 > **An autonomous agent can have permission to act and still need contextual judgment before the action is safe to execute.**
 
-The primary presentation uses the **real product**. `/demo` is optional supporting proof only.
+The presentation uses the **real product workflow** from start to finish.
 
 ## Before recording or presenting
 
@@ -42,7 +42,7 @@ Say:
 
 > Hard facts stay deterministic. SERV is used only where the policy actually requires interpretation. SERV can recommend an outcome, but it cannot override a deterministic hard block.
 
-Do not spend time editing policy JSON; show the human-readable lifecycle/version surface and move on.
+Show the human-readable lifecycle/version surface and move on.
 
 ## 0:45–1:15 — Proposed action → REVIEW
 
@@ -102,7 +102,7 @@ Show two or three of these, quickly:
 
 Say:
 
-> This is not a one-screen demo. The decision engine is surrounded by the operational product teams need to run governed agents continuously.
+> The decision engine is surrounded by the operational product teams need to run governed agents continuously.
 
 ## 2:15–2:40 — Why SERV matters
 
@@ -124,26 +124,11 @@ Say:
 
 Optional final line:
 
-> Every release is gated by lint, typecheck, full tests, a production build, real Chrome E2E, browser artifacts, release smoke, and a separate deployed-production smoke workflow.
+> Every release is gated by repository cleanliness, lint, typecheck, full tests, a production build, real Chrome E2E, browser artifacts, release smoke, and a separate deployed-production smoke workflow.
 
-## Optional public sandbox — supporting proof only
-
-If a judge needs a no-account proof surface, open `/demo` **after** the real product story.
-
-Be explicit:
-
-- scenario PR/incident/CI/reviewer inputs are seeded and visibly labelled;
-- deterministic evaluation is real;
-- SERV is called through the real adapter when configured;
-- orchestration and receipt generation are real;
-- adding the demo reviewer evidence triggers re-evaluation rather than directly changing the outcome.
-
-The sandbox is not a substitute for the authenticated product and no primary reliability journey depends on it.
-
-## Demo integrity rules
+## Presentation integrity rules
 
 - Use the latest production deployment that passed Production Smoke.
-- Do not call seeded sandbox inputs live GitHub data.
 - Do not claim a live SERV result when provider status is fallback.
 - Do not describe the receipt hash as blockchain notarization, legal certification, or cryptographic immutability.
 - Do not claim VetoLayer replaces IAM, authorization, security review, or compliance tooling.

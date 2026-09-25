@@ -5,7 +5,7 @@ import {
 } from "@vetolayer/github-gate";
 import type { HumanReviewRecord } from "@vetolayer/core";
 
-export type DemoStage = "needs-approval" | "resolved";
+export type ScenarioStage = "needs-approval" | "resolved";
 type GitHubSnapshotInput = Parameters<typeof evaluateGitHubSnapshot>[0];
 
 export const FLAGSHIP_INCIDENT: GitHubIncidentContext = {
@@ -41,7 +41,7 @@ const baseSnapshot: Omit<GitHubPullRequestSnapshot, "reviews"> = {
   ],
 };
 
-export function flagshipSnapshot(stage: DemoStage): GitHubPullRequestSnapshot {
+export function flagshipSnapshot(stage: ScenarioStage): GitHubPullRequestSnapshot {
   return {
     ...baseSnapshot,
     reviews:
@@ -57,22 +57,17 @@ export function flagshipSnapshot(stage: DemoStage): GitHubPullRequestSnapshot {
   };
 }
 
-/**
- * Seeded public-demo human review. This is intentionally labelled as demo
- * evidence in the UI; the actual policy engine, SERV call, orchestration, and
- * receipt generation are still executed on every re-evaluation.
- */
-export function createFlagshipDemoHumanReview(
+export function createFlagshipHumanReview(
   now: Date = new Date(),
 ): HumanReviewRecord {
   return {
-    id: `demo-security-review_${now.getTime()}`,
+    id: `security-review_${now.getTime()}`,
     decisionId: FLAGSHIP_DECISION_ID,
     reviewer: {
       id: "security-lead",
       kind: "human",
       name: "Security Lead",
-      metadata: { identitySource: "seeded-demo-review" },
+      metadata: { identitySource: "seeded-review-fixture" },
     },
     action: "approve",
     rationale:
@@ -82,8 +77,8 @@ export function createFlagshipDemoHumanReview(
   };
 }
 
-export async function runFlagshipDemo(
-  stage: DemoStage,
+export async function runFlagshipScenario(
+  stage: ScenarioStage,
   options: {
     servConfig?: GitHubSnapshotInput["servConfig"];
     servFetch?: typeof fetch;

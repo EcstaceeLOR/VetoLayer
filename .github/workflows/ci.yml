@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Production-only repository check
+        run: pnpm production:check
+
       - name: Lint
         run: pnpm lint
 

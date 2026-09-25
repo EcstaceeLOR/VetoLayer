@@ -46,9 +46,9 @@ export default function HomePage() {
           <a href="#use-cases">Use cases</a>
           <a href="#developers">Developers</a>
           <a href="#security">Security</a>
+          <Link href="/pricing">Pricing</Link>
         </div>
         <div className="marketingNavActions">
-          <Link className="marketingExampleLink" href="/demo">Example</Link>
           {authConfigured ? <Link className="marketingSignIn" href="/login">Sign in</Link> : null}
           <ButtonLink tone="primary" size="sm" href={primaryHref}>{primaryLabel}</ButtonLink>
         </div>
@@ -136,7 +136,7 @@ export default function HomePage() {
             <span><b>SDK</b> @vetolayer/sdk</span>
             <span><b>Verdicts</b> ALLOW · REVIEW · BLOCK</span>
           </div>
-          {authConfigured ? <ButtonLink tone="primary" href="/dashboard/integrations">Open integration setup<ArrowRightIcon /></ButtonLink> : <ButtonLink tone="secondary" href="/demo">Inspect an evaluated example</ButtonLink>}
+          {authConfigured ? <ButtonLink tone="primary" href="/dashboard/integrations">Open integration setup<ArrowRightIcon /></ButtonLink> : <ButtonLink tone="secondary" href="/pricing">View plans</ButtonLink>}
         </div>
         <div className="developerCode vlCard vlCardRaised" aria-label="VetoLayer SDK example">
           <div className="developerCodeTop"><span>TypeScript</span><span>server-side</span></div>
@@ -165,23 +165,18 @@ const result = await guardedToolCall({
         </div>
       </section>
 
-      <section className="productExampleBand vlCard">
-        <div><Badge tone="info">Secondary example</Badge><h2>Want to see the entire REVIEW → evidence → re-evaluation loop?</h2><p>The seeded example is a teaching surface. It runs through the real VetoLayer evaluation pipeline, but it is not presented as workspace activity.</p></div>
-        <ButtonLink tone="secondary" size="lg" href="/demo">Open product example<ArrowRightIcon /></ButtonLink>
-      </section>
-
       <section className="finalCta finalCtaV2">
         <div><p className="vlEyebrow">Govern execution</p><h2>Let agents move fast without giving them the final word.</h2></div>
         <div className="heroActions">
           <ButtonLink tone="primary" size="lg" href={primaryHref}>{primaryLabel}<ArrowRightIcon /></ButtonLink>
-          {authConfigured ? <ButtonLink tone="ghost" size="lg" href="/login">Sign in</ButtonLink> : null}
+          <ButtonLink tone="ghost" size="lg" href="/pricing">View pricing</ButtonLink>
         </div>
       </section>
 
       <footer className="marketingFooter marketingFooterV2">
         <div><VetoLayerLogo size="sm" /><p>Reason before the action is real.</p></div>
         <div><a href="#product">Product</a><a href="#use-cases">Use cases</a><a href="#developers">Developers</a><a href="#security">Security</a></div>
-        <div><Link href="/demo">Example</Link>{authConfigured ? <Link href="/login">Sign in</Link> : null}</div>
+        <div><Link href="/pricing">Pricing</Link>{authConfigured ? <Link href="/login">Sign in</Link> : null}</div>
       </footer>
     </main>
   );
