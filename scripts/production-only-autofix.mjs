@@ -48,9 +48,7 @@ edit("apps/web/app/dashboard/integrations/page.tsx", (text) => {
 
 edit("apps/web/app/dashboard/integrations/integration-setup.tsx", cleanLanguage);
 edit("apps/web/components/onboarding-flow.tsx", cleanLanguage);
-
 edit("apps/web/app/product-shell.css", (text) => withoutLines(text, [(line) => line.includes(`side${cap}Card`)]));
-
 edit("apps/web/lib/decision-explorer.ts", (text) => text.replace(`["${legacy}", "api", "integration"]`, `["api", "integration"]`));
 
 edit("apps/web/lib/server/onboarding-progress.ts", (text) => {
@@ -116,7 +114,8 @@ for (const path of docs) {
       text = text.replaceAll(`\`${legacy}\` receipt`, "persisted receipt");
     }
     if (path === "docs/operational-analytics.md") {
-      text = text.replace(new RegExp(`Seeded \\`${legacy}\\` decisions are always excluded[^\\n]*`, "g"), "Operational metrics are derived exclusively from persisted workspace decisions.");
+      text = withoutLines(text, [(line) => line.includes(`Seeded \`${legacy}\` decisions are always excluded`)]);
+      text = text.replace("Operational metrics are calculated only after those exclusions.", "Operational metrics are calculated exclusively from persisted workspace decisions.");
     }
     if (path === "docs/product-qa-2026-09.md") {
       text = withoutLines(text, [(line) => line.includes(`\`/${legacy}\``) || line.includes(`/api/${legacy}/`)]);
@@ -138,7 +137,6 @@ for (const path of docs) {
 }
 
 edit("examples/github-gate/src/adapter.ts", (text) => text.replace(`${legacy}-incident-feed`, "incident-feed"));
-
 edit("supabase/migrations/202609250100_workspace_model.sql", cleanLanguage);
 edit("supabase/migrations/202609251500_decision_explorer.sql", (text) => {
   text = text.replace(`source in ('${legacy}', 'api', 'integration')`, "source in ('api', 'integration')");
