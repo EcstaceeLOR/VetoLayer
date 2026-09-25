@@ -99,6 +99,18 @@ async function githubRequest<T>(path: string, options: RequestInit, fetchImpl: t
   return { response, body };
 }
 
+export async function testGitHubAppIdentity(config: GitHubAppConfig, fetchImpl: typeof fetch = fetch) {
+  const jwt = createGitHubAppJwt(config);
+  const { response, body } = await githubRequest<{ id?: unknown; slug?: unknown; name?: unknown }>(
+    "/app",
+    { headers: { Authorization: `Bearer ${jwt}` } },
+    fetchImpl,
+  );
+  if (!response.ok) throw new Error(`GitHub App authentication failed (${response.status}).`);
+  if (typeof body.id !== "number" || typeof body.slug !== "string") throw new Error("GitHub returned malformed app metadata.");
+  return { id: body.id, slug: body.slug, name: typeof body.name === "string" ? body.name : body.slug };
+}
+
 export async function exchangeGitHubUserCode(input: {
   config: GitHubAppConfig;
   code: string;
@@ -119,9 +131,7 @@ export async function exchangeGitHubUserCode(input: {
     cache: "no-store",
   });
   const body = await response.json().catch(() => ({})) as { access_token?: unknown; error?: unknown };
-  if (!response.ok || typeof body.access_token !== "string") {
-    throw new Error("GitHub user authorization could not be completed.");
-  }
+  if (!response.ok || typeof body.access_token !== "string") throw new Error("GitHub user authorization could not be completed.");
   return body.access_token;
 }
 
@@ -152,21 +162,14 @@ export async function getGitHubInstallationMetadata(input: {
     suspended_at?: unknown;
   }>(`/app/installations/${input.installationId}`, { headers: { Authorization: `Bearer ${jwt}` } }, input.fetchImpl ?? fetch);
   if (!response.ok) throw new Error(`GitHub installation lookup failed (${response.status}).`);
-  if (
-    typeof body.id !== "number" ||
-    typeof body.account?.id !== "number" ||
-    typeof body.account.login !== "string" ||
-    typeof body.account.type !== "string"
-  ) throw new Error("GitHub returned malformed installation metadata.");
+  if (typeof body.id !== "number" || typeof body.account?.id !== "number" || typeof body.account.login !== "string" || typeof body.account.type !== "string") throw new Error("GitHub returned malformed installation metadata.");
   return {
     installationId: body.id,
     accountId: body.account.id,
     accountLogin: body.account.login,
     accountType: body.account.type,
     repositorySelection: body.repository_selection === "all" ? "all" : "selected",
-    permissions: body.permissions && typeof body.permissions === "object" && !Array.isArray(body.permissions)
-      ? body.permissions as Record<string, string>
-      : {},
+    permissions: body.permissions && typeof body.permissions === "object" && !Array.isArray(body.permissions) ? body.permissions as Record<string, string> : {},
     suspended: Boolean(body.suspended_at),
   };
 }
@@ -187,16 +190,13 @@ export async function getGitHubInstallationToken(input: {
 }) {
   const cached = installationTokens.get(input.installationId);
   if (cached && cached.expiresAt - TOKEN_REFRESH_SKEW_MS > Date.now()) return cached.token;
-
   const jwt = createGitHubAppJwt(input.config);
   const { response, body } = await githubRequest<{ token?: unknown; expires_at?: unknown }>(
     `/app/installations/${input.installationId}/access_tokens`,
     { method: "POST", headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" }, body: "{}" },
     input.fetchImpl ?? fetch,
   );
-  if (!response.ok || typeof body.token !== "string" || typeof body.expires_at !== "string") {
-    throw new Error(`GitHub installation token creation failed (${response.status}).`);
-  }
+  if (!response.ok || typeof body.token !== "string" || typeof body.expires_at !== "string") throw new Error(`GitHub installation token creation failed (${response.status}).`);
   const expiresAt = new Date(body.expires_at).getTime();
   if (!Number.isFinite(expiresAt)) throw new Error("GitHub returned an invalid installation-token expiry.");
   installationTokens.set(input.installationId, { token: body.token, expiresAt });
@@ -216,16 +216,11 @@ export async function listGitHubInstallationRepositories(input: {
   const token = await getGitHubInstallationToken({ ...input, fetchImpl });
   const repositories: GitHubInstallationRepository[] = [];
   for (let page = 1; page <= 20; page += 1) {
-    const { response, body } = await githubRequest<{
-      repositories?: Array<{
-        id?: unknown;
-        name?: unknown;
-        full_name?: unknown;
-        private?: unknown;
-        default_branch?: unknown;
-        owner?: { login?: unknown };
-      }>;
-    }>(`/installation/repositories?per_page=100&page=${page}`, { headers: { Authorization: `Bearer ${token}` } }, fetchImpl);
+    const { response, body } = await githubRequest<{ repositories?: Array<{ id?: unknown; name?: unknown; full_name?: unknown; private?: unknown; default_branch?: unknown; owner?: { login?: unknown } }> }>(
+      `/installation/repositories?per_page=100&page=${page}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+      fetchImpl,
+    );
     if (!response.ok) {
       clearGitHubInstallationToken(input.installationId);
       throw new Error(`GitHub repository sync failed (${response.status}).`);
