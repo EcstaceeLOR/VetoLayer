@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { normalizeEntityName } from "../../../../lib/workspace-model";
 import { requireApiWorkspace } from "../../../../lib/server/api-auth";
 import { recordAuditEvent, workspaceAuditInput } from "../../../../lib/server/audit";
+import { assertWorkspaceEntitlement, EntitlementLimitError, entitlementErrorBody } from "../../../../lib/server/commercial";
 import { ENVIRONMENT_COOKIE, PROJECT_COOKIE } from "../../../../lib/server/workspace";
 import { getWorkspaceStore } from "../../../../lib/server/workspace-store";
 
@@ -14,6 +15,9 @@ export async function POST(request: Request) {
   try { payload = await request.json(); } catch { return NextResponse.json({ error: { code: "INVALID_JSON", message: "Request body must be valid JSON." } }, { status: 400 }); }
   const name = normalizeEntityName(typeof payload.name === "string" ? payload.name : "");
   if (name.length < 2) return NextResponse.json({ error: { code: "INVALID_NAME", message: "Project name must contain at least two characters." } }, { status: 400 });
+
+  try { await assertWorkspaceEntitlement(auth.workspace.workspaceId, "projects"); }
+  catch (error) { if (error instanceof EntitlementLimitError) return NextResponse.json(entitlementErrorBody(error), { status: 402 }); throw error; }
 
   const { store } = getWorkspaceStore();
   const project = await store.createProject(auth.workspace.workspaceId, name);

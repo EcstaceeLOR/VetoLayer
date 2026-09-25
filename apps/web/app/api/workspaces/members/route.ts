@@ -6,6 +6,7 @@ import { canAssignWorkspaceRole } from "../../../../lib/workspace-model";
 import { resolveAppOrigin } from "../../../../lib/server/app-origin";
 import { requireApiWorkspace } from "../../../../lib/server/api-auth";
 import { recordAuditEvent, workspaceAuditInput } from "../../../../lib/server/audit";
+import { assertWorkspaceEntitlement, EntitlementLimitError, entitlementErrorBody } from "../../../../lib/server/commercial";
 import { getWorkspaceStore } from "../../../../lib/server/workspace-store";
 
 const inviteRoles = new Set<Exclude<WorkspaceRole, "owner">>(["admin", "reviewer", "member"]);
@@ -33,6 +34,10 @@ export async function POST(request: Request) {
   const { store } = getWorkspaceStore();
   const existingMember = (await store.listMembers(auth.workspace.workspaceId)).find((member) => member.email?.toLowerCase() === email);
   if (existingMember) return NextResponse.json({ error: { code: "ALREADY_MEMBER", message: "That email already belongs to this workspace." } }, { status: 409 });
+
+  try { await assertWorkspaceEntitlement(auth.workspace.workspaceId, "members"); }
+  catch (error) { if (error instanceof EntitlementLimitError) return NextResponse.json(entitlementErrorBody(error), { status: 402 }); throw error; }
+
   const token = randomBytes(32).toString("base64url");
   const createdAt = new Date();
   const invitation = { id: `inv_${randomUUID()}`, workspaceId: auth.workspace.workspaceId, email, role, tokenHash: hashToken(token), status: "pending" as const, invitedByUserId: auth.workspace.userId, expiresAt: new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(), createdAt: createdAt.toISOString() };
