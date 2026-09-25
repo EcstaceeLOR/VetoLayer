@@ -7,6 +7,10 @@ import {
   PRODUCT_NOTIFICATION_EVENTS,
   type ProductNotificationEventType,
 } from "../../../lib/server/notification-store";
+import {
+  NotificationPreferenceConflictError,
+  saveNotificationPreferenceIfCurrent,
+} from "../../../lib/server/notification-preference-settings";
 import { getWorkspaceStore } from "../../../lib/server/workspace-store";
 
 export const runtime = "nodejs";
@@ -73,7 +77,17 @@ export async function POST(request: Request) {
       }, { status: 409 });
     }
     const preference = { workspaceId: auth.workspace.workspaceId, userId: auth.workspace.userId, inAppEvents, emailEvents, projectIds, updatedAt: now };
-    await store.savePreference(preference);
+    try {
+      await saveNotificationPreferenceIfCurrent({ preference, expectedCurrentUpdatedAt: stored?.updatedAt ?? null });
+    } catch (error) {
+      if (error instanceof NotificationPreferenceConflictError) {
+        return NextResponse.json({
+          error: { code: "SETTINGS_CONFLICT", message: "Notification preferences changed while this save was in progress. Refresh and review the current preferences before saving again." },
+          current: error.current,
+        }, { status: 409 });
+      }
+      throw error;
+    }
     await recordAuditEvent(workspaceAuditInput(auth.workspace, {
       action: "notification.preferences.update",
       category: "settings",
