@@ -40,7 +40,9 @@ export function isProductRouteActive(pathname: string, href: string) {
 
 export function productBreadcrumbs(pathname: string) {
   if (pathname === "/dashboard") return ["Overview"];
-  const item = productNavigation.flatMap((section) => section.items).find((entry) => pathname.startsWith(entry.href));
+  const item = productNavigation
+    .flatMap((section) => section.items)
+    .find((entry) => isProductRouteActive(pathname, entry.href));
   if (!item) return ["Workspace"];
 
   const crumbs = [item.label];
