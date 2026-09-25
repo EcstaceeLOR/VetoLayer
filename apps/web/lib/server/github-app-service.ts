@@ -1,20 +1,24 @@
+import type { GitHubConnectionPayload } from "../integration-contracts";
 import type { ProductScope } from "../workspace-model";
 import { getIntegrationStore } from "./integration-store";
 import {
+  GITHUB_APP_REQUIRED_PERMISSIONS,
   getGitHubInstallationMetadata,
   listGitHubInstallationRepositories,
   missingRequiredGitHubPermissions,
+  readGitHubAppConfig,
   type GitHubAppConfig,
 } from "./github-app";
 import {
   createStoredGitHubInstallation,
   getGitHubAppStore,
   type StoredGitHubInstallation,
+  type StoredGitHubRepository,
 } from "./github-app-store";
 
 export type GitHubSyncResult = {
   installation: StoredGitHubInstallation;
-  repositories: Awaited<ReturnType<ReturnType<typeof getGitHubAppStore>["store"]["listRepositories"]>>;
+  repositories: StoredGitHubRepository[];
   missingPermissions: string[];
 };
 
@@ -77,4 +81,29 @@ export async function updateGenericGitHubIntegrationState(input: {
     lastCode: input.code,
     updatedAt: input.now ?? new Date().toISOString(),
   });
+}
+
+export async function loadGitHubConnectionPayload(scope: ProductScope): Promise<GitHubConnectionPayload> {
+  const { config, missing } = readGitHubAppConfig();
+  const { store, persistence } = getGitHubAppStore();
+  const installation = await store.getInstallation(scope);
+  const repositories = installation ? await store.listRepositories(installation.id) : [];
+  return {
+    app: { configured: Boolean(config), missing, requiredPermissions: GITHUB_APP_REQUIRED_PERMISSIONS },
+    installation: installation ? {
+      id: installation.id,
+      installationId: installation.installationId,
+      accountLogin: installation.accountLogin,
+      accountType: installation.accountType,
+      repositorySelection: installation.repositorySelection,
+      state: installation.state,
+      permissions: installation.permissions,
+      ...(installation.lastSyncAt ? { lastSyncAt: installation.lastSyncAt } : {}),
+      ...(installation.lastEventAt ? { lastEventAt: installation.lastEventAt } : {}),
+      updatedAt: installation.updatedAt,
+    } : null,
+    repositories,
+    persistence,
+    scope,
+  };
 }
