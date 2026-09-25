@@ -36,3 +36,28 @@ export type IntegrationTestResult = {
   };
   nextSteps?: string[];
 };
+
+export type GitHubRepositoryView = {
+  id: number;
+  name: string;
+  fullName: string;
+  private: boolean;
+  htmlUrl: string;
+  defaultBranch: string;
+  archived: boolean;
+  disabled: boolean;
+};
+
+export type GitHubInstallationView = {
+  installationId: number;
+  accountLogin: string;
+  accountType: string;
+  accountUrl?: string;
+  installationUrl?: string;
+  repositorySelection: "all" | "selected";
+  status: "active" | "suspended" | "uninstalled" | "error";
+  repositories: GitHubRepositoryView[];
+  lastSyncedAt?: string;
+  lastEvent?: string;
+  updatedAt: string;
+};
