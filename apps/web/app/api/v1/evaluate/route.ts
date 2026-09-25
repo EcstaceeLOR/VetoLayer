@@ -3,6 +3,7 @@ import {
   parseDeveloperEvaluationPayload,
   type ApiErrorBody,
 } from "../../../../lib/server/developer-api";
+import { assertWorkspaceEntitlement, EntitlementLimitError, entitlementErrorBody } from "../../../../lib/server/commercial";
 import { executeDeveloperEvaluation } from "../../../../lib/server/developer-evaluation-service";
 import { authenticateDeveloperRequest } from "../../../../lib/server/developer-key-auth";
 import { readServerEnvironment } from "../../../../lib/server/env";
@@ -31,6 +32,9 @@ export async function POST(request: Request) {
   try { raw = await request.json(); } catch { return apiError("INVALID_JSON", "Request body must be valid JSON.", 400); }
   const parsed = parseDeveloperEvaluationPayload(raw);
   if (!parsed.ok) return NextResponse.json(parsed.error, { status: 400 });
+
+  try { await assertWorkspaceEntitlement(auth.credential.scope.workspaceId, "decisionsPerMonth"); }
+  catch (error) { if (error instanceof EntitlementLimitError) return NextResponse.json(entitlementErrorBody(error), { status: 402 }); throw error; }
 
   try {
     const result = await executeDeveloperEvaluation({
