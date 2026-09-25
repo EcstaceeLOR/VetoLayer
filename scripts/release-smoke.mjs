@@ -27,6 +27,10 @@ const routes = [
   "apps/web/app/api/demo/review/route.ts",
   "apps/web/app/api/demo/reset/route.ts",
   "apps/web/app/api/health/route.ts",
+  "apps/web/app/api/integrations/github/install/route.ts",
+  "apps/web/app/api/integrations/github/callback/route.ts",
+  "apps/web/app/api/integrations/github/webhook/route.ts",
+  "apps/web/app/api/integrations/github/evaluate/route.ts",
 ];
 
 const deploymentArtifacts = [
@@ -34,6 +38,8 @@ const deploymentArtifacts = [
   "apps/web/next.config.ts",
   "apps/web/.env.example",
   "docs/deployment.md",
+  "docs/github-app.md",
+  "supabase/migrations/202609250800_github_app.sql",
 ];
 
 const behavioralProof = [
@@ -41,6 +47,7 @@ const behavioralProof = [
   "apps/web/lib/flagship-demo.test.ts",
   "apps/web/lib/policy-studio.test.ts",
   "apps/web/lib/server/app-origin.test.ts",
+  "apps/web/lib/server/github-app.test.ts",
   "packages/core/src/orchestrator.test.ts",
   "packages/core/src/receipts.test.ts",
   "packages/serv/src/client.test.ts",
@@ -61,10 +68,20 @@ if (existsSync(demoClient)) {
 const evaluateRoute = requireFile("apps/web/app/api/demo/evaluate/route.ts");
 if (existsSync(evaluateRoute)) {
   const source = readFileSync(evaluateRoute, "utf8");
-  check(
-    source.includes("resolved demo state must be reached through the human-review endpoint"),
-    "public demo cannot skip directly to the resolved state",
-  );
+  check(source.includes("resolved demo state must be reached through the human-review endpoint"), "public demo cannot skip directly to the resolved state");
+}
+
+const githubWebhook = requireFile("apps/web/app/api/integrations/github/webhook/route.ts");
+if (existsSync(githubWebhook)) {
+  const source = readFileSync(githubWebhook, "utf8");
+  check(source.includes("verifyGitHubWebhookSignature"), "GitHub App webhook verifies its signature");
+  check(source.includes("claimWebhookDelivery"), "GitHub App webhook rejects replayed delivery ids");
+}
+
+const githubCallback = requireFile("apps/web/app/api/integrations/github/callback/route.ts");
+if (existsSync(githubCallback)) {
+  const source = readFileSync(githubCallback, "utf8");
+  check(source.includes("verifyUserInstallationAccess"), "GitHub App callback proves installer access before binding installation");
 }
 
 const buildRoot = join(root, "apps/web/.next");
@@ -75,7 +92,9 @@ check(existsSync(staticRoot), "client static bundle exists for leak scan");
 if (existsSync(staticRoot)) {
   const sensitiveKeys = [
     "SERV_API_KEY",
-    "GITHUB_TOKEN",
+    "GITHUB_APP_CLIENT_SECRET",
+    "GITHUB_APP_PRIVATE_KEY",
+    "GITHUB_APP_WEBHOOK_SECRET",
     "VETOLAYER_API_KEY",
     "SUPABASE_SERVICE_ROLE_KEY",
   ];
@@ -89,9 +108,7 @@ if (existsSync(staticRoot)) {
     check(!leakedIn, leakedIn ? `${key} leaked into ${relative(root, leakedIn)}` : `${key} is absent from client bundles`);
   }
 
-  if (!sensitiveValues.length) {
-    passes.push("client secret scan ready; no server secret values were present in this CI environment");
-  }
+  if (!sensitiveValues.length) passes.push("client secret scan ready; no server secret values were present in this CI environment");
 }
 
 const baseUrl = process.env.SMOKE_BASE_URL?.replace(/\/$/, "");
