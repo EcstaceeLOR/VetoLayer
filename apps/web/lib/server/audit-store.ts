@@ -54,6 +54,10 @@ function matchesText(value: string | undefined, query: string | undefined) {
   return (value ?? "").toLowerCase().includes(query.toLowerCase());
 }
 
+function safeFilterTerm(value: string) {
+  return value.replace(/[(),.*%_]/g, "").trim().slice(0, 160);
+}
+
 export function createMemoryAuditStore(): AuditStore {
   const events = new Map<string, AuditEvent>();
   return {
@@ -166,18 +170,31 @@ export function createSupabaseAuditStore(config: { url: string; serviceRoleKey: 
       const query = new URLSearchParams({ workspace_id: `eq.${workspaceId}`, select: "*", order: "created_at.desc,id.desc", limit: String(boundedLimit(filter.limit)) });
       if (filter.projectId) query.set("project_id", `eq.${filter.projectId}`);
       if (filter.environmentId) query.set("environment_id", `eq.${filter.environmentId}`);
-      if (filter.action) query.set("action", `ilike.*${filter.action.replaceAll("*", "")}*`);
-      if (filter.from) query.set("created_at", `gte.${filter.from}`);
+      if (filter.action) {
+        const action = safeFilterTerm(filter.action);
+        if (action) query.set("action", `ilike.*${action}*`);
+      }
+      if (filter.from) query.append("created_at", `gte.${filter.from}`);
       if (filter.to) query.append("created_at", `lte.${filter.to}`);
       if (filter.before) query.append("created_at", `lt.${filter.before}`);
+
+      const booleanFilters: string[] = [];
       if (filter.actor) {
-        const safe = filter.actor.replace(/[(),*]/g, "");
-        query.set("or", `(actor_user_id.ilike.*${safe}*,actor_label.ilike.*${safe}*)`);
+        const actor = safeFilterTerm(filter.actor);
+        if (actor) booleanFilters.push(`or(actor_user_id.ilike.*${actor}*,actor_label.ilike.*${actor}*)`);
       }
       if (filter.resource) {
-        const safe = filter.resource.replace(/[(),*]/g, "");
-        query.set("and", `(or(target_type.ilike.*${safe}*,target_id.ilike.*${safe}*,target_label.ilike.*${safe}*))`);
+        const resource = safeFilterTerm(filter.resource);
+        if (resource) booleanFilters.push(`or(target_type.ilike.*${resource}*,target_id.ilike.*${resource}*,target_label.ilike.*${resource}*)`);
       }
+      if (booleanFilters.length === 1) {
+        const only = booleanFilters[0]!;
+        const open = only.indexOf("(");
+        query.set(only.slice(0, open), only.slice(open));
+      } else if (booleanFilters.length > 1) {
+        query.set("and", `(${booleanFilters.join(",")})`);
+      }
+
       const rows = await (await request(`vetolayer_audit_events?${query.toString()}`)).json() as Row[];
       return rows.map(rowToEvent);
     },
