@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { ProjectEnvironment } from "../../../../lib/workspace-model";
 import { normalizeEntityName } from "../../../../lib/workspace-model";
 import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../lib/server/api-auth";
+import { recordAuditEvent, workspaceAuditInput } from "../../../../lib/server/audit";
 import { getWorkspaceStore } from "../../../../lib/server/workspace-store";
 
 const kinds = new Set<ProjectEnvironment["kind"]>(["development", "staging", "production", "custom"]);
@@ -25,6 +26,16 @@ export async function POST(request: Request) {
   const project = await store.getProject(auth.workspace.workspaceId, projectId);
   if (!project || project.status !== "active") return NextResponse.json({ error: { code: "PROJECT_NOT_FOUND", message: "Choose an active project in this workspace." } }, { status: 404 });
   const environment = await store.createEnvironment(auth.workspace.workspaceId, project.id, name, kind);
+  await recordAuditEvent({ ...workspaceAuditInput(auth.workspace, {
+    action: "environment.create",
+    category: "environment",
+    targetType: "environment",
+    targetId: environment.id,
+    targetLabel: environment.name,
+    href: "/dashboard/workspace",
+    request,
+    metadata: { kind: environment.kind },
+  }), projectId: project.id, environmentId: environment.id });
   return NextResponse.json({ environment }, { status: 201 });
 }
 
@@ -40,7 +51,20 @@ export async function PATCH(request: Request) {
   const environmentId = typeof payload.environmentId === "string" ? payload.environmentId : auth.workspace.environmentId;
   const name = normalizeEntityName(typeof payload.name === "string" ? payload.name : "", 60);
   if (name.length < 2) return NextResponse.json({ error: { code: "INVALID_NAME", message: "Environment name must contain at least two characters." } }, { status: 400 });
-  const environment = await getWorkspaceStore().store.renameEnvironment(auth.workspace.workspaceId, projectId, environmentId, name);
+  const { store } = getWorkspaceStore();
+  const previous = await store.getEnvironment(auth.workspace.workspaceId, projectId, environmentId);
+  if (!previous) return NextResponse.json({ error: { code: "ENVIRONMENT_NOT_FOUND", message: "Environment was not found in this workspace project." } }, { status: 404 });
+  const environment = await store.renameEnvironment(auth.workspace.workspaceId, projectId, environmentId, name);
+  await recordAuditEvent({ ...workspaceAuditInput(auth.workspace, {
+    action: "environment.rename",
+    category: "environment",
+    targetType: "environment",
+    targetId: environment.id,
+    targetLabel: environment.name,
+    href: "/dashboard/workspace",
+    request,
+    metadata: { previousName: previous.name, nextName: environment.name },
+  }), projectId, environmentId });
   return NextResponse.json({ environment });
 }
 
@@ -51,10 +75,22 @@ export async function DELETE(request: Request) {
   const projectId = url.searchParams.get("projectId") ?? auth.workspace.projectId;
   const environmentId = url.searchParams.get("environmentId") ?? auth.workspace.environmentId;
   const { store } = getWorkspaceStore();
+  const target = await store.getEnvironment(auth.workspace.workspaceId, projectId, environmentId);
+  if (!target) return NextResponse.json({ error: { code: "ENVIRONMENT_NOT_FOUND", message: "Environment was not found in this workspace project." } }, { status: 404 });
   const active = await store.listEnvironments(auth.workspace.workspaceId, projectId);
   if (active.length <= 1 && active.some((environment) => environment.id === environmentId)) {
     return NextResponse.json({ error: { code: "LAST_ENVIRONMENT", message: "A project must keep at least one active environment." } }, { status: 409 });
   }
   await store.archiveEnvironment(auth.workspace.workspaceId, projectId, environmentId);
+  await recordAuditEvent({ ...workspaceAuditInput(auth.workspace, {
+    action: "environment.archive",
+    category: "environment",
+    targetType: "environment",
+    targetId: target.id,
+    targetLabel: target.name,
+    href: "/dashboard/workspace",
+    request,
+    metadata: { previousStatus: target.status, nextStatus: "archived", kind: target.kind },
+  }), projectId, environmentId });
   return NextResponse.json({ archived: true, environmentId });
 }
