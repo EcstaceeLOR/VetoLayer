@@ -1,5 +1,7 @@
 import {
   createHmac,
+  createPrivateKey,
+  createPublicKey,
   createVerify,
   generateKeyPairSync,
 } from "node:crypto";
@@ -48,7 +50,7 @@ describe("GitHub App configuration and JWT", () => {
     expect(claims.iss).toBe(config.appId);
     expect(claims.exp - claims.iat).toBe(9 * 60);
 
-    const publicKey = createPublicKeyFromPrivate(config.privateKey);
+    const publicKey = createPublicKey(createPrivateKey(config.privateKey));
     const verifier = createVerify("RSA-SHA256");
     verifier.update(`${header}.${payload}`);
     verifier.end();
@@ -81,21 +83,24 @@ describe("GitHub installation state", () => {
 describe("GitHub installation authorization boundary", () => {
   it("accepts only an installation the authorizing GitHub user can access for this App", async () => {
     const config = appConfig();
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      installations: [{
-        id: 77,
-        app_id: Number(config.appId),
-        app_slug: config.slug,
-        account: { id: 2, login: "octo-org", type: "Organization" },
-        repository_selection: "selected",
-        permissions: { checks: "read", contents: "read", pull_requests: "read" },
-        events: ["pull_request"],
-      }],
-    }), { status: 200, headers: { "Content-Type": "application/json" } })) as unknown as typeof fetch;
+    let authorization = "";
+    const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      authorization = String(new Headers(init?.headers).get("authorization"));
+      return new Response(JSON.stringify({
+        installations: [{
+          id: 77,
+          app_id: Number(config.appId),
+          app_slug: config.slug,
+          account: { id: 2, login: "octo-org", type: "Organization" },
+          repository_selection: "selected",
+          permissions: { checks: "read", contents: "read", pull_requests: "read" },
+          events: ["pull_request"],
+        }],
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }) as unknown as typeof fetch;
 
     const installation = await verifyInstallationAccessibleToUser({ config, userToken: "temporary-user-token", installationId: 77, fetchImpl });
     expect(installation.account.login).toBe("octo-org");
-    const authorization = String(new Headers((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.headers).get("authorization"));
     expect(authorization).toBe("Bearer temporary-user-token");
   });
 
@@ -123,8 +128,3 @@ describe("GitHub webhook verification", () => {
     expect(verifyGitHubWebhookSignature({ body, signature: "sha1=bad", secret: "hook-secret" })).toBe(false);
   });
 });
-
-function createPublicKeyFromPrivate(privateKey: string) {
-  const { createPrivateKey, createPublicKey } = require("node:crypto") as typeof import("node:crypto");
-  return createPublicKey(createPrivateKey(privateKey));
-}
