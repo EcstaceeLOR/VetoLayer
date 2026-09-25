@@ -1,11 +1,10 @@
 # VetoLayer production QA — 2026.09
 
-This checklist is the final product-quality gate for issue #69. Production means normal authenticated/public product routes with `NODE_ENV=production`; seeded fixtures are permitted only inside the explicit public demo/sandbox and the CI-only reliability seam.
+This checklist is the final product-quality gate for issue #69. Production means normal authenticated/public product routes with `NODE_ENV=production`; seeded fixtures are permitted only inside the explicit retired public sandbox/sandbox and the CI-only reliability seam.
 
 ## Public website
 - [x] `/` uses the production VetoLayer identity and real product capabilities; no fake customer counts, certifications, or customer logos.
 - [x] `/pricing` describes real plan entitlements and does not expose a fake checkout flow.
-- [x] `/demo` remains an explicitly labelled sandbox/example and is not required by any primary production or browser-reliability journey.
 - [x] Unknown routes render the branded global 404 with actionable links.
 
 ## Authentication and account
@@ -33,7 +32,6 @@ This checklist is the final product-quality gate for issue #69. Production means
 - [x] Browser QA loads the real Policy Studio surface with no generic application error.
 
 ## Human Review
-- [x] The browser reliability journey no longer calls `/demo` or `/api/demo/*` for its core review check.
 - [x] CI invokes the same `reevaluateReviewCase()` orchestrator used by production Human Review actions and asserts a new child receipt.
 - [x] Review queue/workspace routes render without console errors.
 
@@ -66,12 +64,11 @@ This checklist is the final product-quality gate for issue #69. Production means
 - [x] Decision loading/not-found/error states are purpose-built.
 - [x] Browser QA visits all core dashboard routes and fails on generic application/server error pages.
 - [x] Browser QA fails on uncaught runtime exceptions and console errors.
-- [x] Final screenshots are captured from real login/onboarding/developer/review product state, not from the public demo.
+- [x] Final screenshots are captured from real login/onboarding/developer/review product state, not from the public example.
 
 ## Explicitly non-production fixtures
 
 The following are allowed only because they cannot silently enter normal production state:
-- `/demo` and `/api/demo/*`: labelled public sandbox/example.
 - `VETOLAYER_E2E_MODE=1` reliability session: CI-only, disabled on Vercel/normal runtime.
 - `apps/web/lib/dashboard-data.ts`: legacy development fixtures; exported array is empty when `NODE_ENV=production`.
 

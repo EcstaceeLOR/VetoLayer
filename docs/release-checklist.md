@@ -75,7 +75,7 @@ These still require the deployed browser or external credentials.
 
 ### 2. Flagship product workflow
 
-Use real product state rather than relying on `/demo`:
+Use real product state rather than relying on the authenticated product:
 
 - open a prepared action/receipt that is in `REVIEW` because required evidence is missing;
 - confirm deterministic and SERV/contextual findings are visible;
@@ -106,7 +106,7 @@ If provider trace reports fallback, do not present the contextual evaluation as 
 ### 5. Integrations + Developer Console
 
 - confirm GitHub App or Developer API readiness used in the presentation;
-- create/use/revoke a scoped test API key if demonstrating the API path;
+- create/use/revoke a scoped test API key if showing the API path;
 - verify webhook/API/GitHub secret values never appear in UI/network output;
 - do not reveal one-time keys in screenshots after capture.
 
@@ -114,7 +114,7 @@ If provider trace reports fallback, do not present the contextual evaluation as 
 
 - open notification center and confirm review alerts deep-link to the correct case if available;
 - open append-only Audit and confirm filters/deep links render without raw secrets;
-- open Analytics and confirm metrics are based on real persisted data rather than demo fixtures.
+- open Analytics and confirm metrics are based on real persisted data rather than seeded fixtures.
 
 ### 7. Data / settings / plans
 
@@ -136,7 +136,7 @@ If provider trace reports fallback, do not present the contextual evaluation as 
 
 ## Optional public sandbox
 
-`/demo` remains useful as a no-account supporting proof surface, but it is not part of the primary product-completeness requirement.
+the authenticated product remains useful as a no-account supporting proof surface, but it is not part of the primary product-completeness requirement.
 
 If shown:
 
@@ -153,7 +153,7 @@ Ship/submit only when:
 - repository CI is green;
 - latest `main` is deployed to the final public URL;
 - deployed Production Smoke passes against that exact release;
-- the real flagship workflow can be demonstrated without developer intervention;
+- the real flagship workflow can be shown without developer intervention;
 - intended integrations report expected readiness;
 - browser console is clean through presentation routes;
 - no secret values appear in client assets, browser output, screenshots, or public logs;

@@ -433,7 +433,7 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
           <Card raised className="onboardingOperationalCard">
             <p className="vlEyebrow">Organization boundary</p>
             <h2>Create or select the team that owns these decisions.</h2>
-            <p className="muted">Workspace membership is the authorization boundary for every policy, review, integration, and receipt. Existing workspaces are reused; nothing is copied into a demo namespace.</p>
+            <p className="muted">Workspace membership is the authorization boundary for every policy, review, integration, and receipt. Existing workspaces are reused; nothing is copied into a example namespace.</p>
             {snapshot.workspaces.length ? (
               <div className="onboardingResourceList">
                 {snapshot.workspaces.map(({ workspace, role }) => (
@@ -546,7 +546,7 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
                 <div className="onboardingActions onboardingActionsSpread"><Button tone="ghost" onClick={() => setStep(7)}>Run another test</Button><ButtonLink tone="primary" size="lg" href="/dashboard">Enter Control Center <ArrowRightIcon /></ButtonLink></div>
               </>
             ) : (
-              <><h2>No validated receipt yet.</h2><p className="muted">A seeded demo receipt cannot complete onboarding. Run Step 7 successfully through live SERV reasoning to create a receipt in this workspace, project, and environment.</p><Button tone="primary" onClick={() => setStep(7)}>Return to test action</Button></>
+              <><h2>No validated receipt yet.</h2><p className="muted">A seeded example receipt cannot complete onboarding. Run Step 7 successfully through live SERV reasoning to create a receipt in this workspace, project, and environment.</p><Button tone="primary" onClick={() => setStep(7)}>Return to test action</Button></>
             )}
           </Card>
         ) : null}

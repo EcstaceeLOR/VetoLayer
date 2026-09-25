@@ -163,11 +163,8 @@ Without `VETOLAYER_API_KEY` in production, `/api/v1/*` returns `503 API_AUTH_NOT
 ## 6. Public example controls
 
 ```text
-VETOLAYER_DEMO_WORKSPACE_ID=demo
-VETOLAYER_DEMO_RATE_LIMIT_PER_MINUTE=30
 ```
 
-The `/demo` flow remains a public product example; it is not authenticated product state and its seeded receipts never satisfy operational onboarding completion.
 
 ## 7. Health endpoint
 

@@ -2,7 +2,7 @@
 
 VetoLayer uses Supabase Auth through `@supabase/ssr` and a server-owned organization model. Authentication answers **who the user is**; workspace membership answers **which product data they may access**.
 
-The public marketing site, invitations, and `/demo` can be opened without a workspace. Product routes require an authenticated account, and operational routes require a validated workspace → project → environment context.
+The public marketing site and invitation acceptance can be opened without a workspace. Product routes require an authenticated account, and operational routes require a validated workspace → project → environment context.
 
 ## Auth environment
 
@@ -170,10 +170,10 @@ Run it once per legacy account after that account has created its real workspace
 Public:
 
 - `/`
-- `/demo`
+- `/example`
 - `/login`, verification/recovery routes
 - `/invite/[token]`
-- `/api/demo/*`
+- `/api/example/*`
 - `/api/health`
 - `/api/v1/*` — separate bearer-key service scope
 

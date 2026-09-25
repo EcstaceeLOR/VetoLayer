@@ -5,7 +5,7 @@ VetoLayer treats accessibility as part of the product shell rather than a separa
 ## Keyboard contract
 
 - The first focusable control on every major surface is **Skip to main content**.
-- Public marketing, sign-in, onboarding, demo, and authenticated dashboard surfaces expose the shared `#main-content` target.
+- Public marketing, sign-in, onboarding, example, and authenticated dashboard surfaces expose the shared `#main-content` target.
 - Product navigation uses native links and `aria-current="page"` for the active destination.
 - Buttons, links, form controls, summaries, and explicit `tabindex` targets receive a high-contrast `:focus-visible` outline.
 - No core flow requires hover or pointer-only interaction.

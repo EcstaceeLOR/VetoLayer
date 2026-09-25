@@ -17,7 +17,7 @@ Production queries use exact PostgREST counts and explicit page/page-size values
 - free-text search across receipt ID, decision ID, request/action, actor, resource, policy ID/name, and summary
 - outcome
 - project and environment
-- source (`integration`, `api`, or `demo`)
+- source (`integration` or `api`)
 - integration/tool name such as `github`
 - logical policy ID
 - SERV used / deterministic-only
@@ -48,7 +48,7 @@ Review re-evaluations save a new receipt first, record its `parent_receipt_id`, 
 
 ## Integrity verification
 
-`POST /api/decisions/:receiptId/verify` re-runs `verifyDecisionReceipt(...)` against the signed receipt content and returns the verification result. Demo fixtures are labeled as such rather than represented as cryptographically verified production receipts.
+`POST /api/decisions/:receiptId/verify` re-runs `verifyDecisionReceipt(...)` against the signed receipt content and returns the verification result. Integrity verification operates only on persisted workspace receipts.
 
 ## Exports
 

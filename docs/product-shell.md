@@ -6,7 +6,7 @@ The public product journey is intentionally separate from the decision engine:
 2. `/onboarding` creates a lightweight first workspace/project/use-case selection.
 3. `/dashboard` is the operational control center.
 4. Stable product navigation exposes Decisions, Policies, Reviews, and Integrations.
-5. `/demo` remains the judge-ready flagship high-risk deployment scenario.
+5. The authenticated REVIEW → evidence → re-evaluation workflow is the flagship high-risk deployment scenario.
 
 ## Boundaries
 

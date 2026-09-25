@@ -47,7 +47,7 @@ The same identity must appear across:
 - public marketing navigation
 - sign-in and onboarding
 - authenticated sidebar/product shell
-- demo/example surfaces
+- example/example surfaces
 - favicon and app icon
 - Open Graph/social preview
 - README/submission assets
