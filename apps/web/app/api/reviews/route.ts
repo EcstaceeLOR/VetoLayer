@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiWorkspace } from "../../../lib/server/api-auth";
 import { getReviewStore } from "../../../lib/server/review-store";
+import { hasWorkspacePermission } from "../../../lib/workspace-model";
 import { getWorkspaceStore } from "../../../lib/server/workspace-store";
 
 export const runtime = "nodejs";
@@ -12,6 +13,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const status = url.searchParams.get("status");
   const owner = url.searchParams.get("owner");
+  const canResolve = hasWorkspacePermission(auth.workspace.role, "reviews.resolve");
 
   try {
     const cases = await store.list(auth.workspace.workspaceId, { projectId: auth.workspace.projectId, environmentId: auth.workspace.environmentId });
@@ -21,15 +23,20 @@ export async function GET(request: Request) {
       if (owner === "unassigned" && item.assignment) return false;
       return true;
     });
-    const { store: workspaceStore } = getWorkspaceStore();
-    const members = (await workspaceStore.listMembers(auth.workspace.workspaceId))
-      .filter((member) => member.status === "active" && ["owner", "admin", "reviewer"].includes(member.role))
-      .map((member) => ({ userId: member.userId, displayName: member.displayName, email: member.email, role: member.role }));
+
+    let members: Array<{ userId: string; displayName?: string; email?: string; role: string }> = [];
+    if (canResolve) {
+      const { store: workspaceStore } = getWorkspaceStore();
+      members = (await workspaceStore.listMembers(auth.workspace.workspaceId))
+        .filter((member) => member.status === "active" && ["owner", "admin", "reviewer"].includes(member.role))
+        .map((member) => ({ userId: member.userId, displayName: member.displayName, email: member.email, role: member.role }));
+    }
 
     return NextResponse.json({
       cases: filtered,
       members,
       currentUserId: auth.workspace.userId,
+      canResolve,
       persistence,
       scope: { workspaceId: auth.workspace.workspaceId, projectId: auth.workspace.projectId, environmentId: auth.workspace.environmentId },
     });
