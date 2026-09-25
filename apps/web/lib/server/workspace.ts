@@ -6,6 +6,7 @@ import {
   isReliabilityTestMode,
   normalizeReliabilityProfile,
   RELIABILITY_PROFILE_COOKIE,
+  RELIABILITY_SCOPE,
   reliabilityIdentity,
 } from "./reliability-mode";
 
@@ -60,6 +61,12 @@ export async function getAuthenticatedWorkspace(): Promise<WorkspaceContext | nu
   const identity = await getAuthenticatedIdentity();
   if (!identity) return null;
 
+  if (isReliabilityTestMode()) {
+    const cookieStore = await cookies();
+    const profile = normalizeReliabilityProfile(cookieStore.get(RELIABILITY_PROFILE_COOKIE)?.value);
+    if (profile === "operator") return reliabilityWorkspaceContext(identity);
+  }
+
   const { store } = getWorkspaceStore();
   const memberships = (await store.listWorkspacesForUser(identity.userId))
     .filter(({ workspace }) => workspace.status === "active");
@@ -97,6 +104,59 @@ export async function getAuthenticatedWorkspace(): Promise<WorkspaceContext | nu
     availableWorkspaces: memberships,
     availableProjects: projects,
     availableEnvironments: environments,
+  };
+}
+
+function reliabilityWorkspaceContext(identity: AuthenticatedIdentity): WorkspaceContext {
+  const now = "2026-09-25T00:00:00.000Z";
+  const workspace: Workspace = {
+    id: RELIABILITY_SCOPE.workspaceId,
+    name: "Reliability Workspace",
+    slug: "reliability-workspace",
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+  const project: Project = {
+    id: RELIABILITY_SCOPE.projectId,
+    workspaceId: workspace.id,
+    name: "Production Gate",
+    slug: "production-gate",
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+  const environment: ProjectEnvironment = {
+    id: RELIABILITY_SCOPE.environmentId,
+    workspaceId: workspace.id,
+    projectId: project.id,
+    name: "Production",
+    slug: "production",
+    kind: "production",
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+  const membership: WorkspaceMember = {
+    workspaceId: workspace.id,
+    userId: identity.userId,
+    ...(identity.email ? { email: identity.email } : {}),
+    ...(identity.displayName ? { displayName: identity.displayName } : {}),
+    role: "owner",
+    status: "active",
+    joinedAt: now,
+  };
+  return {
+    ...identity,
+    ...RELIABILITY_SCOPE,
+    label: workspace.name,
+    role: "owner",
+    workspace,
+    project,
+    environment,
+    availableWorkspaces: [{ workspace, membership }],
+    availableProjects: [project],
+    availableEnvironments: [environment],
   };
 }
 
