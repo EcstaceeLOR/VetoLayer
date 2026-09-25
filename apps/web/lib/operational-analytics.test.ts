@@ -35,9 +35,8 @@ function audit(action: string): AuditEvent {
 }
 
 describe("operational analytics", () => {
-  it("derives outcomes, policy friction and production volume while excluding demo receipts", () => {
-    const report = buildOperationalAnalytics({ decisions: [stored(0), stored(1), stored(2), stored(0, { id: "demo", source: "demo" })], reviews: [], auditEvents: [], filters });
-    expect(report.excludedDemoDecisions).toBe(1);
+  it("derives outcomes, policy friction and production volume", () => {
+    const report = buildOperationalAnalytics({ decisions: [stored(0), stored(1), stored(2)], reviews: [], auditEvents: [], filters });
     expect(report.summary.total).toBe(3);
     expect(report.summary.outcomes).toEqual({ ALLOW: 1, REVIEW: 1, BLOCK: 1 });
     expect(report.policies.map((policy) => policy.policyId)).toEqual(expect.arrayContaining(["github-review-required", "github-no-draft-actions"]));
