@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { policyStudioTemplates } from "../../../../../lib/policy-lifecycle";
+import { getDeveloperStore } from "../../../../../lib/server/developer-store";
+import { getPolicyLifecycleStore } from "../../../../../lib/server/policy-lifecycle-store";
 import {
   ENVIRONMENT_COOKIE,
   PROJECT_COOKIE,
@@ -23,9 +26,7 @@ const cookieOptions = {
 };
 
 export async function GET(request: Request) {
-  if (!isReliabilityTestMode()) {
-    return NextResponse.json({ error: { code: "NOT_FOUND", message: "Not found." } }, { status: 404 });
-  }
+  if (!isReliabilityTestMode()) return notFound();
 
   const url = new URL(request.url);
   const profile = normalizeReliabilityProfile(url.searchParams.get("profile"));
@@ -39,6 +40,70 @@ export async function GET(request: Request) {
     return response;
   }
 
+  const scope = await ensureOperatorScope();
+  response.cookies.set(WORKSPACE_COOKIE, scope.workspaceId, cookieOptions);
+  response.cookies.set(PROJECT_COOKIE, scope.projectId, cookieOptions);
+  response.cookies.set(ENVIRONMENT_COOKIE, scope.environmentId, cookieOptions);
+  return response;
+}
+
+export async function POST(request: Request) {
+  if (!isReliabilityTestMode()) return notFound();
+  let body: Record<string, unknown>;
+  try {
+    const raw = await request.json();
+    body = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+  } catch {
+    return NextResponse.json({ error: { code: "INVALID_REQUEST", message: "Request body must be valid JSON." } }, { status: 400 });
+  }
+
+  const scope = await ensureOperatorScope();
+  const identity = reliabilityIdentity("operator");
+  const action = String(body.action ?? "");
+
+  if (action === "create_key") {
+    const { store } = getDeveloperStore();
+    const created = await store.createApiKey({
+      ...scope,
+      name: "Browser reliability key",
+      permissions: ["evaluate", "read:decisions"],
+      createdByUserId: identity.userId,
+    });
+    return NextResponse.json({ key: { id: created.record.id, name: created.record.name, keyPrefix: created.record.keyPrefix }, secret: created.secret }, { status: 201 });
+  }
+
+  if (action === "revoke_key") {
+    const id = String(body.id ?? "");
+    const { store } = getDeveloperStore();
+    const record = id ? await store.getApiKey(scope, id) : null;
+    if (!record) return NextResponse.json({ error: { code: "API_KEY_NOT_FOUND", message: "Reliability API key not found." } }, { status: 404 });
+    await store.revokeApiKey(scope, id);
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "create_policy") {
+    const template = policyStudioTemplates.find((candidate) => candidate.policy.mode === "contextual") ?? policyStudioTemplates[0];
+    if (!template) throw new Error("Policy Studio has no templates available for reliability testing.");
+    const { store } = getPolicyLifecycleStore();
+    const created = await store.createInitialDraft({
+      workspaceId: scope.workspaceId,
+      projectId: scope.projectId,
+      policy: { ...template.policy, enabled: false },
+      targetEnvironmentIds: [scope.environmentId],
+      sourceTemplateId: template.id,
+      changeNote: "Browser reliability policy fixture",
+      createdByUserId: identity.userId,
+    });
+    return NextResponse.json({
+      version: created,
+      requestPolicy: { ...created.policy, enabled: true },
+    }, { status: 201 });
+  }
+
+  return NextResponse.json({ error: { code: "UNKNOWN_ACTION", message: "Unknown reliability fixture action." } }, { status: 400 });
+}
+
+async function ensureOperatorScope() {
   const identity = reliabilityIdentity("operator");
   const { store } = getWorkspaceStore();
   const existing = (await store.listWorkspacesForUser(identity.userId))
@@ -69,9 +134,9 @@ export async function GET(request: Request) {
 
   const environment = environments.find((candidate) => candidate.kind === "production") ?? environments[0];
   if (!environment) throw new Error("Reliability project has no environment.");
+  return { workspaceId: workspace.id, projectId: project.id, environmentId: environment.id };
+}
 
-  response.cookies.set(WORKSPACE_COOKIE, workspace.id, cookieOptions);
-  response.cookies.set(PROJECT_COOKIE, project.id, cookieOptions);
-  response.cookies.set(ENVIRONMENT_COOKIE, environment.id, cookieOptions);
-  return response;
+function notFound() {
+  return NextResponse.json({ error: { code: "NOT_FOUND", message: "Not found." } }, { status: 404 });
 }
