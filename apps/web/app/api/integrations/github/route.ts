@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../../lib/server/api-auth";
-import { GITHUB_APP_REQUIRED_PERMISSIONS, readGitHubAppConfig } from "../../../../../lib/server/github-app";
-import { getGitHubAppStore, type StoredGitHubInstallation } from "../../../../../lib/server/github-app-store";
-import { syncGitHubConnection, updateGenericGitHubIntegrationState } from "../../../../../lib/server/github-app-service";
-import { getIntegrationStore } from "../../../../../lib/server/integration-store";
+import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../lib/server/api-auth";
+import { GITHUB_APP_REQUIRED_PERMISSIONS, readGitHubAppConfig } from "../../../../lib/server/github-app";
+import { getGitHubAppStore, type StoredGitHubInstallation } from "../../../../lib/server/github-app-store";
+import { syncGitHubConnection, updateGenericGitHubIntegrationState } from "../../../../lib/server/github-app-service";
+import { getIntegrationStore } from "../../../../lib/server/integration-store";
 
 export const runtime = "nodejs";
 
@@ -67,9 +67,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, installation: null, repositories: [], persistence });
   }
 
-  if (!installation) {
-    return NextResponse.json({ error: { code: "GITHUB_APP_NOT_CONNECTED", message: "Install the VetoLayer GitHub App for this project and environment first." } }, { status: 409 });
-  }
+  if (!installation) return NextResponse.json({ error: { code: "GITHUB_APP_NOT_CONNECTED", message: "Install the VetoLayer GitHub App for this project and environment first." } }, { status: 409 });
 
   if (action === "select") {
     const rawIds = (body as { repositoryIds?: unknown }).repositoryIds;
@@ -79,9 +77,7 @@ export async function POST(request: Request) {
     const repositoryIds = [...new Set(rawIds.map(Number))];
     const available = await store.listRepositories(installation.id);
     const allowed = new Set(available.map((repo) => repo.repositoryId));
-    if (repositoryIds.some((id) => !allowed.has(id))) {
-      return NextResponse.json({ error: { code: "REPOSITORY_NOT_AVAILABLE", message: "One or more repositories are not available to this GitHub App installation." } }, { status: 403 });
-    }
+    if (repositoryIds.some((id) => !allowed.has(id))) return NextResponse.json({ error: { code: "REPOSITORY_NOT_AVAILABLE", message: "One or more repositories are not available to this GitHub App installation." } }, { status: 403 });
     const now = new Date().toISOString();
     await store.setConnectedRepositories(installation.id, repositoryIds, now);
     const repositories = await store.listRepositories(installation.id);
@@ -98,12 +94,7 @@ export async function POST(request: Request) {
   if (!config) return NextResponse.json({ error: { code: "GITHUB_APP_NOT_CONFIGURED", message: "The VetoLayer GitHub App is not configured on this deployment." } }, { status: 503 });
 
   try {
-    const result = await syncGitHubConnection({
-      scope,
-      installationId: installation.installationId,
-      installedByUserId: installation.installedByUserId,
-      config,
-    });
+    const result = await syncGitHubConnection({ scope, installationId: installation.installationId, installedByUserId: installation.installedByUserId, config });
     return NextResponse.json({
       ok: result.installation.state === "ready" && result.repositories.some((repo) => repo.connected),
       installation: publicInstallation(result.installation),
