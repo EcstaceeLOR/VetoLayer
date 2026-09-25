@@ -32,7 +32,9 @@ describe("shipped product documentation", () => {
   it("keeps obsolete integration guidance out of the shipped catalog", () => {
     const publicText = JSON.stringify(productDocs);
     expect(publicText).not.toContain("X-VetoLayer-Workspace");
-    expect(publicText).not.toContain("personal access token");
+    expect(publicText).not.toMatch(/create (?:a )?personal access token/i);
+    expect(publicText).not.toMatch(/paste (?:a )?personal access token/i);
     expect(publicText).toContain("clients do not choose scope with headers or request fields");
+    expect(publicText).toContain("Install VetoLayer without personal access tokens");
   });
 });
