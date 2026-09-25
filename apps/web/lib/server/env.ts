@@ -1,6 +1,8 @@
 export type ServerEnvironment = {
   servConfigured: boolean;
+  /** Legacy PAT flag retained only for backwards-compatible fixtures; product GitHub auth uses GitHub Apps. */
   githubTokenConfigured?: boolean;
+  githubAppConfigured?: boolean;
   persistenceConfigured: boolean;
   supabaseUrl?: string;
   supabaseServiceRoleKey?: string;
@@ -17,6 +19,14 @@ export function readServerEnvironment(
   const servApiKey = env.SERV_API_KEY?.trim();
   const servModel = env.SERV_MODEL?.trim();
   const githubToken = env.GITHUB_TOKEN?.trim();
+  const githubAppConfigured = [
+    env.GITHUB_APP_ID,
+    env.GITHUB_APP_SLUG,
+    env.GITHUB_APP_CLIENT_ID,
+    env.GITHUB_APP_CLIENT_SECRET,
+    env.GITHUB_APP_PRIVATE_KEY,
+    env.GITHUB_APP_WEBHOOK_SECRET,
+  ].every((value) => Boolean(value?.trim()));
   const supabaseUrl = env.SUPABASE_URL?.trim();
   const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   const demoRateLimitValue = env.VETOLAYER_DEMO_RATE_LIMIT_PER_MINUTE?.trim();
@@ -43,6 +53,7 @@ export function readServerEnvironment(
   return {
     servConfigured: Boolean(servApiKey && servModel),
     githubTokenConfigured: Boolean(githubToken),
+    githubAppConfigured,
     persistenceConfigured: Boolean(supabaseUrl && supabaseServiceRoleKey),
     ...(supabaseUrl ? { supabaseUrl } : {}),
     ...(supabaseServiceRoleKey ? { supabaseServiceRoleKey } : {}),
