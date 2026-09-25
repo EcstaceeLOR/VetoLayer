@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const protectedPagePrefixes = ["/dashboard", "/onboarding"];
+const protectedPagePrefixes = ["/dashboard", "/onboarding", "/account"];
 
 function authConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -53,6 +53,7 @@ export async function updateSession(request: NextRequest) {
   if (protectedPage && !user) {
     const login = request.nextUrl.clone();
     login.pathname = "/login";
+    login.searchParams.set("error", "session_expired");
     login.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(login);
   }
