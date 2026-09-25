@@ -9,7 +9,7 @@ import {
   verifyGitHubWebhookSignature,
   type GitHubAppConfig,
 } from "./github-app";
-import { createMemoryGitHubAppStore, createStoredGitHubInstallation } from "./github-app-store";
+import { createMemoryGitHubAppStore, createStoredGitHubInstallation, createSupabaseGitHubAppStore } from "./github-app-store";
 
 function config(): GitHubAppConfig {
   const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -80,6 +80,27 @@ describe("GitHub App persistence boundaries", () => {
     await store.saveInstallation(installation);
     expect(await store.getInstallation({ workspaceId: "ws-a", projectId: "prj-a", environmentId: "env-a" })).not.toBeNull();
     expect(await store.getInstallation({ workspaceId: "ws-b", projectId: "prj-a", environmentId: "env-a" })).toBeNull();
+  });
+
+  it("atomically consumes persisted install state with delete-and-return", async () => {
+    const deleted = [{
+      state_hash: "state-hash",
+      workspace_id: "ws-a",
+      project_id: "prj-a",
+      environment_id: "env-a",
+      user_id: "user-a",
+      created_at: "2026-09-25T08:00:00Z",
+      expires_at: "2026-09-25T08:10:00Z",
+    }];
+    const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      expect(init?.method).toBe("DELETE");
+      expect(new Headers(init?.headers).get("Prefer")).toBe("return=representation");
+      return new Response(JSON.stringify(deleted), { status: 200, headers: { "Content-Type": "application/json" } });
+    }) as unknown as typeof fetch;
+    const store = createSupabaseGitHubAppStore({ url: "https://example.supabase.co", serviceRoleKey: "service-role" }, fetchImpl);
+    const state = await store.consumeInstallState("state-hash");
+    expect(state).toMatchObject({ stateHash: "state-hash", workspaceId: "ws-a", userId: "user-a" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("preserves VetoLayer repository selection across GitHub repository refreshes", async () => {
