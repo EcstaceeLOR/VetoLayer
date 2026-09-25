@@ -32,6 +32,18 @@ source = replaceRequired(
 
 source = replaceRequired(
   source,
+  `  await navigate("/demo");\n  assertIncludes(await bodyText(), "REVIEW", "flagship demo exposes the human-review state");\n  await browserFetch("/api/demo/reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });\n  const firstDemo = await browserFetch("/api/demo/evaluate", {\n    method: "POST",\n    headers: { "Content-Type": "application/json" },\n    body: JSON.stringify({ stage: "needs-approval" }),\n  });\n  assert(firstDemo.status === 200, \`demo evaluation returned \${firstDemo.status}\`);\n  assert(firstDemo.json?.outcome === "REVIEW", \`demo initial outcome was \${firstDemo.json?.outcome}, expected REVIEW\`);\n  const secondDemo = await browserFetch("/api/demo/review", {\n    method: "POST",\n    headers: { "Content-Type": "application/json" },\n    body: JSON.stringify({ reviewCaseId: firstDemo.json?.reviewCaseId }),\n  });\n  assert(secondDemo.status === 200, \`demo re-evaluation returned \${secondDemo.status}\`);\n  assert(secondDemo.json?.receipt?.receiptId !== firstDemo.json?.receipt?.receiptId, "human review creates a new receipt rather than overwriting the original");\n  await screenshot("05-demo-review");`,
+  `  const reviewJourney = await browserFetch("/api/internal/reliability/session", {\n    method: "POST",\n    headers: { "Content-Type": "application/json" },\n    body: JSON.stringify({ action: "review_journey" }),\n  });\n  assert(reviewJourney.status === 200, \`real review re-evaluation returned \${reviewJourney.status}\`);\n  assert(reviewJourney.json?.initialOutcome === "REVIEW", "real review workflow starts from REVIEW");\n  assert(reviewJourney.json?.resolutionReceiptId !== reviewJourney.json?.initialReceiptId, "real Human Review re-evaluation creates a new immutable receipt");\n  assert(reviewJourney.json?.parentReceiptId === reviewJourney.json?.initialReceiptId, "review re-evaluation preserves receipt lineage");\n  await navigate("/dashboard/reviews");\n  assertIncludes(await bodyText(), "Human Review", "Human Review surface renders without the public demo");\n  await screenshot("05-human-review");`,
+);
+
+source = replaceRequired(
+  source,
+  `  await navigate("/dashboard/decisions");\n  await assertPerformance("decision-explorer", await performanceSnapshot(), { domContentLoadedMs: 6_000, loadMs: 9_000, transferBytes: 5_000_000 });\n\n  const exceptions = browserEvents.filter((line) => line.startsWith("exception:"));\n  assert(exceptions.length === 0, \`browser recorded \${exceptions.length} unhandled runtime exception(s)\`);`,
+  `  await navigate("/dashboard/decisions");\n  await assertPerformance("decision-explorer", await performanceSnapshot(), { domContentLoadedMs: 6_000, loadMs: 9_000, transferBytes: 5_000_000 });\n\n  const qaRoutes = [\n    "/dashboard",\n    "/dashboard/analytics",\n    "/dashboard/decisions",\n    "/dashboard/policies",\n    "/dashboard/reviews",\n    "/dashboard/integrations",\n    "/dashboard/developers",\n    "/dashboard/notifications",\n    "/dashboard/settings",\n    "/dashboard/audit",\n    "/dashboard/billing",\n    "/dashboard/data",\n    "/dashboard/docs",\n  ];\n  for (const path of qaRoutes) {\n    await navigate(path);\n    const text = await bodyText();\n    assert(!text.includes("Application error"), \`\${path} does not collapse into a generic application error\`);\n    assert(!text.includes("Internal Server Error"), \`\${path} does not expose a raw server error\`);\n  }\n\n  await navigate("/qa-route-that-does-not-exist");\n  assertIncludes(await bodyText(), "This VetoLayer page does not exist.", "global 404 is branded and actionable");\n\n  const exceptions = browserEvents.filter((line) => line.startsWith("exception:"));\n  const consoleErrors = browserEvents.filter((line) => line.startsWith("console-error:"));\n  assert(exceptions.length === 0, \`browser recorded \${exceptions.length} unhandled runtime exception(s)\`);\n  assert(consoleErrors.length === 0, \`browser recorded \${consoleErrors.length} console error(s)\`);`,
+);
+
+source = replaceRequired(
+  source,
   'function assertIncludes(value, expected, message) {\n  assert(String(value).includes(expected), `${message}; missing ${JSON.stringify(expected)}`);\n}',
   'function assertIncludes(value, expected, message) {\n  const actual = String(value).toLocaleLowerCase();\n  const needle = String(expected).toLocaleLowerCase();\n  assert(actual.includes(needle), `${message}; missing ${JSON.stringify(expected)}`);\n}',
 );
@@ -51,9 +63,6 @@ if (classIndex < 0 || executionIndex < 0 || classIndex <= executionIndex) {
   throw new Error("Browser E2E harness layout is not compatible with the bootstrap initializer.");
 }
 
-// CdpClient is intentionally kept at the end of browser-e2e.mjs for readability,
-// but class declarations are not hoisted. Move that final declaration ahead of the
-// top-level execution when loading the harness so the checked-in test remains simple.
 const classSource = source.slice(classIndex + 1);
 const beforeExecution = source.slice(0, executionIndex);
 const executionSource = source.slice(executionIndex, classIndex);
