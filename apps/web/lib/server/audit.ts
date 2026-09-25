@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import type { WorkspaceContext } from "./workspace";
 import { getAuditStore, type AuditActorKind, type AuditCategory, type AuditEvent } from "./audit-store";
 import { logServerEvent } from "./observability";
+import { getWorkspaceStore } from "./workspace-store";
 
 const sensitiveKey = /(authorization|cookie|password|passphrase|secret|token|credential|private.?key|api.?key|signing.?secret|service.?role|client.?secret|session|jwt)/i;
 const maxDepth = 6;
@@ -99,6 +100,37 @@ export async function recordAuditEvent(input: AuditWriteInput) {
       message: error instanceof Error ? error.message : "Audit write failed",
     });
     return null;
+  }
+}
+
+export async function recordUserSecurityAudit(input: {
+  userId: string;
+  email?: string;
+  displayName?: string;
+  action: string;
+  metadata?: Record<string, unknown>;
+  request?: Request;
+}) {
+  try {
+    const { store } = getWorkspaceStore();
+    const memberships = await store.listWorkspacesForUser(input.userId);
+    await Promise.all(memberships.map(({ workspace, membership }) => recordAuditEvent({
+      workspaceId: workspace.id,
+      actorKind: "human",
+      actorUserId: input.userId,
+      actorLabel: input.displayName ?? input.email ?? input.userId,
+      actorRole: membership.role,
+      action: input.action,
+      category: "security",
+      targetType: "user_account",
+      targetId: input.userId,
+      targetLabel: input.displayName ?? input.email ?? input.userId,
+      href: "/account",
+      ...(input.request ? { request: input.request } : {}),
+      metadata: input.metadata ?? {},
+    })));
+  } catch (error) {
+    logServerEvent("error", "audit.security_fanout.failed", { userId: input.userId, action: input.action, message: error instanceof Error ? error.message : "Security audit fan-out failed" });
   }
 }
 
