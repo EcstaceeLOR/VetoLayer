@@ -84,8 +84,18 @@ export async function PUT(request: Request) {
         tightening,
       },
     }));
-    const retention = tightening ? await applyWorkspaceRetention(auth.workspace.workspaceId) : null;
-    return NextResponse.json({ settings, retention });
+
+    let retention = null;
+    let cleanupPending = false;
+    if (tightening) {
+      try {
+        retention = await applyWorkspaceRetention(auth.workspace.workspaceId);
+      } catch {
+        cleanupPending = true;
+      }
+    }
+
+    return NextResponse.json({ settings, retention, cleanupPending }, { status: cleanupPending ? 202 : 200 });
   } catch (error) {
     if (error instanceof SettingsConflictError) {
       return NextResponse.json({ error: { code: "SETTINGS_CONFLICT", message: "Retention settings changed after this page was loaded. Refresh and review the current values before saving again." }, current: error.current }, { status: 409 });
