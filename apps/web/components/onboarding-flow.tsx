@@ -16,8 +16,8 @@ const useCases: Array<{ id: UseCase; title: string; copy: string; recommended?: 
 export function OnboardingFlow() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [workspace, setWorkspace] = useState("Acme Engineering");
-  const [project, setProject] = useState("Production Gate");
+  const [workspace, setWorkspace] = useState("");
+  const [project, setProject] = useState("");
   const [useCase, setUseCase] = useState<UseCase>("coding");
 
   const selected = useMemo(() => useCases.find((item) => item.id === useCase)!, [useCase]);
@@ -38,10 +38,10 @@ export function OnboardingFlow() {
       {step === 1 ? (
         <section className="onboardingStep">
           <p className="vlEyebrow">Step 1 · Your control surface</p>
-          <h1>Where will VetoLayer make decisions?</h1>
-          <p className="muted">Create a lightweight workspace and first project. Authentication and durable ownership are added separately; this flow establishes the product model now.</p>
-          <Field label="Workspace name"><Input value={workspace} onChange={(event) => setWorkspace(event.target.value)} placeholder="Acme Engineering" autoFocus /></Field>
-          <Field label="First project"><Input value={project} onChange={(event) => setProject(event.target.value)} placeholder="Production Gate" /></Field>
+          <h1>Name the workspace and project you want to govern.</h1>
+          <p className="muted">Use names your team will recognize. This project becomes the context shown throughout the control center and is used to organize the policies, integrations, and decisions you configure next.</p>
+          <Field label="Workspace name"><Input value={workspace} onChange={(event) => setWorkspace(event.target.value)} placeholder="Platform Engineering" autoFocus /></Field>
+          <Field label="First project"><Input value={project} onChange={(event) => setProject(event.target.value)} placeholder="Production Deployments" /></Field>
           <Button tone="primary" size="lg" disabled={!canContinue} onClick={() => setStep(2)}>Choose a use case <ArrowRightIcon /></Button>
         </section>
       ) : null}
@@ -50,7 +50,7 @@ export function OnboardingFlow() {
         <section className="onboardingStep">
           <p className="vlEyebrow">Step 2 · Initial policy pack</p>
           <h1>Start with the action that matters most.</h1>
-          <p className="muted">VetoLayer&apos;s core stays horizontal. Your first use case only determines the starter policy pack and onboarding guidance.</p>
+          <p className="muted">VetoLayer&apos;s core stays horizontal. Your first use case determines the starter policy guidance and the integration path we surface first.</p>
           <div className="useCaseChooser">
             {useCases.map((item) => (
               <button key={item.id} type="button" className={useCase === item.id ? "useCaseChoice selected vlCard vlCardInteractive" : "useCaseChoice vlCard vlCardInteractive"} onClick={() => setUseCase(item.id)}>
@@ -64,8 +64,8 @@ export function OnboardingFlow() {
 
       {step === 3 ? (
         <section className="onboardingStep">
-          <p className="vlEyebrow">Step 3 · Ready to gate</p>
-          <h1>Your first VetoLayer project is ready.</h1>
+          <p className="vlEyebrow">Step 3 · Ready to configure</p>
+          <h1>Review the context for your first VetoLayer project.</h1>
           <div className="setupSummary">
             <div><span>Workspace</span><strong>{workspace}</strong></div>
             <div><span>Project</span><strong>{project}</strong></div>
