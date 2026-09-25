@@ -33,6 +33,20 @@ export function buildOnboardingSteps(validation: OnboardingValidation): Onboardi
   ];
 }
 
+export function resolveOnboardingResumeStep(
+  steps: OnboardingStepStatus[],
+  lastStep?: number,
+  complete = false,
+) {
+  if (complete) return 8;
+  const firstIncomplete = steps.find((step) => !step.complete)?.id ?? 8;
+  const requested = Math.max(1, Math.min(8, Math.trunc(lastStep ?? firstIncomplete)));
+  const earlierStepsComplete = steps
+    .filter((step) => step.id < requested)
+    .every((step) => step.complete);
+  return earlierStepsComplete ? requested : firstIncomplete;
+}
+
 export async function loadOnboardingSnapshot(): Promise<OnboardingSnapshot | null> {
   const identity = await getAuthenticatedIdentity();
   if (!identity) return null;
@@ -155,8 +169,8 @@ export async function loadOnboardingSnapshot(): Promise<OnboardingSnapshot | nul
     },
   });
 
-  const firstIncomplete = steps.find((step) => !step.complete)?.id ?? 8;
   const complete = steps.every((step) => step.complete);
+  const resumeStep = resolveOnboardingResumeStep(steps, state.lastStep, complete);
 
   return {
     persistence,
@@ -186,7 +200,7 @@ export async function loadOnboardingSnapshot(): Promise<OnboardingSnapshot | nul
     },
     ...(receipt ? { receipt } : {}),
     steps,
-    resumeStep: firstIncomplete,
+    resumeStep,
     complete,
   };
 }
