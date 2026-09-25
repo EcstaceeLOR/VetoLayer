@@ -63,7 +63,15 @@ export async function POST(request: Request) {
     const { store: workspaceStore } = getWorkspaceStore();
     const allowedProjects = new Set((await workspaceStore.listProjects(auth.workspace.workspaceId, true)).map((project) => project.id));
     if (projectIds.some((id) => !allowedProjects.has(id))) return NextResponse.json({ error: { code: "INVALID_NOTIFICATION_PROJECT", message: "One or more notification projects do not belong to this workspace." } }, { status: 400 });
-    const previous = (await store.getPreference(auth.workspace.workspaceId, auth.workspace.userId)) ?? defaultNotificationPreference(auth.workspace.workspaceId, auth.workspace.userId);
+    const stored = await store.getPreference(auth.workspace.workspaceId, auth.workspace.userId);
+    const previous = stored ?? defaultNotificationPreference(auth.workspace.workspaceId, auth.workspace.userId);
+    const expectedUpdatedAt = typeof body.expectedUpdatedAt === "string" ? body.expectedUpdatedAt : undefined;
+    if (stored && expectedUpdatedAt && expectedUpdatedAt !== stored.updatedAt) {
+      return NextResponse.json({
+        error: { code: "SETTINGS_CONFLICT", message: "Notification preferences changed after this page was loaded. Refresh and review the current preferences before saving again." },
+        current: stored,
+      }, { status: 409 });
+    }
     const preference = { workspaceId: auth.workspace.workspaceId, userId: auth.workspace.userId, inAppEvents, emailEvents, projectIds, updatedAt: now };
     await store.savePreference(preference);
     await recordAuditEvent(workspaceAuditInput(auth.workspace, {
@@ -72,7 +80,7 @@ export async function POST(request: Request) {
       targetType: "notification_preferences",
       targetId: auth.workspace.userId,
       targetLabel: auth.workspace.displayName ?? auth.workspace.email ?? auth.workspace.userId,
-      href: "/dashboard/notifications",
+      href: "/dashboard/settings#notifications",
       request,
       metadata: {
         previous: { inAppEvents: previous.inAppEvents, emailEvents: previous.emailEvents, projectIds: previous.projectIds },
