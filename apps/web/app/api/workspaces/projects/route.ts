@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { normalizeEntityName } from "../../../../lib/workspace-model";
-import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../lib/server/api-auth";
+import { requireApiWorkspace } from "../../../../lib/server/api-auth";
 import { ENVIRONMENT_COOKIE, PROJECT_COOKIE } from "../../../../lib/server/workspace";
 import { getWorkspaceStore } from "../../../../lib/server/workspace-store";
 
@@ -30,15 +30,18 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const auth = await requireApiWorkspace("projects.manage");
   if (!auth.ok) return auth.response;
-  const archived = rejectArchivedProjectWrite(auth.workspace);
-  if (archived) return archived;
 
   let payload: { projectId?: unknown; name?: unknown };
   try { payload = await request.json(); } catch { return NextResponse.json({ error: { code: "INVALID_JSON", message: "Request body must be valid JSON." } }, { status: 400 }); }
   const projectId = typeof payload.projectId === "string" ? payload.projectId : auth.workspace.projectId;
   const name = normalizeEntityName(typeof payload.name === "string" ? payload.name : "");
   if (name.length < 2) return NextResponse.json({ error: { code: "INVALID_NAME", message: "Project name must contain at least two characters." } }, { status: 400 });
-  const project = await getWorkspaceStore().store.renameProject(auth.workspace.workspaceId, projectId, name);
+
+  const { store } = getWorkspaceStore();
+  const target = await store.getProject(auth.workspace.workspaceId, projectId);
+  if (!target) return NextResponse.json({ error: { code: "PROJECT_NOT_FOUND", message: "Project was not found in this workspace." } }, { status: 404 });
+  if (target.status !== "active") return NextResponse.json({ error: { code: "PROJECT_ARCHIVED", message: "Archived projects retain history but cannot be modified." } }, { status: 409 });
+  const project = await store.renameProject(auth.workspace.workspaceId, projectId, name);
   return NextResponse.json({ project });
 }
 
@@ -50,6 +53,11 @@ export async function DELETE(request: Request) {
   const { store } = getWorkspaceStore();
   const project = await store.getProject(auth.workspace.workspaceId, projectId);
   if (!project) return NextResponse.json({ error: { code: "PROJECT_NOT_FOUND", message: "Project was not found in this workspace." } }, { status: 404 });
+  if (project.status !== "active") return NextResponse.json({ error: { code: "PROJECT_ARCHIVED", message: "This project is already archived." } }, { status: 409 });
+  const activeProjects = await store.listProjects(auth.workspace.workspaceId);
+  if (activeProjects.length <= 1) {
+    return NextResponse.json({ error: { code: "LAST_PROJECT", message: "A workspace must keep at least one active project. Archive the workspace instead if the organization is no longer in use." } }, { status: 409 });
+  }
   await store.archiveProject(auth.workspace.workspaceId, projectId);
   return NextResponse.json({ archived: true, projectId });
 }
