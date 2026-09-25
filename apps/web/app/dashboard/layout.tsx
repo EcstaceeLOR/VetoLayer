@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { ProductCommandMenu } from "../../components/product-command-menu";
 import { ProductNavigation } from "../../components/product-navigation";
-import { Badge, Button, ButtonLink } from "../../components/ui/primitives";
+import { ProductBreadcrumbs, WorkspaceProjectContext } from "../../components/product-shell-context";
+import { ReviewIcon } from "../../components/ui/icons";
+import { Button } from "../../components/ui/primitives";
 import { VetoLayerLogo } from "../../components/vetolayer-logo";
 import { getAuthenticatedWorkspace } from "../../lib/server/workspace";
 import { signOut } from "../login/actions";
@@ -18,32 +21,47 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const avatar = (workspace.email?.[0] ?? workspace.label[0] ?? "V").toUpperCase();
 
   return (
-    <div className="productShell">
-      <aside className="sidebar" aria-label="Workspace navigation">
-        <Link href="/" className="brand dashboardBrand" aria-label="VetoLayer home"><VetoLayerLogo size="sm" /></Link>
-        <div className="workspaceTag" title={workspace.email}><span className="workspaceDot" aria-hidden="true" /> {workspace.label}</div>
+    <div className="productShell productShellV2">
+      <aside className="sidebar productSidebar" aria-label="Workspace navigation">
+        <Link href="/dashboard" className="brand dashboardBrand" aria-label="VetoLayer control center"><VetoLayerLogo size="sm" /></Link>
+        <WorkspaceProjectContext workspace={workspace.label} />
         <ProductNavigation />
-        <div className="sideDemoCard vlCard">
-          <Badge tone="info">Example</Badge>
-          <strong>Auth patch → production</strong>
-          <p>See SERV reason over a live policy exception and changing evidence.</p>
-          <Link href="/demo">Open demo →</Link>
+
+        <div className="sidebarResources">
+          <span className="sideNavLabel">Resources</span>
+          <Link href="/#developers">Developer setup</Link>
+          <Link href="/demo">Product example</Link>
         </div>
+
         <div className="sideFoot" role="status">
-          <span><i className="pulse" aria-hidden="true" /> SERV reasoning online</span>
-          <small>Hard policy + contextual judgment</small>
+          <span><i className="pulse" aria-hidden="true" /> Decision engine available</span>
+          <small>Hard policy first · contextual judgment second</small>
         </div>
       </aside>
-      <main className="dashboardMain" id="main-content" tabIndex={-1}>
-        <div className="dashboardTopbar">
-          <div><span className="workspaceCrumb">{workspace.label}</span><span aria-hidden="true">/</span><strong>Production Gate</strong></div>
-          <div className="topbarActions">
-            <ButtonLink tone="ghost" size="sm" href="/onboarding">New project</ButtonLink>
-            <span className="avatar" aria-label={`Signed in as ${workspace.email ?? workspace.label}`} title={workspace.email}>{avatar}</span>
-            <form action={signOut}><Button tone="ghost" size="sm" type="submit">Sign out</Button></form>
+
+      <main className="dashboardMain productMain" id="main-content" tabIndex={-1}>
+        <header className="dashboardTopbar productTopbar">
+          <ProductBreadcrumbs workspace={workspace.label} />
+          <ProductCommandMenu />
+          <div className="topbarActions productTopbarActions">
+            <Link className="shellIconAction" href="/dashboard/reviews" aria-label="Open human review inbox" title="Human review inbox"><ReviewIcon size={16} /></Link>
+            <Link className="shellTextAction" href="/#developers">Help</Link>
+            <details className="accountMenu">
+              <summary aria-label={`Account menu for ${workspace.email ?? workspace.label}`}>
+                <span className="avatar" aria-hidden="true">{avatar}</span>
+                <span className="accountMenuIdentity"><b>{workspace.label}</b><small>{workspace.email ?? "Workspace owner"}</small></span>
+              </summary>
+              <div className="accountMenuPanel vlCard vlCardRaised">
+                <div className="accountMenuHeader"><span>Signed in</span><strong>{workspace.email ?? workspace.label}</strong></div>
+                <Link href="/onboarding">Project setup</Link>
+                <Link href="/dashboard/integrations">Integration setup</Link>
+                <div className="accountMenuDivider" />
+                <form action={signOut}><Button tone="ghost" size="sm" type="submit">Sign out</Button></form>
+              </div>
+            </details>
           </div>
-        </div>
-        {children}
+        </header>
+        <div className="productPage">{children}</div>
       </main>
     </div>
   );
