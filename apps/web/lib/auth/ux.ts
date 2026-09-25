@@ -11,6 +11,7 @@ export const authErrorMessages: Record<string, string> = {
   link_expired: "That authentication link is invalid or has expired. Request a fresh link and try again.",
   session_expired: "Your session has ended. Sign in again to continue.",
   session_required: "Sign in to continue to that page.",
+  verification_failed: "We could not send a new verification email right now. Please try again in a moment.",
   recovery_failed: "We could not start account recovery right now. Please try again in a moment.",
   recovery_session_required: "Open the newest password-reset email first, then set your new password.",
   reset_failed: "We could not update your password. Request a fresh reset link and try again.",
