@@ -126,7 +126,10 @@ export function createMemoryNotificationStore(): NotificationStore {
     async getEvent(id) { return events.get(id) ?? null; },
     async getPreference(workspaceId, userId) { return preferences.get(prefKey(workspaceId, userId)) ?? null; },
     async savePreference(preference) { preferences.set(prefKey(preference.workspaceId, preference.userId), preference); },
-    async createNotification(notification) { notifications.set(notificationKey(notification.eventId, notification.userId), notification); },
+    async createNotification(notification) {
+      const key = notificationKey(notification.eventId, notification.userId);
+      if (!notifications.has(key)) notifications.set(key, notification);
+    },
     async listNotifications(workspaceId, userId, limit = 50) {
       return [...notifications.values()].filter((item) => item.workspaceId === workspaceId && item.userId === userId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, Math.max(1, Math.min(200, limit)));
     },
