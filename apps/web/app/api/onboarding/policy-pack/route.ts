@@ -56,9 +56,18 @@ export async function POST(request: Request) {
       projectId: auth.workspace.projectId,
       environmentId: auth.workspace.environmentId,
     });
-    const available = new Set(existing.map(({ policy }) => policy.id));
-    if (!requested.every((id) => available.has(id))) {
+    const byId = new Map(existing.map(({ policy }) => [policy.id, policy] as const));
+    if (!requested.every((id) => byId.has(id))) {
       return NextResponse.json({ error: { code: "POLICY_NOT_FOUND", message: "One or more selected policies are not persisted in this project and environment." } }, { status: 404 });
+    }
+    const selected = requested.map((id) => byId.get(id)!);
+    if (!selected.some((policy) => policy.mode === "contextual")) {
+      return NextResponse.json({
+        error: {
+          code: "CONTEXTUAL_POLICY_REQUIRED",
+          message: "Select at least one contextual policy so onboarding can verify the live SERV reasoning path.",
+        },
+      }, { status: 409 });
     }
     policyIds = [...new Set(requested)];
   } else {
