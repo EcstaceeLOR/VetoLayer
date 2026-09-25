@@ -7,18 +7,26 @@ export type OnboardingStore = {
   clear(userId: string): Promise<void>;
 };
 
-const memoryStates = new Map<string, OnboardingState>();
+type OnboardingMemoryGlobal = typeof globalThis & {
+  __vetolayerOnboardingMemory?: Map<string, OnboardingState>;
+};
+
+function memoryStates() {
+  const shared = globalThis as OnboardingMemoryGlobal;
+  shared.__vetolayerOnboardingMemory ??= new Map<string, OnboardingState>();
+  return shared.__vetolayerOnboardingMemory;
+}
 
 export function createMemoryOnboardingStore(): OnboardingStore {
   return {
     async get(userId) {
-      return memoryStates.get(userId) ?? null;
+      return memoryStates().get(userId) ?? null;
     },
     async save(userId, state) {
-      memoryStates.set(userId, state);
+      memoryStates().set(userId, state);
     },
     async clear(userId) {
-      memoryStates.delete(userId);
+      memoryStates().delete(userId);
     },
   };
 }
