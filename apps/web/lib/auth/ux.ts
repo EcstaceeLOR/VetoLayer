@@ -30,6 +30,7 @@ export const authSuccessMessages: Record<string, string> = {
   email_confirmation_sent: "Confirm the email-change message to finish updating your sign-in address.",
   password_changed: "Your password has been changed.",
   other_sessions_signed_out: "Other signed-in sessions have been revoked. This session remains active.",
+  signed_out: "You have been signed out of this session.",
 };
 
 export function authErrorMessage(code?: string | null) {
