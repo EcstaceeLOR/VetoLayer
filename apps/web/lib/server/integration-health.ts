@@ -1,5 +1,6 @@
 import type { IntegrationReadiness, IntegrationTestResult } from "../integration-contracts";
 import { readServerEnvironment, type ServerEnvironment } from "./env";
+import { readGitHubAppConfig, testGitHubAppIdentity, type GitHubAppConfig } from "./github-app";
 
 export function getIntegrationReadiness(input?: {
   environment?: ServerEnvironment;
@@ -7,17 +8,21 @@ export function getIntegrationReadiness(input?: {
 }): IntegrationReadiness {
   const environment = input?.environment ?? readServerEnvironment();
   const nodeEnv = input?.nodeEnv ?? process.env.NODE_ENV;
-
+  const appStatus = input?.environment
+    ? { configured: Boolean(environment.githubAppConfigured), missing: environment.githubAppConfigured ? [] : ["GitHub App registration"] }
+    : (() => {
+        const { config, missing } = readGitHubAppConfig();
+        return { configured: Boolean(config), missing };
+      })();
   const githubMissing = [
-    ...(!environment.githubTokenConfigured ? ["GITHUB_TOKEN"] : []),
+    ...appStatus.missing,
     ...(!environment.servConfigured ? ["SERV_API_KEY + SERV_MODEL"] : []),
   ];
-
   const apiNeedsAuth = nodeEnv === "production" && !environment.apiAuthConfigured;
 
   return {
     github: {
-      configured: Boolean(environment.githubTokenConfigured),
+      configured: appStatus.configured,
       servConfigured: environment.servConfigured,
       ready: githubMissing.length === 0,
       state: githubMissing.length === 0 ? "ready" : "needs-config",
@@ -27,11 +32,7 @@ export function getIntegrationReadiness(input?: {
       endpoint: "/api/v1/evaluate",
       authConfigured: environment.apiAuthConfigured,
       ready: !apiNeedsAuth,
-      state: environment.apiAuthConfigured
-        ? "ready"
-        : nodeEnv === "production"
-          ? "needs-config"
-          : "local-only",
+      state: environment.apiAuthConfigured ? "ready" : nodeEnv === "production" ? "needs-config" : "local-only",
       missing: apiNeedsAuth ? ["VETOLAYER_API_KEY"] : [],
     },
   };
@@ -39,96 +40,56 @@ export function getIntegrationReadiness(input?: {
 
 export async function testGitHubIntegration(input?: {
   environment?: ServerEnvironment;
-  githubToken?: string;
+  config?: GitHubAppConfig;
   fetchImpl?: typeof fetch;
 }): Promise<IntegrationTestResult> {
   const environment = input?.environment ?? readServerEnvironment();
-  const githubToken = input?.githubToken ?? process.env.GITHUB_TOKEN?.trim();
-  const fetchImpl = input?.fetchImpl ?? fetch;
-
-  if (!githubToken) {
+  const resolved = input?.config ? { config: input.config, missing: [] } : readGitHubAppConfig();
+  if (!resolved.config) {
     return {
       integration: "github",
       ok: false,
       level: "error",
-      code: "GITHUB_TOKEN_MISSING",
-      message: "GitHub Gate is not configured yet.",
+      code: "GITHUB_APP_NOT_CONFIGURED",
+      message: "The VetoLayer GitHub App registration is not configured on this deployment.",
       nextSteps: [
-        "Set GITHUB_TOKEN as a server-side environment variable.",
-        "Redeploy or restart VetoLayer, then test the connection again.",
+        "Configure the GitHub App ID, slug, OAuth client credentials, private key, and webhook secret once for this VetoLayer deployment.",
+        "Users can then install the App from VetoLayer without adding personal tokens or editing deployment variables.",
       ],
     };
   }
 
-  let response: Response;
   try {
-    response = await fetchImpl("https://api.github.com/user", {
-      headers: {
-        Accept: "application/vnd.github+json",
-        Authorization: `Bearer ${githubToken}`,
-        "User-Agent": "VetoLayer-Integration-Test",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-      cache: "no-store",
-    });
+    const app = await testGitHubAppIdentity(resolved.config, input?.fetchImpl ?? fetch);
+    if (!environment.servConfigured) {
+      return {
+        integration: "github",
+        ok: true,
+        level: "warning",
+        code: "GITHUB_APP_READY_SERV_MISSING",
+        message: "The GitHub App is registered, but contextual judgment is not ready until SERV is configured.",
+        details: { account: app.name },
+        nextSteps: ["Set SERV_API_KEY and SERV_MODEL server-side before evaluating sensitive GitHub actions."],
+      };
+    }
+    return {
+      integration: "github",
+      ok: true,
+      level: "success",
+      code: "GITHUB_APP_READY",
+      message: "The GitHub App registration is healthy. Users can install it from the Integrations screen.",
+      details: { account: app.name },
+    };
   } catch {
     return {
       integration: "github",
       ok: false,
       level: "error",
-      code: "GITHUB_UNREACHABLE",
-      message: "VetoLayer could not reach GitHub from the server.",
-      nextSteps: [
-        "Check outbound network access from the deployment.",
-        "Retry the connection test after connectivity is restored.",
-      ],
+      code: "GITHUB_APP_AUTH_FAILED",
+      message: "GitHub rejected the configured App identity.",
+      nextSteps: ["Verify GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY belong to the same GitHub App, then retry."],
     };
   }
-
-  if (!response.ok) {
-    const code = response.status === 401 ? "GITHUB_TOKEN_INVALID" : "GITHUB_CONNECTION_FAILED";
-    return {
-      integration: "github",
-      ok: false,
-      level: "error",
-      code,
-      message:
-        response.status === 401
-          ? "GitHub rejected the configured token."
-          : `GitHub connection test failed with status ${response.status}.`,
-      nextSteps: [
-        "Verify the token is active and has access to the repositories VetoLayer will inspect.",
-        "Replace GITHUB_TOKEN server-side and redeploy before retrying.",
-      ],
-    };
-  }
-
-  const body = (await response.json().catch(() => ({}))) as { login?: unknown };
-  const account = typeof body.login === "string" ? body.login : undefined;
-
-  if (!environment.servConfigured) {
-    return {
-      integration: "github",
-      ok: true,
-      level: "warning",
-      code: "GITHUB_CONNECTED_SERV_MISSING",
-      message: "GitHub is connected, but contextual judgment is not ready until SERV is configured.",
-      details: account ? { account } : undefined,
-      nextSteps: [
-        "Set SERV_API_KEY and SERV_MODEL server-side.",
-        "Retest after redeploying so sensitive GitHub actions can reach SERV Reasoning.",
-      ],
-    };
-  }
-
-  return {
-    integration: "github",
-    ok: true,
-    level: "success",
-    code: "GITHUB_CONNECTED",
-    message: "GitHub Gate is connected and SERV contextual reasoning is configured.",
-    details: account ? { account } : undefined,
-  };
 }
 
 export function testDeveloperApiIntegration(input?: {
