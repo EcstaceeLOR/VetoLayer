@@ -7,6 +7,7 @@ import { getGitHubAppStore } from "../../../../../lib/server/github-app-store";
 import { mergeManagedPolicies } from "../../../../../lib/server/managed-policies";
 import { consumeRateLimit, requestClientKey } from "../../../../../lib/server/rate-limit";
 import { getReviewStore } from "../../../../../lib/server/review-store";
+import { emitReviewWebhook, reviewEvent } from "../../../../../lib/server/review-workflow";
 
 export const runtime = "nodejs";
 
@@ -62,9 +63,7 @@ export async function POST(request: Request) {
       operation,
       policies: policySet.policies,
       receiptScope: {
-        workspaceId: auth.workspace.workspaceId,
-        projectId: auth.workspace.projectId,
-        environmentId: auth.workspace.environmentId,
+        ...scope,
         workspaceName: auth.workspace.workspace.name,
         projectName: auth.workspace.project.name,
         environmentName: auth.workspace.environment.name,
@@ -78,10 +77,12 @@ export async function POST(request: Request) {
     if (result.receipt.outcome === "REVIEW") {
       reviewCaseId = `review_${result.receipt.receiptId}`;
       const now = new Date().toISOString();
+      const dueAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       const { store: reviewStore } = getReviewStore();
-      await reviewStore.save({
+      const saved = await reviewStore.save({
         id: reviewCaseId,
         ...scope,
+        revision: 1,
         status: "pending",
         title: `${operation.replaceAll("-", " ")} · ${repository.fullName}#${pullRequest}`,
         source: "integration",
@@ -89,7 +90,14 @@ export async function POST(request: Request) {
         context: { kind: "github", snapshot: result.snapshot, operation, restrictedWindow: false },
         createdAt: now,
         updatedAt: now,
+        dueAt,
+        comments: [],
+        evidenceAdditions: [],
+        reviewHistory: [],
+        timeline: [reviewEvent({ reviewCaseId, type: "created", summary: "Review case created from a GitHub integration REVIEW decision.", createdAt: now, receiptId: result.receipt.receiptId })],
+        receiptLineage: [{ receiptId: result.receipt.receiptId, outcome: result.receipt.outcome, createdAt: result.receipt.timestamps.receiptCreatedAt, reason: "initial" }],
       });
+      await emitReviewWebhook({ scope, eventType: "review.created", reviewCase: saved, action: "created" });
     }
 
     return NextResponse.json({

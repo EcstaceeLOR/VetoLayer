@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { ReviewInbox } from "../../../components/review-inbox";
+import "./review-operations.css";
 
 export default function ReviewsPage() {
   return (
@@ -7,8 +8,8 @@ export default function ReviewsPage() {
       <header className="dashboardHeader compactHeader reviewPageHeader">
         <div>
           <p className="eyebrow">HUMAN REVIEW</p>
-          <h1 className="dashboardTitle">Escalation is a feature, not a failure.</h1>
-          <p className="dashboardIntro">Inspect every unresolved policy finding and piece of evidence, record human judgment, then let the same VetoLayer pipeline decide again.</p>
+          <h1 className="dashboardTitle">Operational review for decisions that need a human.</h1>
+          <p className="dashboardIntro">Assign ownership, investigate evidence, request what is missing, leave internal notes, and re-run the real VetoLayer orchestrator without bypassing deterministic policy.</p>
         </div>
       </header>
       <Suspense fallback={<div className="reviewLoading"><span className="pulse" /> Loading review queue…</div>}>
