@@ -10,9 +10,11 @@ import { buildGitHubGateBundle, githubGatePolicies } from "@vetolayer/github-gat
 import { evaluateDeterministicPolicies } from "@vetolayer/policies";
 import { evaluateWithServ, readServEnvironment } from "@vetolayer/serv";
 import type { ProductScope } from "../workspace-model";
+import { getDecisionStore } from "./decision-store";
 import { getDeveloperStore } from "./developer-store";
 import { deliverDeveloperWebhook } from "./developer-webhooks";
 import { mergeManagedPolicies } from "./managed-policies";
+import { logServerEvent } from "./observability";
 import type { ReviewCase, ReviewTimelineEvent, ReviewTimelineEventType } from "./review-store";
 
 export function reviewActor(input: { userId: string; displayName?: string; email?: string; role?: string }): Actor {
@@ -107,6 +109,27 @@ export async function reevaluateReviewCase(input: {
     parentReceiptId: parentReceipt.receiptId,
     managedPolicyVersions: policySet.managedVersions.map((version) => ({ policyId: version.policyId, version: version.version, versionId: version.id })),
   };
+}
+
+/** Keep derived Decision Explorer review metadata in sync without making the
+ * authoritative review mutation depend on a secondary search index. */
+export async function syncReviewDecisionIndex(reviewCase: ReviewCase) {
+  const receiptIds = [...new Set(reviewCase.receiptLineage.map((entry) => entry.receiptId))];
+  try {
+    const { store } = getDecisionStore();
+    await store.annotateReview(reviewCase.workspaceId, receiptIds, {
+      state: reviewCase.status,
+      reviewCaseId: reviewCase.id,
+    });
+  } catch (error) {
+    logServerEvent("warn", "review.decision_index.failed", {
+      reviewCaseId: reviewCase.id,
+      workspaceId: reviewCase.workspaceId,
+      status: reviewCase.status,
+      receiptCount: receiptIds.length,
+      message: error instanceof Error ? error.message : "Decision review index update failed",
+    });
+  }
 }
 
 export async function emitReviewWebhook(input: {

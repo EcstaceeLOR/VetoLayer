@@ -2,10 +2,10 @@ import { randomUUID } from "node:crypto";
 import { EvidenceSchema, HumanReviewRecordSchema, type HumanReviewRecord } from "@vetolayer/core";
 import { NextResponse } from "next/server";
 import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../../lib/server/api-auth";
-import { getOptionalDecisionStore } from "../../../../../lib/server/decision-store";
+import { getDecisionStore } from "../../../../../lib/server/decision-store";
 import { logServerEvent } from "../../../../../lib/server/observability";
 import { ReviewConflictError, getReviewStore, type ReviewCase } from "../../../../../lib/server/review-store";
-import { emitReviewWebhook, reevaluateReviewCase, reviewActor, reviewEvent } from "../../../../../lib/server/review-workflow";
+import { emitReviewWebhook, reevaluateReviewCase, reviewActor, reviewEvent, syncReviewDecisionIndex } from "../../../../../lib/server/review-workflow";
 import { getWorkspaceStore } from "../../../../../lib/server/workspace-store";
 
 export const runtime = "nodejs";
@@ -178,6 +178,7 @@ function buildReviewRecord(reviewCase: ReviewCase, actor: ReturnType<typeof revi
 async function saveMutation(reviewCase: ReviewCase, expectedRevision: number, scope: { workspaceId: string; projectId: string; environmentId: string }, persistence: string, action: string) {
   const { store } = getReviewStore();
   const saved = await store.save(reviewCase, { expectedRevision });
+  await syncReviewDecisionIndex(saved);
   await emitReviewWebhook({ scope, eventType: saved.status === "resolved" ? "review.resolved" : "review.updated", reviewCase: saved, action });
   logServerEvent("info", "human_review.updated", { reviewCaseId: saved.id, ...scope, action, revision: saved.revision, status: saved.status });
   return NextResponse.json({ case: saved, persistence });
@@ -226,18 +227,22 @@ async function reevaluateAndSave(
     updatedAt: reevaluatedAt,
   };
 
-  // Persist the immutable receipt first. A stale review update can leave an
-  // unreferenced receipt, but a review must never point at a receipt that was
-  // not durably written to Decision history.
-  const decisionStore = getOptionalDecisionStore();
-  if (decisionStore) {
-    await decisionStore.save({ id: result.receipt.receiptId, ...scope, source: "integration", receipt: result.receipt, createdAt: reevaluatedAt });
-  } else if (persistence === "supabase") {
-    throw new Error("Decision persistence is unavailable for a durable review re-evaluation");
-  }
+  // Persist the immutable receipt before linking it into the mutable review
+  // record. A stale compare-and-swap may leave an unlinked receipt, but a
+  // review must never reference a receipt that was not durably written first.
+  const { store: decisionStore } = getDecisionStore();
+  await decisionStore.save({
+    id: result.receipt.receiptId,
+    ...scope,
+    source: "integration",
+    receipt: result.receipt,
+    createdAt: reevaluatedAt,
+    parentReceiptId: result.parentReceiptId,
+  });
 
   const { store } = getReviewStore();
   const saved = await store.save(next, { expectedRevision });
+  await syncReviewDecisionIndex(saved);
   await emitReviewWebhook({ scope, eventType: resolved ? "review.resolved" : "review.updated", reviewCase: saved, action: reason });
   logServerEvent("info", "human_review.reevaluated", { reviewCaseId: saved.id, ...scope, revision: saved.revision, resultingOutcome: result.receipt.outcome, receiptId: result.receipt.receiptId, parentReceiptId: result.parentReceiptId });
   return NextResponse.json({ case: saved, outcome: result.receipt.outcome, receipt: result.receipt, trace: result.orchestration.trace, providerTrace: result.orchestration.contextualTrace, managedPolicyVersions: result.managedPolicyVersions, persistence });
