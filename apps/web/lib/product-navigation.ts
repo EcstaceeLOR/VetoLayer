@@ -23,7 +23,8 @@ export const productNavigation: ProductNavigationSection[] = [
     label: "Configure",
     items: [
       { label: "Policies", href: "/dashboard/policies", description: "Deterministic rules and contextual policy", icon: "policy" },
-      { label: "Integrations", href: "/dashboard/integrations", description: "Connect execution paths and developer access", icon: "integration" },
+      { label: "Integrations", href: "/dashboard/integrations", description: "Connect execution paths and provider installations", icon: "integration" },
+      { label: "Developer", href: "/dashboard/developers", description: "API keys, SDK setup, request testing, and webhooks", icon: "integration" },
       { label: "Workspace", href: "/dashboard/workspace", description: "Projects, environments, members, roles, and invitations", icon: "overview" },
     ],
   },
