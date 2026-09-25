@@ -225,10 +225,19 @@ async function reevaluateAndSave(
     ],
     updatedAt: reevaluatedAt,
   };
+
+  // Persist the immutable receipt first. A stale review update can leave an
+  // unreferenced receipt, but a review must never point at a receipt that was
+  // not durably written to Decision history.
+  const decisionStore = getOptionalDecisionStore();
+  if (decisionStore) {
+    await decisionStore.save({ id: result.receipt.receiptId, ...scope, source: "integration", receipt: result.receipt, createdAt: reevaluatedAt });
+  } else if (persistence === "supabase") {
+    throw new Error("Decision persistence is unavailable for a durable review re-evaluation");
+  }
+
   const { store } = getReviewStore();
   const saved = await store.save(next, { expectedRevision });
-  const decisionStore = getOptionalDecisionStore();
-  if (decisionStore) await decisionStore.save({ id: result.receipt.receiptId, ...scope, source: "integration", receipt: result.receipt, createdAt: reevaluatedAt });
   await emitReviewWebhook({ scope, eventType: resolved ? "review.resolved" : "review.updated", reviewCase: saved, action: reason });
   logServerEvent("info", "human_review.reevaluated", { reviewCaseId: saved.id, ...scope, revision: saved.revision, resultingOutcome: result.receipt.outcome, receiptId: result.receipt.receiptId, parentReceiptId: result.parentReceiptId });
   return NextResponse.json({ case: saved, outcome: result.receipt.outcome, receipt: result.receipt, trace: result.orchestration.trace, providerTrace: result.orchestration.contextualTrace, managedPolicyVersions: result.managedPolicyVersions, persistence });
