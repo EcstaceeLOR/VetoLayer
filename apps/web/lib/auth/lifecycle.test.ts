@@ -24,8 +24,8 @@ describe("account lifecycle integration contracts", () => {
   it("requires reauthentication for sensitive account changes and exposes session controls", () => {
     const account = source("../../app/account/actions.ts");
 
-    expect(account).toContain("verifyCurrentPassword");
     expect(account).toContain("signInWithPassword");
+    expect(account).toContain('error: "reauthentication_failed"');
     expect(account).toContain("auth.updateUser(\n    { email: nextEmail }");
     expect(account).toContain("auth.updateUser({ password: nextPassword })");
     expect(account).toContain('signOut({ scope: "others" })');
