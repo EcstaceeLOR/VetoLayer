@@ -18,7 +18,8 @@ export function getIntegrationReadiness(input?: {
     ...appStatus.missing,
     ...(!environment.servConfigured ? ["SERV_API_KEY + SERV_MODEL"] : []),
   ];
-  const apiNeedsAuth = nodeEnv === "production" && !environment.apiAuthConfigured;
+  const developerCredentialStoreReady = environment.persistenceConfigured || environment.apiAuthConfigured;
+  const apiNeedsAuth = nodeEnv === "production" && !developerCredentialStoreReady;
 
   return {
     github: {
@@ -30,10 +31,10 @@ export function getIntegrationReadiness(input?: {
     },
     developerApi: {
       endpoint: "/api/v1/evaluate",
-      authConfigured: environment.apiAuthConfigured,
+      authConfigured: developerCredentialStoreReady,
       ready: !apiNeedsAuth,
-      state: environment.apiAuthConfigured ? "ready" : nodeEnv === "production" ? "needs-config" : "local-only",
-      missing: apiNeedsAuth ? ["VETOLAYER_API_KEY"] : [],
+      state: developerCredentialStoreReady ? "ready" : nodeEnv === "production" ? "needs-config" : "local-only",
+      missing: apiNeedsAuth ? ["Supabase persistence for project API keys"] : [],
     },
   };
 }
@@ -98,18 +99,20 @@ export function testDeveloperApiIntegration(input?: {
 }): IntegrationTestResult {
   const environment = input?.environment ?? readServerEnvironment();
   const nodeEnv = input?.nodeEnv ?? process.env.NODE_ENV;
+  const projectKeysReady = environment.persistenceConfigured;
+  const legacyReady = environment.apiAuthConfigured;
 
-  if (nodeEnv === "production" && !environment.apiAuthConfigured) {
+  if (nodeEnv === "production" && !projectKeysReady && !legacyReady) {
     return {
       integration: "developer-api",
       ok: false,
       level: "warning",
-      code: "API_KEY_MISSING",
-      message: "The Developer API is disabled in production until bearer authentication is configured.",
+      code: "API_KEY_STORE_MISSING",
+      message: "The Developer API needs durable persistence before production project API keys can be created.",
       details: { endpoint: "/api/v1/evaluate", auth: "required" },
       nextSteps: [
-        "Set VETOLAYER_API_KEY as a server-side environment variable.",
-        "Redeploy, then test the Developer API configuration again.",
+        "Configure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for durable product persistence.",
+        "Open Developer Console and create a project-scoped API key. No global deployment API key is required.",
       ],
     };
   }
@@ -117,14 +120,17 @@ export function testDeveloperApiIntegration(input?: {
   return {
     integration: "developer-api",
     ok: true,
-    level: environment.apiAuthConfigured ? "success" : "warning",
-    code: environment.apiAuthConfigured ? "DEVELOPER_API_READY" : "DEVELOPER_API_LOCAL_ONLY",
-    message: environment.apiAuthConfigured
-      ? "The Developer API is ready and bearer authentication is enabled."
-      : "The Developer API is available only for local development until a bearer key is configured.",
+    level: projectKeysReady || legacyReady ? "success" : "warning",
+    code: projectKeysReady ? "DEVELOPER_API_PROJECT_KEYS_READY" : legacyReady ? "DEVELOPER_API_LEGACY_KEY_READY" : "DEVELOPER_API_LOCAL_ONLY",
+    message: projectKeysReady
+      ? "The Developer API can authenticate project-scoped keys created in Developer Console."
+      : legacyReady
+        ? "The Developer API is using the legacy server-managed bearer key. Migrate normal product use to project-scoped keys."
+        : "The Developer API is available only for local development until durable project-key persistence is configured.",
     details: {
       endpoint: "/api/v1/evaluate",
-      auth: environment.apiAuthConfigured ? "enabled" : "local-only",
+      auth: projectKeysReady || legacyReady ? "enabled" : "local-only",
     },
+    ...(projectKeysReady ? { nextSteps: ["Create and manage project API keys in Developer Console."] } : {}),
   };
 }
