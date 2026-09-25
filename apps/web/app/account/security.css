@@ -1,0 +1,22 @@
+.accountShell { min-height: 100vh; max-width: 1320px; margin: 0 auto; padding: 28px clamp(20px, 4vw, 56px) 80px; }
+.accountHeader { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--vl-border-subtle); }
+.accountTitleRow { display: flex; align-items: end; justify-content: space-between; gap: 36px; padding: 72px 0 36px; }
+.accountTitleRow h1 { margin: 0; font-size: clamp(46px, 7vw, 82px); line-height: .94; letter-spacing: -.06em; max-width: 900px; }
+.accountTitleRow p:last-child { color: var(--vl-text-muted); max-width: 720px; line-height: 1.65; }
+.accountMetaGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 28px 0 18px; }
+.accountMetaGrid .vlCard { min-height: 128px; padding: 20px; display: grid; align-content: space-between; }
+.accountMetaGrid span { color: var(--vl-text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.accountMetaGrid strong { overflow-wrap: anywhere; font-size: 15px; }
+.accountMetaGrid small { color: var(--vl-text-subtle); }
+.accountGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.accountSection { padding: clamp(22px, 3vw, 30px); min-height: 380px; }
+.accountSectionHead { display: flex; justify-content: space-between; gap: 18px; align-items: start; }
+.accountSectionHead h2 { margin: 4px 0 0; font-size: clamp(26px, 3vw, 36px); letter-spacing: -.04em; }
+.accountSection > p { color: var(--vl-text-muted); line-height: 1.65; min-height: 52px; }
+.accountForm { display: grid; gap: 16px; margin-top: 24px; }
+.accountForm .vlButton { justify-self: start; }
+.sessionSection { min-height: 0; }
+.sessionActions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+.sessionActions form { margin: 0; }
+@media (max-width: 900px) { .accountGrid { grid-template-columns: 1fr; } .accountMetaGrid { grid-template-columns: 1fr; } .accountTitleRow { align-items: start; flex-direction: column; } }
+@media (max-width: 560px) { .accountShell { padding-inline: 16px; } .accountHeader { align-items: flex-start; padding-bottom: 14px; } .accountTitleRow { padding-top: 52px; } .sessionActions, .sessionActions form, .sessionActions .vlButton { width: 100%; } .accountSectionHead { display: grid; } }
