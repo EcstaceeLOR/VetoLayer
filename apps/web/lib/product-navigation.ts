@@ -17,6 +17,7 @@ export const productNavigation: ProductNavigationSection[] = [
       { label: "Overview", href: "/dashboard", description: "Decision health and current operating state", icon: "overview" },
       { label: "Decisions", href: "/dashboard/decisions", description: "Receipts, evidence, and reasoning traces", icon: "decision" },
       { label: "Reviews", href: "/dashboard/reviews", description: "Actions waiting on human judgment", icon: "review" },
+      { label: "Notifications", href: "/dashboard/notifications", description: "Review alerts, critical blocks, and delivery preferences", icon: "review" },
     ],
   },
   {

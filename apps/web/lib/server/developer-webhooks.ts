@@ -4,11 +4,18 @@ import type { DeveloperStore, StoredDeveloperWebhook, StoredWebhookDelivery } fr
 
 export const DEVELOPER_WEBHOOK_EVENTS = [
   "decision.created",
+  "decision.blocked_high_severity",
   "review.created",
   "review.updated",
+  "review.assigned",
+  "review.evidence_requested",
   "review.resolved",
   "policy.changed",
+  "policy.activated",
+  "policy.deactivated",
   "integration.changed",
+  "integration.disconnected",
+  "integration.failed",
 ] as const;
 
 function credentialKey(env: NodeJS.ProcessEnv = process.env) {
@@ -71,13 +78,14 @@ export async function deliverDeveloperWebhook(input: {
   store: DeveloperStore;
   endpoint: StoredDeveloperWebhook;
   scope: ProductScope;
+  eventId?: string;
   eventType: string;
   payload: Record<string, unknown>;
   existingDelivery?: StoredWebhookDelivery;
   fetchImpl?: typeof fetch;
 }) {
   const fetchImpl = input.fetchImpl ?? fetch;
-  const eventId = input.existingDelivery?.eventId ?? `evt_${randomUUID()}`;
+  const eventId = input.existingDelivery?.eventId ?? input.eventId ?? `evt_${randomUUID()}`;
   const deliveryId = input.existingDelivery?.id ?? `delivery_${randomUUID()}`;
   const body = JSON.stringify({ id: eventId, type: input.eventType, createdAt: new Date().toISOString(), scope: input.scope, data: input.payload });
   const secret = decryptWebhookSecret(input.endpoint.secretCiphertext);

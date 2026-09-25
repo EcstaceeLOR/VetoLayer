@@ -1,0 +1,34 @@
+.notificationHeader { padding-bottom: 18px; }
+.notificationLayout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr); gap: 20px; padding-bottom: 42px; }
+.notificationFeedPanel, .notificationPreferencesPanel { border: 1px solid var(--line); border-radius: 18px; background: var(--panel); padding: 20px; min-width: 0; }
+.notificationPanelHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line-soft); }
+.notificationPanelHeader h2 { margin: 4px 0; font-size: 1.15rem; }
+.notificationPanelHeader p, .notificationProjectScope p { margin: 0; color: var(--muted); font-size: .88rem; line-height: 1.5; }
+.notificationFeed { display: grid; gap: 10px; padding-top: 14px; }
+.notificationCard { border: 1px solid var(--line-soft); border-radius: 14px; padding: 14px 15px; background: var(--panel-2); }
+.notificationCard.unread { border-color: var(--line); }
+.notificationCard.read { opacity: .76; }
+.notificationCard h3 { margin: 8px 0 4px; font-size: .98rem; }
+.notificationCard p { margin: 0; color: var(--muted); line-height: 1.55; }
+.notificationCardTop, .notificationCardActions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.notificationCardTop time { color: var(--muted); font-size: .75rem; }
+.notificationSeverity { font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; border: 1px solid var(--line); border-radius: 999px; padding: 3px 7px; }
+.notificationSeverity.critical { color: var(--block); }
+.notificationSeverity.warning { color: var(--review); }
+.notificationSeverity.info { color: var(--allow); }
+.notificationCardActions { margin-top: 12px; justify-content: flex-start; }
+.notificationCardActions a, .notificationCardActions button, .notificationCardActions span { font-size: .8rem; }
+.notificationCardActions a { color: var(--text); text-decoration: none; font-weight: 650; }
+.notificationCardActions button { border: 0; background: transparent; color: var(--muted); padding: 0; cursor: pointer; }
+.notificationPreferenceGroups { display: grid; gap: 18px; padding: 16px 0; }
+.notificationPreferenceGroup { display: grid; gap: 8px; }
+.notificationPreferenceGroup h3, .notificationProjectScope h3 { margin: 0 0 4px; font-size: .9rem; }
+.notificationPreferenceRow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); }
+.notificationPreferenceRow strong { display: block; font-size: .82rem; }
+.notificationPreferenceRow small { display: block; margin-top: 2px; color: var(--muted); font-size: .7rem; }
+.notificationPreferenceRow label, .notificationProjectScope label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: .78rem; }
+.notificationProjectScope { display: grid; gap: 9px; padding: 16px 0 20px; border-top: 1px solid var(--line-soft); }
+.notificationAllProjects { font-weight: 650; color: var(--text) !important; }
+.notificationLoading { display: flex; align-items: center; gap: 10px; min-height: 180px; color: var(--muted); }
+@media (max-width: 980px) { .notificationLayout { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .notificationFeedPanel, .notificationPreferencesPanel { padding: 15px; } .notificationPanelHeader { flex-direction: column; } .notificationPreferenceRow { grid-template-columns: 1fr 1fr; } .notificationPreferenceRow > div { grid-column: 1 / -1; } }
