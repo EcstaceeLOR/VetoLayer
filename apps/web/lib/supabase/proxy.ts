@@ -14,7 +14,8 @@ function requestHadAuthCookie(request: NextRequest) {
 }
 
 function nextResponse(request: NextRequest, forwardedHeaders?: Headers) {
-  return NextResponse.next({ request: forwardedHeaders ? { headers: forwardedHeaders } : request });
+  if (forwardedHeaders) return NextResponse.next({ request: { headers: forwardedHeaders } });
+  return NextResponse.next({ request });
 }
 
 export async function updateSession(request: NextRequest, forwardedHeaders?: Headers) {
