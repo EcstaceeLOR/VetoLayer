@@ -19,14 +19,14 @@ describe("SERV Edition 01 submission package", () => {
     expect(submission).not.toContain("PENDING_PUBLIC_DEPLOYMENT");
   });
 
-  it("keeps the real product primary and the public sandbox secondary", () => {
+  it("keeps the real product and production walkthrough primary", () => {
     const readme = read("README.md");
-    const demo = read("docs/demo-script.md");
+    const walkthrough = read("docs/production-walkthrough.md");
 
-    expect(readme).toContain("The product itself does not depend on `/demo`");
-    expect(demo).toContain("The primary presentation uses the **real product**");
-    expect(demo).toContain("Optional public sandbox — supporting proof only");
-    expect(demo).not.toContain("Run the core story entirely on `/demo`");
+    expect(readme).toContain("Production workflow");
+    expect(walkthrough).toContain("The presentation uses the **real product**");
+    expect(walkthrough).toContain("Human Review becomes evidence");
+    expect(walkthrough).toContain("new Decision Receipt");
   });
 
   it("pins the current official Edition 01 rules and judging criteria", () => {
