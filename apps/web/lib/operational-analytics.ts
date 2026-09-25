@@ -39,13 +39,7 @@ export type OperationalAnalyticsReport = {
     environments: Array<{ id: string; total: number; friction: number }>;
     integrations: Array<{ key: string; label: string; total: number; friction: number }>;
   };
-  policies: Array<{
-    policyId: string;
-    name: string;
-    total: number;
-    review: number;
-    block: number;
-  }>;
+  policies: Array<{ policyId: string; name: string; total: number; review: number; block: number }>;
   reviews: {
     created: number;
     resolved: number;
@@ -53,12 +47,7 @@ export type OperationalAnalyticsReport = {
     medianTurnaroundHours: number | null;
     unresolved: number;
     overdue: number;
-    aging: {
-      under4h: number;
-      from4to24h: number;
-      from24to72h: number;
-      over72h: number;
-    };
+    aging: { under4h: number; from4to24h: number; from24to72h: number; over72h: number };
   };
   evidence: {
     averageCompleteness: number;
@@ -74,24 +63,14 @@ export type OperationalAnalyticsReport = {
     servFallbackRate: number;
     averageLatencyMs: number | null;
     p95LatencyMs: number | null;
-    usage: {
-      samples: number;
-      promptTokens: number | null;
-      completionTokens: number | null;
-      totalTokens: number | null;
-    };
+    usage: { samples: number; promptTokens: number | null; completionTokens: number | null; totalTokens: number | null };
   };
   reevaluations: {
     total: number;
     outcomes: { ALLOW: number; REVIEW: number; BLOCK: number };
     reasons: { evidenceChange: number; approval: number; rejection: number };
   };
-  integrations: {
-    events: number;
-    failures: number;
-    disconnects: number;
-    failureRate: number;
-  };
+  integrations: { events: number; failures: number; disconnects: number; failureRate: number };
 };
 
 type AnalyticsInput = {
@@ -143,10 +122,7 @@ function median(values: number[]) {
   return left === undefined || right === undefined ? null : (left + right) / 2;
 }
 
-function logicalPolicyId(value: string) {
-  return value.replace(/@v\d+$/i, "");
-}
-
+function logicalPolicyId(value: string) { return value.replace(/@v\d+$/i, ""); }
 function integrationLabel(decision: StoredDecision) {
   if (decision.source === "api") return "Developer API";
   if (decision.source === "integration") return decision.receipt.action.tool || "Integration";
@@ -163,11 +139,7 @@ function safeUsage(receipt: DecisionReceipt) {
   if (!usage || typeof usage !== "object" || Array.isArray(usage)) return null;
   const row = usage as Record<string, unknown>;
   const value = (key: string) => typeof row[key] === "number" && Number.isFinite(row[key]) && Number(row[key]) >= 0 ? Number(row[key]) : null;
-  return {
-    promptTokens: value("promptTokens"),
-    completionTokens: value("completionTokens"),
-    totalTokens: value("totalTokens"),
-  };
+  return { promptTokens: value("promptTokens"), completionTokens: value("completionTokens"), totalTokens: value("totalTokens") };
 }
 
 function bucketDefinition(filters: AnalyticsFilters) {
@@ -183,13 +155,10 @@ function trendKey(value: string, filters: AnalyticsFilters) {
   const timestamp = Date.parse(value);
   const date = new Date(timestamp);
   const definition = bucketDefinition(filters);
-  if (definition.kind === "month") {
-    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-  }
+  if (definition.kind === "month") return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
   if (definition.kind === "day") return date.toISOString().slice(0, 10);
   const from = Date.parse(filters.from);
-  const index = Math.max(0, Math.floor((timestamp - from) / definition.step));
-  return `week-${index}`;
+  return `week-${Math.max(0, Math.floor((timestamp - from) / definition.step))}`;
 }
 
 function trendLabel(key: string, filters: AnalyticsFilters) {
@@ -346,7 +315,6 @@ export function buildOperationalAnalytics(input: AnalyticsInput): OperationalAna
   const disconnectPattern = /disconnect/i;
   const integrationFailures = auditEvents.filter((event) => failurePattern.test(event.action)).length;
   const integrationDisconnects = auditEvents.filter((event) => disconnectPattern.test(event.action)).length;
-
   const orderedLatencies = [...latencies].sort((a, b) => a - b);
   const p95Index = orderedLatencies.length ? Math.min(orderedLatencies.length - 1, Math.ceil(orderedLatencies.length * 0.95) - 1) : -1;
 
@@ -365,7 +333,7 @@ export function buildOperationalAnalytics(input: AnalyticsInput): OperationalAna
       BLOCK: point.BLOCK,
       evidenceCompleteness: rounded(average(point.completeness), 1),
       missingEvidence: point.missing,
-    })).sort((a, b) => trendSortValue(a.key, input.filters) - trendSortValue(b.key, input.filters)),
+    })).sort((a, b) => trendSortValue(a.key) - trendSortValue(b.key)),
     volume: {
       projects: volumeRows(projectVolume),
       environments: volumeRows(environmentVolume),
@@ -395,20 +363,10 @@ export function buildOperationalAnalytics(input: AnalyticsInput): OperationalAna
       servFallbackRate: percentage(servFallbacks, servAssisted),
       averageLatencyMs: latencies.length ? Math.round(average(latencies)) : null,
       p95LatencyMs: p95Index >= 0 ? Math.round(orderedLatencies[p95Index] ?? 0) : null,
-      usage: {
-        samples: usageSamples,
-        promptTokens: hasPrompt ? promptTokens : null,
-        completionTokens: hasCompletion ? completionTokens : null,
-        totalTokens: hasTotal ? totalTokens : null,
-      },
+      usage: { samples: usageSamples, promptTokens: hasPrompt ? promptTokens : null, completionTokens: hasCompletion ? completionTokens : null, totalTokens: hasTotal ? totalTokens : null },
     },
     reevaluations,
-    integrations: {
-      events: auditEvents.length,
-      failures: integrationFailures,
-      disconnects: integrationDisconnects,
-      failureRate: percentage(integrationFailures, auditEvents.length),
-    },
+    integrations: { events: auditEvents.length, failures: integrationFailures, disconnects: integrationDisconnects, failureRate: percentage(integrationFailures, auditEvents.length) },
   };
 }
 
@@ -423,16 +381,23 @@ function volumeRows(map: Map<string, { total: number; friction: number }>) {
   return [...map.entries()].map(([id, row]) => ({ id, ...row })).sort((a, b) => b.total - a.total || b.friction - a.friction || a.id.localeCompare(b.id));
 }
 
-function trendSortValue(key: string, filters: AnalyticsFilters) {
+function trendSortValue(key: string) {
   if (key.startsWith("week-")) return Number(key.slice(5));
   if (/^\d{4}-\d{2}$/.test(key)) return Date.parse(`${key}-01T00:00:00.000Z`);
   return Date.parse(`${key}T00:00:00.000Z`);
 }
 
 export function buildDecisionExplorerUrl(filters: AnalyticsFilters, extra: Record<string, string | undefined> = {}) {
-  const params = new URLSearchParams({ from: filters.from, to: filters.to });
-  if (filters.projectId) params.set("projectId", filters.projectId);
-  if (filters.environmentId) params.set("environmentId", filters.environmentId);
-  for (const [key, value] of Object.entries(extra)) if (value) params.set(key, value);
+  const params = new URLSearchParams({ from: filters.from.slice(0, 10), to: filters.to.slice(0, 10) });
+  if (filters.projectId) params.set("project", filters.projectId);
+  if (filters.environmentId) params.set("environment", filters.environmentId);
+  for (const [key, value] of Object.entries(extra)) {
+    if (!value) continue;
+    if (key === "projectId") params.set("project", value);
+    else if (key === "environmentId") params.set("environment", value);
+    else if (key === "reviewState") params.set("review", value);
+    else if (key === "serv") params.set("serv", value === "true" ? "yes" : value === "false" ? "no" : value);
+    else params.set(key, value);
+  }
   return `/dashboard/decisions?${params.toString()}`;
 }
