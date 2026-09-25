@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { normalizeEntityName } from "../../../lib/workspace-model";
 import { recordAuditEvent } from "../../../lib/server/audit";
+import { isReliabilityTestMode } from "../../../lib/server/reliability-mode";
 import {
   ENVIRONMENT_COOKIE,
   PROJECT_COOKIE,
@@ -15,7 +16,7 @@ import { getWorkspaceStore } from "../../../lib/server/workspace-store";
 export const runtime = "nodejs";
 
 function persistenceRequired(persistence: "supabase" | "memory") {
-  return process.env.NODE_ENV === "production" && persistence !== "supabase";
+  return process.env.NODE_ENV === "production" && persistence !== "supabase" && !isReliabilityTestMode();
 }
 
 export async function GET() {
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
     if (!production) throw new Error("Workspace did not create an environment");
 
     const cookieStore = await cookies();
-    const options = { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 365 };
+    const options = { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production" && !isReliabilityTestMode(), path: "/", maxAge: 60 * 60 * 24 * 365 };
     cookieStore.set(WORKSPACE_COOKIE, graph.workspace.id, options);
     cookieStore.set(PROJECT_COOKIE, graph.project.id, options);
     cookieStore.set(ENVIRONMENT_COOKIE, production.id, options);

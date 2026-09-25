@@ -41,5 +41,17 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Browser E2E
+        run: pnpm e2e:browser
+
+      - name: Upload browser E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-e2e-${{ github.run_id }}
+          path: artifacts/browser-e2e
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Release smoke
         run: pnpm release:smoke

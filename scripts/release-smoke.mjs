@@ -21,6 +21,9 @@ const routes = [
   "apps/web/app/login/page.tsx",
   "apps/web/app/onboarding/page.tsx",
   "apps/web/app/demo/page.tsx",
+  "apps/web/app/error.tsx",
+  "apps/web/app/global-error.tsx",
+  "apps/web/app/dashboard/error.tsx",
   "apps/web/app/dashboard/page.tsx",
   "apps/web/app/dashboard/layout.tsx",
   "apps/web/app/dashboard/docs/page.tsx",
@@ -29,6 +32,8 @@ const routes = [
   "apps/web/app/api/demo/review/route.ts",
   "apps/web/app/api/demo/reset/route.ts",
   "apps/web/app/api/health/route.ts",
+  "apps/web/app/api/readiness/route.ts",
+  "apps/web/app/api/internal/client-error/route.ts",
   "apps/web/app/api/integrations/github/install/route.ts",
   "apps/web/app/api/integrations/github/callback/route.ts",
   "apps/web/app/api/integrations/github/webhook/route.ts",
@@ -39,6 +44,10 @@ const deploymentArtifacts = [
   "vercel.json",
   "apps/web/next.config.ts",
   "apps/web/.env.example",
+  "apps/web/proxy.ts",
+  "apps/web/instrumentation.ts",
+  "scripts/browser-e2e.mjs",
+  ".github/workflows/production-smoke.yml",
   "docs/deployment.md",
   "docs/github-app.md",
   "supabase/migrations/202609250800_github_app.sql",
@@ -57,6 +66,7 @@ const behavioralProof = [
   "apps/web/lib/policy-studio.test.ts",
   "apps/web/lib/server/app-origin.test.ts",
   "apps/web/lib/server/github-app.test.ts",
+  "apps/web/lib/server/reliability.test.ts",
   "packages/core/src/orchestrator.test.ts",
   "packages/core/src/receipts.test.ts",
   "packages/serv/src/client.test.ts",
@@ -66,6 +76,15 @@ for (const path of routes) requireFile(path);
 for (const path of deploymentArtifacts) requireFile(path);
 for (const path of documentationArtifacts) requireFile(path);
 for (const path of behavioralProof) requireFile(path);
+
+const browserE2e = requireFile("scripts/browser-e2e.mjs");
+if (existsSync(browserE2e)) {
+  const source = readFileSync(browserE2e, "utf8");
+  check(source.includes("provider degradation returned"), "browser E2E verifies SERV degradation fails closed");
+  check(source.includes("human review creates a new receipt"), "browser E2E verifies review re-evaluation receipt lineage");
+  check(source.includes("assertPerformance"), "browser E2E enforces explicit performance budgets");
+  check(source.includes("Page.captureScreenshot"), "browser E2E captures failure/debug screenshots");
+}
 
 const docsCatalog = requireFile("apps/web/lib/product-docs.ts");
 if (existsSync(docsCatalog)) {
@@ -133,6 +152,7 @@ if (existsSync(staticRoot)) {
     "GITHUB_APP_WEBHOOK_SECRET",
     "VETOLAYER_API_KEY",
     "SUPABASE_SERVICE_ROLE_KEY",
+    "VETOLAYER_CREDENTIAL_ENCRYPTION_KEY",
   ];
   const sensitiveValues = sensitiveKeys
     .map((key) => [key, process.env[key]])
@@ -156,6 +176,7 @@ if (baseUrl) {
   await probe(baseUrl, "/dashboard", [200, 302, 303, 307, 308]);
   await probe(baseUrl, "/dashboard/docs", [200, 302, 303, 307, 308]);
   await probeHealth(baseUrl);
+  await probeReadiness(baseUrl);
 } else {
   passes.push("live HTTP probes skipped; set SMOKE_BASE_URL to verify a deployed release");
 }
@@ -182,6 +203,7 @@ async function probe(origin, path, allowedStatuses) {
   try {
     const response = await fetch(`${origin}${path}`, { redirect: "manual" });
     check(allowedStatuses.includes(response.status), `${path} returned expected release status (${response.status})`);
+    check(Boolean(response.headers.get("x-vetolayer-request-id")), `${path} returns a correlation id`);
   } catch (error) {
     failures.push(`${path} could not be reached: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -195,9 +217,22 @@ async function probeHealth(origin) {
       return;
     }
     const body = await response.json();
-    check(body.status === "ok", "/api/health reports service status ok");
+    check(body.status === "ok", "/api/health reports service liveness ok");
     check(body.demoReady === true, "/api/health confirms SERV-backed public demo readiness");
+    check(Boolean(response.headers.get("x-vetolayer-request-id")), "/api/health returns a correlation id");
   } catch (error) {
     failures.push(`/api/health could not be verified: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+async function probeReadiness(origin) {
+  try {
+    const response = await fetch(`${origin}/api/readiness`, { redirect: "manual" });
+    const body = await response.json().catch(() => null);
+    check(response.status === 200, `/api/readiness returned production-ready status (${response.status})`);
+    check(body?.ready === true && body?.status === "ready", "/api/readiness confirms mandatory production dependencies");
+    check(Boolean(response.headers.get("x-vetolayer-request-id")), "/api/readiness returns a correlation id");
+  } catch (error) {
+    failures.push(`/api/readiness could not be verified: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

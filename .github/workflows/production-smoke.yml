@@ -1,0 +1,46 @@
+name: Production Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Production VetoLayer URL to verify
+        required: false
+        type: string
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      SMOKE_BASE_URL: ${{ inputs.base_url || vars.PRODUCTION_SMOKE_URL }}
+    steps:
+      - name: Require production URL
+        run: |
+          if [ -z "$SMOKE_BASE_URL" ]; then
+            echo "Set repository variable PRODUCTION_SMOKE_URL or provide base_url when dispatching this workflow."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify deployed production routes and readiness
+        run: pnpm release:smoke
