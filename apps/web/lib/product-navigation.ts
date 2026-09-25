@@ -18,6 +18,7 @@ export const productNavigation: ProductNavigationSection[] = [
       { label: "Decisions", href: "/dashboard/decisions", description: "Receipts, evidence, and reasoning traces", icon: "decision" },
       { label: "Reviews", href: "/dashboard/reviews", description: "Actions waiting on human judgment", icon: "review" },
       { label: "Notifications", href: "/dashboard/notifications", description: "Review alerts, critical blocks, and delivery preferences", icon: "review" },
+      { label: "Audit", href: "/dashboard/audit", description: "Append-only activity and security history", icon: "overview" },
     ],
   },
   {

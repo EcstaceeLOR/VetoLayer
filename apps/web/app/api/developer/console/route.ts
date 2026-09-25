@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiWorkspace, rejectArchivedProjectWrite } from "../../../../lib/server/api-auth";
+import { recordAuditEvent, workspaceAuditInput } from "../../../../lib/server/audit";
 import { parseDeveloperEvaluationPayload } from "../../../../lib/server/developer-api";
 import { executeDeveloperEvaluation } from "../../../../lib/server/developer-evaluation-service";
 import {
@@ -15,6 +16,7 @@ import {
   DEVELOPER_WEBHOOK_EVENTS,
   validateWebhookUrl,
 } from "../../../../lib/server/developer-webhooks";
+import type { WorkspaceContext } from "../../../../lib/server/workspace";
 
 export const runtime = "nodejs";
 
@@ -111,20 +113,25 @@ export async function POST(request: Request) {
         : ["evaluate" as DeveloperKeyPermission];
       if (!name || !permissions.length) return productError("INVALID_API_KEY", "Give the key a name and at least one permission.");
       const created = await store.createApiKey({ ...scope, name, permissions, createdByUserId: auth.workspace.userId });
+      await auditDeveloper(auth.workspace, request, "api_key.create", "credential", "api_key", created.record.id, created.record.name, { keyPrefix: created.record.keyPrefix, permissions: created.record.permissions });
       return NextResponse.json({ key: publicKey(created.record), secret: created.secret, shownOnce: true }, { status: 201 });
     }
 
     if (action === "revoke_key") {
       const id = String(body.id ?? "");
-      if (!id || !(await store.getApiKey(scope, id))) return productError("API_KEY_NOT_FOUND", "API key not found.", 404);
+      const key = id ? await store.getApiKey(scope, id) : null;
+      if (!key) return productError("API_KEY_NOT_FOUND", "API key not found.", 404);
       await store.revokeApiKey(scope, id);
+      await auditDeveloper(auth.workspace, request, "api_key.revoke", "credential", "api_key", key.id, key.name, { keyPrefix: key.keyPrefix, permissions: key.permissions });
       return NextResponse.json({ ok: true });
     }
 
     if (action === "rotate_key") {
       const id = String(body.id ?? "");
-      if (!id || !(await store.getApiKey(scope, id))) return productError("API_KEY_NOT_FOUND", "API key not found.", 404);
+      const previous = id ? await store.getApiKey(scope, id) : null;
+      if (!previous) return productError("API_KEY_NOT_FOUND", "API key not found.", 404);
       const created = await store.rotateApiKey(scope, id, auth.workspace.userId);
+      await auditDeveloper(auth.workspace, request, "api_key.rotate", "credential", "api_key", created.record.id, created.record.name, { previousKeyId: previous.id, keyPrefix: created.record.keyPrefix, permissions: created.record.permissions });
       return NextResponse.json({ key: publicKey(created.record), secret: created.secret, shownOnce: true });
     }
 
@@ -135,13 +142,16 @@ export async function POST(request: Request) {
       if (!name || !validation.ok || !events.length) return productError("INVALID_WEBHOOK", validation.ok ? "Give the webhook a name and at least one event." : validation.message);
       const secret = createWebhookSigningSecret();
       const endpoint = await store.createWebhook({ ...scope, name, url: validation.url, events, secretCiphertext: encryptWebhookSecret(secret), createdByUserId: auth.workspace.userId });
+      await auditDeveloper(auth.workspace, request, "webhook.create", "webhook", "webhook_endpoint", endpoint.id, endpoint.name, { events: endpoint.events });
       return NextResponse.json({ webhook: publicWebhook(endpoint), signingSecret: secret, shownOnce: true }, { status: 201 });
     }
 
     if (action === "revoke_webhook") {
       const id = String(body.id ?? "");
-      if (!id || !(await store.getWebhook(scope, id))) return productError("WEBHOOK_NOT_FOUND", "Webhook endpoint not found.", 404);
+      const endpoint = id ? await store.getWebhook(scope, id) : null;
+      if (!endpoint) return productError("WEBHOOK_NOT_FOUND", "Webhook endpoint not found.", 404);
       await store.revokeWebhook(scope, id);
+      await auditDeveloper(auth.workspace, request, "webhook.revoke", "webhook", "webhook_endpoint", endpoint.id, endpoint.name, { events: endpoint.events });
       return NextResponse.json({ ok: true });
     }
 
@@ -151,6 +161,7 @@ export async function POST(request: Request) {
       if (!endpoint) return productError("WEBHOOK_NOT_FOUND", "Webhook endpoint not found.", 404);
       const secret = createWebhookSigningSecret();
       await store.rotateWebhookSecret(scope, id, encryptWebhookSecret(secret));
+      await auditDeveloper(auth.workspace, request, "webhook.secret.rotate", "webhook", "webhook_endpoint", endpoint.id, endpoint.name, { events: endpoint.events });
       return NextResponse.json({ signingSecret: secret, shownOnce: true });
     }
 
@@ -159,6 +170,7 @@ export async function POST(request: Request) {
       const endpoint = id ? await store.getWebhook(scope, id) : null;
       if (!endpoint || endpoint.status !== "active") return productError("WEBHOOK_NOT_FOUND", "Active webhook endpoint not found.", 404);
       const delivery = await deliverDeveloperWebhook({ store, endpoint, scope, eventType: "developer.webhook.test", payload: { message: "VetoLayer webhook connection test" } });
+      await auditDeveloper(auth.workspace, request, "webhook.test", "webhook", "webhook_endpoint", endpoint.id, endpoint.name, { deliveryId: delivery.id, status: delivery.status });
       return NextResponse.json({ delivery });
     }
 
@@ -169,6 +181,7 @@ export async function POST(request: Request) {
       const endpoint = await store.getWebhook(scope, delivery.endpointId);
       if (!endpoint || endpoint.status !== "active") return productError("WEBHOOK_NOT_FOUND", "The webhook endpoint is no longer active.", 409);
       const retried = await deliverDeveloperWebhook({ store, endpoint, scope, eventType: delivery.eventType, payload: delivery.payload, existingDelivery: delivery });
+      await auditDeveloper(auth.workspace, request, "webhook.delivery.retry", "webhook", "webhook_delivery", delivery.id, endpoint.name, { endpointId: endpoint.id, eventType: delivery.eventType, attempt: retried.attempts, status: retried.status });
       return NextResponse.json({ delivery: retried });
     }
 
@@ -187,4 +200,17 @@ export async function POST(request: Request) {
       : "VetoLayer could not complete that Developer Console action.";
     return productError(code, message, 503);
   }
+}
+
+async function auditDeveloper(workspace: WorkspaceContext, request: Request, action: string, category: "credential" | "webhook", targetType: string, targetId: string, targetLabel: string, metadata: Record<string, unknown>) {
+  await recordAuditEvent(workspaceAuditInput(workspace, {
+    action,
+    category,
+    targetType,
+    targetId,
+    targetLabel,
+    href: "/dashboard/developers",
+    request,
+    metadata,
+  }));
 }

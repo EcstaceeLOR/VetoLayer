@@ -2,11 +2,13 @@ import { randomUUID } from "node:crypto";
 import { EvidenceSchema, HumanReviewRecordSchema, type HumanReviewRecord } from "@vetolayer/core";
 import { NextResponse } from "next/server";
 import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../../lib/server/api-auth";
+import { recordAuditEvent, workspaceAuditInput } from "../../../../../lib/server/audit";
 import { getDecisionStore } from "../../../../../lib/server/decision-store";
 import { logServerEvent } from "../../../../../lib/server/observability";
 import { emitHighSeverityBlockEvent } from "../../../../../lib/server/product-events";
 import { ReviewConflictError, getReviewStore, type ReviewCase } from "../../../../../lib/server/review-store";
 import { emitReviewWebhook, reevaluateReviewCase, reviewActor, reviewEvent, syncReviewDecisionIndex } from "../../../../../lib/server/review-workflow";
+import type { WorkspaceContext } from "../../../../../lib/server/workspace";
 import { getWorkspaceStore } from "../../../../../lib/server/workspace-store";
 
 export const runtime = "nodejs";
@@ -68,16 +70,17 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           timeline: [...reviewCase.timeline, reviewEvent({ reviewCaseId: id, type: "assigned", actor, summary: `Assigned to ${member.displayName ?? member.email ?? member.userId}.`, createdAt: now, metadata: { assigneeUserId: member.userId } })],
           updatedAt: now,
         };
-        return await saveMutation(next, expectedRevision, scope, persistence, "assign");
+        return await saveMutation(next, expectedRevision, scope, persistence, "assign", auth.workspace, request, { assigneeUserId: member.userId });
       }
       case "unassign": {
+        const previousAssigneeUserId = reviewCase.assignment?.userId ?? null;
         const next: ReviewCase = {
           ...reviewCase,
           assignment: undefined,
           timeline: [...reviewCase.timeline, reviewEvent({ reviewCaseId: id, type: "unassigned", actor, summary: "Review assignment cleared.", createdAt: now })],
           updatedAt: now,
         };
-        return await saveMutation(next, expectedRevision, scope, persistence, "unassign");
+        return await saveMutation(next, expectedRevision, scope, persistence, "unassign", auth.workspace, request, { previousAssigneeUserId });
       }
       case "comment": {
         const comment = body.comment?.trim();
@@ -88,7 +91,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           timeline: [...reviewCase.timeline, reviewEvent({ reviewCaseId: id, type: "commented", actor, summary: "Internal review note added.", createdAt: now })],
           updatedAt: now,
         };
-        return await saveMutation(next, expectedRevision, scope, persistence, "comment");
+        return await saveMutation(next, expectedRevision, scope, persistence, "comment", auth.workspace, request, { commentLength: comment.length });
       }
       case "request_evidence": {
         if (reviewCase.status === "resolved") return alreadyResolved(reviewCase);
@@ -104,7 +107,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           timeline: [...reviewCase.timeline, reviewEvent({ reviewCaseId: id, type: "evidence_requested", actor, summary: `Requested ${requestedEvidence.length} evidence item${requestedEvidence.length === 1 ? "" : "s"}.`, createdAt: now, metadata: { count: requestedEvidence.length } })],
           updatedAt: now,
         };
-        return await saveMutation(next, expectedRevision, scope, persistence, "request_evidence");
+        return await saveMutation(next, expectedRevision, scope, persistence, "request_evidence", auth.workspace, request, { requestedEvidenceCount: requestedEvidence.length });
       }
       case "add_evidence": {
         if (reviewCase.status === "resolved") return alreadyResolved(reviewCase);
@@ -134,7 +137,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           timeline: [...reviewCase.timeline, reviewEvent({ reviewCaseId: id, type: "evidence_added", actor, summary: `Added ${type} evidence with reviewer provenance.`, createdAt: now, metadata: { evidenceId: evidence.data.id } })],
           updatedAt: now,
         };
-        return await reevaluateAndSave(working, expectedRevision, scope, auth.workspace, persistence, undefined, "evidence-change", actor);
+        return await reevaluateAndSave(working, expectedRevision, scope, auth.workspace, persistence, undefined, "evidence-change", actor, request, { evidenceId: evidence.data.id, evidenceType: type });
       }
       case "approve":
       case "reject": {
@@ -150,7 +153,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           timeline: [...reviewCase.timeline, reviewEvent({ reviewCaseId: id, type: eventType, actor, summary: `${body.action === "approve" ? "Approval" : "Rejection"} recorded with rationale; re-evaluating through VetoLayer.`, createdAt: now })],
           updatedAt: now,
         };
-        return await reevaluateAndSave(working, expectedRevision, scope, auth.workspace, persistence, parsedReview.data, body.action === "reject" ? "rejection" : "approval", actor);
+        return await reevaluateAndSave(working, expectedRevision, scope, auth.workspace, persistence, parsedReview.data, body.action === "reject" ? "rejection" : "approval", actor, request, { rationaleProvided: Boolean(parsedReview.data.rationale) });
       }
       default:
         return NextResponse.json({ error: "INVALID_REVIEW_ACTION", message: "Use assign, unassign, comment, request_evidence, add_evidence, approve, or reject." }, { status: 400 });
@@ -176,11 +179,30 @@ function buildReviewRecord(reviewCase: ReviewCase, actor: ReturnType<typeof revi
   });
 }
 
-async function saveMutation(reviewCase: ReviewCase, expectedRevision: number, scope: { workspaceId: string; projectId: string; environmentId: string }, persistence: string, action: string) {
+async function saveMutation(
+  reviewCase: ReviewCase,
+  expectedRevision: number,
+  scope: { workspaceId: string; projectId: string; environmentId: string },
+  persistence: string,
+  action: string,
+  workspace: WorkspaceContext,
+  request: Request,
+  auditMetadata: Record<string, unknown> = {},
+) {
   const { store } = getReviewStore();
   const saved = await store.save(reviewCase, { expectedRevision });
   await syncReviewDecisionIndex(saved);
   await emitReviewWebhook({ scope, eventType: saved.status === "resolved" ? "review.resolved" : "review.updated", reviewCase: saved, action });
+  await recordAuditEvent(workspaceAuditInput(workspace, {
+    action: `review.${action}`,
+    category: "review",
+    targetType: "review_case",
+    targetId: saved.id,
+    targetLabel: saved.title,
+    href: `/dashboard/reviews?case=${encodeURIComponent(saved.id)}`,
+    request,
+    metadata: { revision: saved.revision, status: saved.status, ...auditMetadata },
+  }));
   logServerEvent("info", "human_review.updated", { reviewCaseId: saved.id, ...scope, action, revision: saved.revision, status: saved.status });
   return NextResponse.json({ case: saved, persistence });
 }
@@ -189,11 +211,13 @@ async function reevaluateAndSave(
   working: ReviewCase,
   expectedRevision: number,
   scope: { workspaceId: string; projectId: string; environmentId: string },
-  workspace: { workspace: { name: string }; project: { name: string }; environment: { name: string } },
+  workspace: WorkspaceContext,
   persistence: string,
   humanReview: HumanReviewRecord | undefined,
   reason: "evidence-change" | "approval" | "rejection",
   actor: ReturnType<typeof reviewActor>,
+  request: Request,
+  auditMetadata: Record<string, unknown> = {},
 ) {
   const result = await reevaluateReviewCase({
     reviewCase: working,
@@ -243,6 +267,24 @@ async function reevaluateAndSave(
   const saved = await store.save(next, { expectedRevision });
   await syncReviewDecisionIndex(saved);
   await emitReviewWebhook({ scope, eventType: resolved ? "review.resolved" : "review.updated", reviewCase: saved, action: reason });
+  const auditAction = reason === "approval" ? "review.resolve.approve" : reason === "rejection" ? "review.resolve.reject" : "review.evidence.add";
+  await recordAuditEvent(workspaceAuditInput(workspace, {
+    action: auditAction,
+    category: "review",
+    targetType: "review_case",
+    targetId: saved.id,
+    targetLabel: saved.title,
+    href: `/dashboard/reviews?case=${encodeURIComponent(saved.id)}`,
+    request,
+    metadata: {
+      revision: saved.revision,
+      resultingOutcome: result.receipt.outcome,
+      receiptId: result.receipt.receiptId,
+      parentReceiptId: result.parentReceiptId,
+      resolved,
+      ...auditMetadata,
+    },
+  }));
   logServerEvent("info", "human_review.reevaluated", { reviewCaseId: saved.id, ...scope, revision: saved.revision, resultingOutcome: result.receipt.outcome, receiptId: result.receipt.receiptId, parentReceiptId: result.parentReceiptId });
   return NextResponse.json({ case: saved, outcome: result.receipt.outcome, receipt: result.receipt, trace: result.orchestration.trace, providerTrace: result.orchestration.contextualTrace, managedPolicyVersions: result.managedPolicyVersions, persistence });
 }

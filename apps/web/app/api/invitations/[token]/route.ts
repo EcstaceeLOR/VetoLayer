@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { recordAuditEvent } from "../../../../lib/server/audit";
 import { ENVIRONMENT_COOKIE, PROJECT_COOKIE, WORKSPACE_COOKIE, getAuthenticatedIdentity } from "../../../../lib/server/workspace";
 import { getWorkspaceStore } from "../../../../lib/server/workspace-store";
 
@@ -8,7 +9,7 @@ function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export async function POST(_request: Request, context: { params: Promise<{ token: string }> }) {
+export async function POST(request: Request, context: { params: Promise<{ token: string }> }) {
   const identity = await getAuthenticatedIdentity();
   if (!identity) return NextResponse.json({ error: { code: "UNAUTHENTICATED", message: "Sign in with the invited email address first." } }, { status: 401 });
   const { token } = await context.params;
@@ -49,5 +50,23 @@ export async function POST(_request: Request, context: { params: Promise<{ token
   cookieStore.set(WORKSPACE_COOKIE, workspace.id, options);
   cookieStore.set(PROJECT_COOKIE, project.id, options);
   cookieStore.set(ENVIRONMENT_COOKIE, environment.id, options);
+
+  await recordAuditEvent({
+    workspaceId: workspace.id,
+    projectId: project.id,
+    environmentId: environment.id,
+    actorKind: "human",
+    actorUserId: identity.userId,
+    actorLabel: identity.displayName ?? identity.email ?? identity.userId,
+    actorRole: invitation.role,
+    action: "member.invitation.accept",
+    category: "member",
+    targetType: "workspace_member",
+    targetId: identity.userId,
+    targetLabel: identity.displayName ?? identity.email ?? identity.userId,
+    href: "/dashboard/workspace",
+    request,
+    metadata: { invitationId: invitation.id, role: invitation.role, invitedByUserId: invitation.invitedByUserId, joinedAt },
+  });
   return NextResponse.json({ accepted: true, workspace, project, environment, role: invitation.role });
 }

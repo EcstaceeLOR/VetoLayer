@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { normalizeEntityName } from "../../../lib/workspace-model";
+import { recordAuditEvent } from "../../../lib/server/audit";
 import {
   ENVIRONMENT_COOKIE,
   PROJECT_COOKIE,
@@ -77,6 +78,27 @@ export async function POST(request: Request) {
     cookieStore.set(WORKSPACE_COOKIE, graph.workspace.id, options);
     cookieStore.set(PROJECT_COOKIE, graph.project.id, options);
     cookieStore.set(ENVIRONMENT_COOKIE, production.id, options);
+
+    await recordAuditEvent({
+      workspaceId: graph.workspace.id,
+      projectId: graph.project.id,
+      environmentId: production.id,
+      actorKind: "human",
+      actorUserId: identity.userId,
+      actorLabel: identity.displayName ?? identity.email ?? identity.userId,
+      actorRole: "owner",
+      action: "workspace.create",
+      category: "workspace",
+      targetType: "workspace",
+      targetId: graph.workspace.id,
+      targetLabel: graph.workspace.name,
+      href: "/dashboard/workspace",
+      request,
+      metadata: {
+        initialProject: { id: graph.project.id, name: graph.project.name },
+        environments: graph.environments.map(({ id, name, kind }) => ({ id, name, kind })),
+      },
+    });
 
     return NextResponse.json({ ...graph, currentEnvironment: production, persistence }, { status: 201 });
   } catch (error) {

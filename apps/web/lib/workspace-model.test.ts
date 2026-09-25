@@ -8,11 +8,18 @@ describe("workspace role permissions", () => {
     expect(hasWorkspacePermission("reviewer", "policies.write")).toBe(false);
     expect(hasWorkspacePermission("reviewer", "integrations.write")).toBe(false);
     expect(hasWorkspacePermission("reviewer", "members.manage")).toBe(false);
+    expect(hasWorkspacePermission("reviewer", "audit.read")).toBe(false);
+    expect(hasWorkspacePermission("reviewer", "audit.export")).toBe(false);
   });
 
   it("keeps owner-only and admin-safe boundaries explicit", () => {
     expect(hasWorkspacePermission("owner", "workspace.archive")).toBe(true);
     expect(hasWorkspacePermission("admin", "workspace.archive")).toBe(false);
+    expect(hasWorkspacePermission("owner", "audit.read")).toBe(true);
+    expect(hasWorkspacePermission("owner", "audit.export")).toBe(true);
+    expect(hasWorkspacePermission("admin", "audit.read")).toBe(true);
+    expect(hasWorkspacePermission("admin", "audit.export")).toBe(true);
+    expect(hasWorkspacePermission("member", "audit.read")).toBe(false);
     expect(canAssignWorkspaceRole("owner", "admin")).toBe(true);
     expect(canAssignWorkspaceRole("admin", "reviewer")).toBe(true);
     expect(canAssignWorkspaceRole("admin", "admin")).toBe(false);

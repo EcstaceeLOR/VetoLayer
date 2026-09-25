@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isValidEmail, sanitizeDisplayName, validateNewPassword } from "../../lib/auth/ux";
 import { resolveAppOrigin } from "../../lib/server/app-origin";
+import { recordUserSecurityAudit } from "../../lib/server/audit";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 
 function accountRedirect(params: Record<string, string>): never {
@@ -24,6 +25,11 @@ async function requireCurrentPassword(email: string | undefined, password: strin
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) accountRedirect({ error: "reauthentication_failed" });
   return supabase;
+}
+
+function identityFromUser(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) {
+  const displayName = typeof user.user_metadata?.display_name === "string" ? user.user_metadata.display_name.trim() : undefined;
+  return { userId: user.id, ...(user.email ? { email: user.email } : {}), ...(displayName ? { displayName } : {}) };
 }
 
 export async function updateProfile(formData: FormData) {
@@ -52,6 +58,7 @@ export async function changeEmail(formData: FormData) {
     origin ? { emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/account?message=email_confirmation_sent")}` } : undefined,
   );
   if (error) accountRedirect({ error: "email_change_failed" });
+  await recordUserSecurityAudit({ ...identityFromUser(user), action: "security.email_change.requested", metadata: { previousEmail: user.email ?? null, nextEmail } });
   accountRedirect({ message: "email_confirmation_sent" });
 }
 
@@ -69,18 +76,21 @@ export async function changePassword(formData: FormData) {
   if (error) accountRedirect({ error: "password_change_failed" });
 
   await supabase.auth.signOut({ scope: "others" });
+  await recordUserSecurityAudit({ ...identityFromUser(user), action: "security.password.change", metadata: { otherSessionsRevoked: true } });
   accountRedirect({ message: "password_changed" });
 }
 
 export async function signOutOtherSessions() {
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
   const { error } = await supabase.auth.signOut({ scope: "others" });
   if (error) accountRedirect({ error: "session_action_failed" });
+  await recordUserSecurityAudit({ ...identityFromUser(user), action: "security.sessions.sign_out_others" });
   accountRedirect({ message: "other_sessions_signed_out" });
 }
 
 export async function signOutEverywhere() {
-  const { supabase } = await requireUser();
-  await supabase.auth.signOut({ scope: "global" });
+  const { supabase, user } = await requireUser();
+  const { error } = await supabase.auth.signOut({ scope: "global" });
+  if (!error) await recordUserSecurityAudit({ ...identityFromUser(user), action: "security.sessions.sign_out_all" });
   redirect("/login?message=signed_out");
 }
