@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 type LogLevel = "info" | "warn" | "error";
 
 const SECRET_KEY_PATTERN = /(token|secret|password|authorization|api.?key|cookie|credential|private.?key)/i;
@@ -8,7 +6,7 @@ const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
 
 export function requestCorrelationId(request?: Request) {
   if (request) return correlationIdFromHeaders(request.headers);
-  return `req_${randomUUID()}`;
+  return `req_${crypto.randomUUID()}`;
 }
 
 export function correlationIdFromHeaders(headers: Headers) {
@@ -16,7 +14,7 @@ export function correlationIdFromHeaders(headers: Headers) {
     const value = headers.get(header)?.trim();
     if (value && REQUEST_ID_PATTERN.test(value)) return value;
   }
-  return `req_${randomUUID()}`;
+  return `req_${crypto.randomUUID()}`;
 }
 
 export function safeErrorMetadata(error: unknown) {
