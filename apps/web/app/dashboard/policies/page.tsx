@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PolicyStudio } from "../../../components/policy-studio";
 import { hasWorkspacePermission } from "../../../lib/workspace-model";
@@ -24,6 +25,7 @@ export default async function PoliciesPage({
           <span className="vlEyebrow">Policy Studio</span>
           <h1>Governance with a publication history, not mutable rules.</h1>
           <p>Draft policy safely, simulate it against sample or historical actions, review conflicts, publish an immutable version, and preserve the exact policy meaning behind every Decision Receipt.</p>
+          <div className="emptyActions"><Link className="rowLink" href="/dashboard/docs/policy-authoring">Policy authoring guide →</Link><Link className="rowLink" href="/dashboard/docs/concepts">How policy affects decisions →</Link></div>
         </div>
         <div className="policyLifecycleHeroMeta">
           <span>{workspace.workspace.name}</span>

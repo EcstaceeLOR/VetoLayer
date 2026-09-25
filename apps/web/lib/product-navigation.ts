@@ -31,6 +31,12 @@ export const productNavigation: ProductNavigationSection[] = [
       { label: "Settings", href: "/dashboard/settings", description: "Workspace, team, projects, credentials, security, and retention", icon: "overview" },
     ],
   },
+  {
+    label: "Learn",
+    items: [
+      { label: "Documentation", href: "/dashboard/docs", description: "Concepts, setup guides, API reference, troubleshooting, and release notes", icon: "overview" },
+    ],
+  },
 ];
 
 export const productCommands = [

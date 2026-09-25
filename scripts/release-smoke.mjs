@@ -23,6 +23,8 @@ const routes = [
   "apps/web/app/demo/page.tsx",
   "apps/web/app/dashboard/page.tsx",
   "apps/web/app/dashboard/layout.tsx",
+  "apps/web/app/dashboard/docs/page.tsx",
+  "apps/web/app/dashboard/docs/[slug]/page.tsx",
   "apps/web/app/api/demo/evaluate/route.ts",
   "apps/web/app/api/demo/review/route.ts",
   "apps/web/app/api/demo/reset/route.ts",
@@ -42,6 +44,13 @@ const deploymentArtifacts = [
   "supabase/migrations/202609250800_github_app.sql",
 ];
 
+const documentationArtifacts = [
+  "apps/web/lib/product-docs.ts",
+  "docs/product-guide.md",
+  "docs/releases/2026-09.md",
+  "packages/sdk/src/docs-quickstart.ts",
+];
+
 const behavioralProof = [
   "apps/web/app/api/demo/demo-flow.test.ts",
   "apps/web/lib/flagship-demo.test.ts",
@@ -55,7 +64,34 @@ const behavioralProof = [
 
 for (const path of routes) requireFile(path);
 for (const path of deploymentArtifacts) requireFile(path);
+for (const path of documentationArtifacts) requireFile(path);
 for (const path of behavioralProof) requireFile(path);
+
+const docsCatalog = requireFile("apps/web/lib/product-docs.ts");
+if (existsSync(docsCatalog)) {
+  const source = readFileSync(docsCatalog, "utf8");
+  for (const slug of ["concepts", "developer-quickstart", "api-reference", "webhooks", "github-app", "policy-authoring", "review-workflow", "troubleshooting", "release-notes"]) {
+    check(source.includes(`slug: "${slug}"`), `shipped documentation includes ${slug}`);
+  }
+  check(source.includes('DOCS_RELEASE = "2026.09"'), "in-product docs declare the current release version");
+  check(source.includes("X-VetoLayer-Signature"), "webhook documentation includes signature verification contract");
+  check(source.includes("clients do not choose scope with headers or request fields"), "developer docs preserve server-derived product scope");
+}
+
+const publicGuide = requireFile("docs/product-guide.md");
+if (existsSync(publicGuide)) {
+  const source = readFileSync(publicGuide, "utf8");
+  check(source.includes("packages/sdk/src/docs-quickstart.ts"), "public guide points to the compile-checked SDK example");
+  check(source.includes("do **not** select scope using global workspace headers"), "public guide rejects obsolete global workspace headers");
+  check(source.includes("do not need and should not provide personal GitHub access tokens"), "public guide rejects personal GitHub token setup");
+}
+
+const sdkQuickstart = requireFile("packages/sdk/src/docs-quickstart.ts");
+if (existsSync(sdkQuickstart)) {
+  const source = readFileSync(sdkQuickstart, "utf8");
+  check(source.includes("createVetoLayerClient"), "compile-checked quickstart uses the current SDK client");
+  check(source.includes("exampleActionRequests.refund"), "compile-checked quickstart uses a current core ActionRequest example");
+}
 
 const demoClient = requireFile("apps/web/app/demo/demo-client.tsx");
 if (existsSync(demoClient)) {
@@ -118,6 +154,7 @@ if (baseUrl) {
   await probe(baseUrl, "/demo", [200]);
   await probe(baseUrl, "/onboarding", [200, 302, 303, 307, 308]);
   await probe(baseUrl, "/dashboard", [200, 302, 303, 307, 308]);
+  await probe(baseUrl, "/dashboard/docs", [200, 302, 303, 307, 308]);
   await probeHealth(baseUrl);
 } else {
   passes.push("live HTTP probes skipped; set SMOKE_BASE_URL to verify a deployed release");

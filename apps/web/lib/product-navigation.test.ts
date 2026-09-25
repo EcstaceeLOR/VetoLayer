@@ -7,19 +7,22 @@ describe("product navigation", () => {
     const items = productNavigation.flatMap((section) => section.items);
     const hrefs = items.map((item) => item.href);
     expect(new Set(hrefs).size).toBe(hrefs.length);
-    expect(productNavigation.map((section) => section.label)).toEqual(["Operate", "Configure"]);
+    expect(productNavigation.map((section) => section.label)).toEqual(["Operate", "Configure", "Learn"]);
+    expect(items.some((item) => item.href === "/dashboard/docs")).toBe(true);
   });
 
   it("resolves active routes without making overview match every dashboard route", () => {
     expect(isProductRouteActive("/dashboard", "/dashboard")).toBe(true);
     expect(isProductRouteActive("/dashboard/decisions", "/dashboard")).toBe(false);
     expect(isProductRouteActive("/dashboard/decisions/receipt-1", "/dashboard/decisions")).toBe(true);
+    expect(isProductRouteActive("/dashboard/docs/webhooks", "/dashboard/docs")).toBe(true);
   });
 
   it("creates useful breadcrumbs for product details", () => {
     expect(productBreadcrumbs("/dashboard")).toEqual(["Overview"]);
     expect(productBreadcrumbs("/dashboard/reviews")).toEqual(["Reviews"]);
     expect(productBreadcrumbs("/dashboard/decisions/receipt-1")).toEqual(["Decisions", "Detail"]);
+    expect(productBreadcrumbs("/dashboard/docs/webhooks")).toEqual(["Documentation", "Detail"]);
   });
 
   it("makes every command point to a real product destination", () => {
