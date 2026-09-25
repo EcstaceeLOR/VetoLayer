@@ -7,6 +7,12 @@ import type {
   Policy,
 } from "@vetolayer/core";
 
+export type VetoLayerApiScope = {
+  workspaceId: string;
+  projectId: string;
+  environmentId: string;
+};
+
 export type VetoLayerEvaluationRequest = {
   action: ActionRequest;
   policies: Policy[];
@@ -27,6 +33,8 @@ export type VetoLayerEvaluationResponse = {
   }>;
   providerTrace?: Record<string, unknown>;
   persistence: "supabase" | "memory";
+  scope: VetoLayerApiScope;
+  latencyMs: number;
 };
 
 export type VetoLayerDecisionStatusResponse = {
@@ -39,7 +47,19 @@ export type VetoLayerDecisionStatusResponse = {
   receipt: DecisionReceipt;
   source: string;
   createdAt: string;
+  scope: VetoLayerApiScope;
   persistence: "supabase" | "memory";
+};
+
+export type VetoLayerDecisionListResponse = {
+  scope: VetoLayerApiScope;
+  count: number;
+  decisions: Array<{
+    id: string;
+    source: string;
+    createdAt: string;
+    receipt: DecisionReceipt;
+  }>;
 };
 
 export type VetoLayerApiErrorBody = {
@@ -66,6 +86,7 @@ export class VetoLayerApiError extends Error {
 
 export type VetoLayerClientConfig = {
   baseUrl: string;
+  /** Project/environment-scoped secret created in the VetoLayer Developer Console. */
   apiKey?: string;
   fetch?: typeof fetch;
 };
@@ -104,6 +125,11 @@ export function createVetoLayerClient(config: VetoLayerClientConfig) {
         `/api/v1/decisions/${encodeURIComponent(receiptId)}`,
       );
     },
+
+    listDecisions(limit = 50) {
+      const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)));
+      return request<VetoLayerDecisionListResponse>(`/api/v1/decisions?limit=${safeLimit}`);
+    },
   };
 }
 
@@ -111,9 +137,9 @@ export function createVetoLayerClient(config: VetoLayerClientConfig) {
  * Convenience wrapper for the common evaluate-before-execute pattern.
  * The tool is called only when VetoLayer returns ALLOW.
  *
- * Workspace ownership is intentionally server-controlled. The SDK never sends
- * a caller-selected workspace header; the API key is bound to the service
- * workspace configured by the VetoLayer deployment.
+ * Scope is derived exclusively from the Developer Console API key. The SDK
+ * never sends a caller-selected workspace/project/environment identifier, so
+ * a client cannot use headers or request fields to cross product boundaries.
  */
 export async function guardedToolCall<T>(input: {
   client: ReturnType<typeof createVetoLayerClient>;
