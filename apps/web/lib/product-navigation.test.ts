@@ -27,9 +27,12 @@ describe("product navigation", () => {
     expect(productCommands.every((command) => command.href.startsWith("/"))).toBe(true);
   });
 
-  it("does not reintroduce the old fake project label in the authenticated shell", () => {
+  it("does not reintroduce fake workspace or project state", () => {
     const shell = readFileSync(new URL("../app/dashboard/layout.tsx", import.meta.url), "utf8");
+    const onboarding = readFileSync(new URL("../components/onboarding-flow.tsx", import.meta.url), "utf8");
     expect(shell).not.toContain("Production Gate");
     expect(shell).toContain("WorkspaceProjectContext");
+    expect(onboarding).not.toContain('useState("Acme Engineering")');
+    expect(onboarding).not.toContain('useState("Production Gate")');
   });
 });
