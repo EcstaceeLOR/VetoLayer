@@ -4,7 +4,7 @@ import type { DecisionQuery, DecisionReviewState, DecisionSort, StoredDecision }
 export type ExplorerSearchParams = Record<string, string | string[] | undefined>;
 
 const outcomes = new Set(["ALLOW", "REVIEW", "BLOCK"]);
-const sources = new Set(["demo", "api", "integration"]);
+const sources = new Set(["api", "integration"]);
 const reviewStates = new Set<DecisionReviewState>(["none", "pending", "awaiting_evidence", "resolved"]);
 const sorts = new Set<DecisionSort>(["newest", "oldest", "outcome", "action"]);
 
