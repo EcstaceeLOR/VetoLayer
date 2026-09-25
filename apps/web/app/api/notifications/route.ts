@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiWorkspace } from "../../../lib/server/api-auth";
+import { recordAuditEvent, workspaceAuditInput } from "../../../lib/server/audit";
 import {
   defaultNotificationPreference,
   getNotificationStore,
@@ -62,8 +63,22 @@ export async function POST(request: Request) {
     const { store: workspaceStore } = getWorkspaceStore();
     const allowedProjects = new Set((await workspaceStore.listProjects(auth.workspace.workspaceId, true)).map((project) => project.id));
     if (projectIds.some((id) => !allowedProjects.has(id))) return NextResponse.json({ error: { code: "INVALID_NOTIFICATION_PROJECT", message: "One or more notification projects do not belong to this workspace." } }, { status: 400 });
+    const previous = (await store.getPreference(auth.workspace.workspaceId, auth.workspace.userId)) ?? defaultNotificationPreference(auth.workspace.workspaceId, auth.workspace.userId);
     const preference = { workspaceId: auth.workspace.workspaceId, userId: auth.workspace.userId, inAppEvents, emailEvents, projectIds, updatedAt: now };
     await store.savePreference(preference);
+    await recordAuditEvent(workspaceAuditInput(auth.workspace, {
+      action: "notification.preferences.update",
+      category: "settings",
+      targetType: "notification_preferences",
+      targetId: auth.workspace.userId,
+      targetLabel: auth.workspace.displayName ?? auth.workspace.email ?? auth.workspace.userId,
+      href: "/dashboard/notifications",
+      request,
+      metadata: {
+        previous: { inAppEvents: previous.inAppEvents, emailEvents: previous.emailEvents, projectIds: previous.projectIds },
+        next: { inAppEvents, emailEvents, projectIds },
+      },
+    }));
     return NextResponse.json({ preference });
   }
   return NextResponse.json({ error: { code: "UNKNOWN_NOTIFICATION_ACTION", message: "Use mark_read, mark_all_read, or update_preferences." } }, { status: 400 });
