@@ -20,7 +20,7 @@ Autonomous agents increasingly have permission to merge code, deploy production,
 
 VetoLayer sits between an agent and a high-impact tool. Hard restrictions are evaluated deterministically. When policy depends on context, evidence, exceptions, ambiguity, or contradictions, VetoLayer routes that judgment to **SERV Reasoning**. The core orchestrator then returns `ALLOW`, `REVIEW`, or `BLOCK`, together with a Decision Receipt that records exact policy versions, findings, evidence, missing/contradictory evidence, reasoning trace, lineage, provider status, timestamps, and SHA-256 integrity metadata.
 
-The initial market wedge is AI coding/deployment agents. The shipped product now includes complete account/workspace/project/environment lifecycle, GitHub App + Developer API integrations, Policy Studio, Human Review operations, Decision Explorer/Receipt Center, notifications and signed webhooks, append-only security audit, operational analytics, settings and retention, in-product documentation, pricing/usage entitlements, data export/offboarding, and browser-level production reliability.
+The initial market wedge is AI coding/deployment agents. The shipped product now includes complete account/workspace/project/environment lifecycle, GitHub App + Developer API integrations, Policy Studio, Human Review operations, Decision Explorer / Receipt Center, notifications and signed webhooks, append-only security audit, operational analytics, settings and retention, in-product documentation, pricing/usage entitlements, data export/offboarding, and browser-level production reliability.
 
 ## Why SERV is necessary
 
@@ -74,7 +74,7 @@ See [`demo-script.md`](demo-script.md).
 - `/onboarding` — operational workspace/integration/policy/SERV/test-action onboarding
 - `/dashboard` — Control Center
 - `/dashboard/analytics` — operational analytics and downloadable reporting
-- `/dashboard/decisions` — Decision Explorer + Receipt Center
+- `/dashboard/decisions` — Decision Explorer / Receipt Center
 - `/dashboard/policies` — Policy Studio lifecycle/versioning/simulation
 - `/dashboard/reviews` — operational Human Review workflow
 - `/dashboard/integrations` — GitHub App / integration management
@@ -118,7 +118,7 @@ Hosted workspace/project/environment ownership is server-derived. API credential
 - production Developer Console with API-key/webhook lifecycle and request testing;
 - policy lifecycle, versioning, templates, diffs, activation and simulation;
 - operational Human Review queue and evidence workflow;
-- searchable Decision Explorer/Receipt Center with integrity verification and exports;
+- searchable Decision Explorer / Receipt Center with integrity verification and exports;
 - notifications, email preferences, signed webhooks, retries and delivery history;
 - append-only security audit and operational analytics;
 - settings, retention, data export/offboarding and server-enforced plan entitlements;
