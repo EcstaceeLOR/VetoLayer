@@ -1,12 +1,16 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const protectedPagePrefixes = ["/dashboard", "/onboarding"];
+const protectedPagePrefixes = ["/dashboard", "/onboarding", "/account"];
 
 function authConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
   return url && publishableKey ? { url, publishableKey } : null;
+}
+
+function requestHadAuthCookie(request: NextRequest) {
+  return request.cookies.getAll().some(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"));
 }
 
 export async function updateSession(request: NextRequest) {
@@ -15,6 +19,7 @@ export async function updateSession(request: NextRequest) {
   const protectedPage = protectedPagePrefixes.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
+  const hadAuthCookie = requestHadAuthCookie(request);
 
   if (!config) {
     if (protectedPage) {
@@ -53,6 +58,7 @@ export async function updateSession(request: NextRequest) {
   if (protectedPage && !user) {
     const login = request.nextUrl.clone();
     login.pathname = "/login";
+    login.searchParams.set("error", hadAuthCookie ? "session_expired" : "session_required");
     login.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(login);
   }

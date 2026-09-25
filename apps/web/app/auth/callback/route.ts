@@ -7,10 +7,11 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const next = safeAppPath(url.searchParams.get("next"));
   const origin = resolveAppOrigin(url.origin) ?? url.origin;
+  const recovery = next === "/reset-password";
 
-  if (!code) {
+  if (!code || url.searchParams.get("error")) {
     return NextResponse.redirect(
-      new URL(`/login?error=callback_failed&next=${encodeURIComponent(next)}`, origin),
+      new URL(recovery ? "/forgot-password?error=link_expired" : `/verify-email?error=link_expired&next=${encodeURIComponent(next)}`, origin),
     );
   }
 
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
     return NextResponse.redirect(
-      new URL(`/login?error=callback_failed&next=${encodeURIComponent(next)}`, origin),
+      new URL(recovery ? "/forgot-password?error=link_expired" : `/verify-email?error=link_expired&next=${encodeURIComponent(next)}`, origin),
     );
   }
 

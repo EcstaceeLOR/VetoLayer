@@ -16,9 +16,10 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const workspace = await getAuthenticatedWorkspace();
-  if (!workspace) redirect("/login?next=/dashboard");
+  if (!workspace) redirect("/login?error=session_expired&next=/dashboard");
 
-  const avatar = (workspace.email?.[0] ?? workspace.label[0] ?? "V").toUpperCase();
+  const identityLabel = workspace.displayName ?? workspace.email ?? workspace.label;
+  const avatar = (workspace.displayName?.[0] ?? workspace.email?.[0] ?? workspace.label[0] ?? "V").toUpperCase();
 
   return (
     <div className="productShell productShellV2">
@@ -47,16 +48,17 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <Link className="shellIconAction" href="/dashboard/reviews" aria-label="Open human review inbox" title="Human review inbox"><ReviewIcon size={16} /></Link>
             <Link className="shellTextAction" href="/#developers">Help</Link>
             <details className="accountMenu">
-              <summary aria-label={`Account menu for ${workspace.email ?? workspace.label}`}>
+              <summary aria-label={`Account menu for ${identityLabel}`}>
                 <span className="avatar" aria-hidden="true">{avatar}</span>
-                <span className="accountMenuIdentity"><b>{workspace.label}</b><small>{workspace.email ?? "Workspace owner"}</small></span>
+                <span className="accountMenuIdentity"><b>{workspace.displayName ?? workspace.label}</b><small>{workspace.email ?? "Workspace owner"}</small></span>
               </summary>
               <div className="accountMenuPanel vlCard vlCardRaised">
-                <div className="accountMenuHeader"><span>Signed in</span><strong>{workspace.email ?? workspace.label}</strong></div>
+                <div className="accountMenuHeader"><span>Signed in as</span><strong>{identityLabel}</strong>{workspace.email && workspace.displayName ? <small>{workspace.email}</small> : null}</div>
+                <Link href="/account">Account & security</Link>
                 <Link href="/onboarding">Project setup</Link>
                 <Link href="/dashboard/integrations">Integration setup</Link>
                 <div className="accountMenuDivider" />
-                <form action={signOut}><Button tone="ghost" size="sm" type="submit">Sign out</Button></form>
+                <form action={signOut}><Button tone="ghost" size="sm" type="submit">Sign out this session</Button></form>
               </div>
             </details>
           </div>
