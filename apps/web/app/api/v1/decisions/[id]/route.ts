@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { developerApiWorkspaceId } from "../../../../../lib/server/api-workspace";
 import { getDecisionStore } from "../../../../../lib/server/decision-store";
-import { authorizeDeveloperRequest, type ApiErrorBody } from "../../../../../lib/server/developer-api";
-import { readServerEnvironment } from "../../../../../lib/server/env";
+import { authenticateDeveloperRequest } from "../../../../../lib/server/developer-key-auth";
+import type { ApiErrorBody } from "../../../../../lib/server/developer-api";
 
 export const runtime = "nodejs";
 
@@ -10,21 +9,21 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await context.params;
-  const environment = readServerEnvironment();
-  const authFailure = authorizeDeveloperRequest(request, environment);
-  if (authFailure) {
-    return NextResponse.json(authFailure.body, { status: authFailure.status });
-  }
+  const auth = await authenticateDeveloperRequest(request, "read:decisions");
+  if (!auth.ok) return NextResponse.json(auth.body, { status: auth.status });
 
-  const workspaceId = developerApiWorkspaceId(environment);
+  const { id } = await context.params;
+  const scope = auth.credential.scope;
   const { store, persistence } = getDecisionStore();
 
   try {
-    const record = await store.get(workspaceId, id);
-    if (!record) {
+    const record = await store.get(scope.workspaceId, id);
+    const belongsToCredential = record
+      && record.projectId === scope.projectId
+      && record.environmentId === scope.environmentId;
+    if (!belongsToCredential) {
       return NextResponse.json<ApiErrorBody>(
-        { error: { code: "DECISION_NOT_FOUND", message: "No Decision Receipt was found for this API workspace and id." } },
+        { error: { code: "DECISION_NOT_FOUND", message: "No Decision Receipt was found for this API key and id." } },
         { status: 404 },
       );
     }
@@ -39,6 +38,7 @@ export async function GET(
       receipt: record.receipt,
       source: record.source,
       createdAt: record.createdAt,
+      scope,
       persistence,
     });
   } catch {

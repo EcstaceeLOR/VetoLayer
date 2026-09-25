@@ -50,8 +50,17 @@ const sampleRequest = JSON.stringify({
 
 async function readJson(response: Response) {
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body?.error?.message ?? "VetoLayer could not complete that request.");
+  if (!response.ok) {
+    const code = typeof body?.error?.code === "string" ? `${body.error.code}: ` : "";
+    throw new Error(`${code}${body?.error?.message ?? `VetoLayer returned HTTP ${response.status}.`}`);
+  }
   return body;
+}
+
+function formatWhen(value: string | null | undefined) {
+  if (!value) return "Never";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
 export function DeveloperConsole({ projectName, environmentName }: { projectName: string; environmentName: string }) {
@@ -66,6 +75,7 @@ export function DeveloperConsole({ projectName, environmentName }: { projectName
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookEvents, setWebhookEvents] = useState<string[]>(["decision.created", "review.created", "review.resolved"]);
   const [testerPayload, setTesterPayload] = useState(sampleRequest);
+  const [testerKey, setTesterKey] = useState("");
   const [testResult, setTestResult] = useState<{ outcome: "ALLOW" | "REVIEW" | "BLOCK"; receiptId: string; requestId: string } | null>(null);
   const [baseUrl, setBaseUrl] = useState("https://your-vetolayer-domain.example");
 
@@ -93,11 +103,11 @@ export function DeveloperConsole({ projectName, environmentName }: { projectName
         body: JSON.stringify({ action, ...payload }),
       });
       const body = await readJson(response);
-      if (body.secret) setSecret({ kind: "api", value: body.secret, label: "API key" });
-      if (body.signingSecret) setSecret({ kind: "webhook", value: body.signingSecret, label: "Webhook signing secret" });
-      if (body.result?.receipt) {
-        setTestResult({ outcome: body.result.decision.outcome, receiptId: body.result.receipt.receiptId, requestId: body.result.requestId });
+      if (body.secret) {
+        setSecret({ kind: "api", value: body.secret, label: "API key" });
+        setTesterKey(body.secret);
       }
+      if (body.signingSecret) setSecret({ kind: "webhook", value: body.signingSecret, label: "Webhook signing secret" });
       await load();
       return body;
     } catch (cause) {
@@ -106,7 +116,34 @@ export function DeveloperConsole({ projectName, environmentName }: { projectName
     } finally { setBusy(null); }
   }
 
-  const sdkSnippet = useMemo(() => `import { createVetoLayerClient, guardedToolCall } from "@vetolayer/sdk";\n\nconst veto = createVetoLayerClient({\n  baseUrl: "${baseUrl}",\n  apiKey: process.env.VETOLAYER_API_KEY!,\n});\n\nconst result = await guardedToolCall({\n  client: veto,\n  evaluation,\n  execute: () => highImpactToolCall(),\n});`, [baseUrl]);
+  async function runLiveEvaluation() {
+    if (!testerKey.trim()) {
+      setError("Enter a project API key. Create or rotate one above and it will be filled here for this browser session.");
+      return;
+    }
+    setBusy("live_evaluation");
+    setError(null);
+    setTestResult(null);
+    try {
+      const payload = JSON.parse(testerPayload) as unknown;
+      const response = await fetch("/api/v1/evaluate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${testerKey.trim()}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const body = await readJson(response);
+      if (!body?.receipt?.receiptId || !body?.requestId || !body?.decision?.outcome) throw new Error("The Developer API returned an incomplete evaluation response.");
+      setTestResult({ outcome: body.decision.outcome, receiptId: body.receipt.receiptId, requestId: body.requestId });
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Live evaluation failed.");
+    } finally { setBusy(null); }
+  }
+
+  const sdkSnippet = useMemo(() => `import { createVetoLayerClient, guardedToolCall } from "@vetolayer/sdk";\n\nconst veto = createVetoLayerClient({\n  baseUrl: "${baseUrl}",\n  apiKey: process.env.VETOLAYER_PROJECT_API_KEY!,\n});\n\nconst result = await guardedToolCall({\n  client: veto,\n  evaluation,\n  execute: () => highImpactToolCall(),\n});`, [baseUrl]);
 
   function toggle(list: string[], value: string, setter: (next: string[]) => void) {
     setter(list.includes(value) ? list.filter((item) => item !== value) : [...list, value]);
@@ -117,10 +154,11 @@ export function DeveloperConsole({ projectName, environmentName }: { projectName
   return (
     <div className="developerConsole">
       {error ? <Notice tone="danger" title="Developer Console action failed" role="alert">{error}</Notice> : null}
+      {state?.persistence === "memory" ? <Notice tone="warning" title="Development-only persistence">Production API credentials and webhook configuration require Supabase server persistence. In-memory credentials disappear when the process restarts.</Notice> : null}
       {secret ? (
         <Notice tone="warning" title={`${secret.label} — copy it now`} role="status">
           This secret is shown once and cannot be recovered later.
-          <span className="secretReveal"><code>{secret.value}</code><Button size="sm" onClick={() => void navigator.clipboard.writeText(secret.value)}>Copy</Button><Button size="sm" tone="ghost" onClick={() => setSecret(null)}>Dismiss</Button></span>
+          <span className="secretReveal"><code>{secret.value}</code><Button size="sm" onClick={() => void navigator.clipboard.writeText(secret.value)}>Copy</Button><Button size="sm" tone="ghost" onClick={() => setSecret(null)}>I saved it</Button></span>
         </Notice>
       ) : null}
 
@@ -129,27 +167,28 @@ export function DeveloperConsole({ projectName, environmentName }: { projectName
           <span className="vlEyebrow">Active API scope</span>
           <h2>{projectName}</h2>
           <p>{environmentName}</p>
-          <div className="scopePills"><Badge tone="accent">Project scoped</Badge><Badge tone={state?.persistence === "supabase" ? "success" : "warning"}>{state?.persistence === "supabase" ? "Durable persistence" : "Memory only"}</Badge></div>
+          <div className="scopePills"><Badge tone="accent">Project + environment scoped</Badge><Badge tone={state?.persistence === "supabase" ? "success" : "warning"}>{state?.persistence === "supabase" ? "Durable persistence" : "Memory only"}</Badge></div>
         </Card>
         <Card className="developerSnippetCard">
           <span className="vlEyebrow">SDK quickstart</span>
           <pre><code>{sdkSnippet}</code></pre>
+          <Button size="sm" onClick={() => void navigator.clipboard.writeText(sdkSnippet)}>Copy example</Button>
         </Card>
       </section>
 
       <section className="developerSection" aria-labelledby="api-keys-heading">
-        <div className="developerSectionHead"><div><span className="vlEyebrow">Credentials</span><h2 id="api-keys-heading">Project API keys</h2><p>Create narrowly scoped credentials. The full secret is only returned once.</p></div></div>
+        <div className="developerSectionHead"><div><span className="vlEyebrow">Credentials</span><h2 id="api-keys-heading">Project API keys</h2><p>Create narrowly scoped credentials. The full secret is returned exactly once and only its hash is persisted.</p></div></div>
         <div className="developerGrid">
           <Card className="developerFormCard">
             <Field label="Key name"><Input value={keyName} onChange={(event) => setKeyName(event.target.value)} placeholder="Production agent" /></Field>
             <div className="permissionGroup"><span>Permissions</span>{["evaluate", "read:decisions", "webhooks"].map((permission) => <label key={permission}><input type="checkbox" checked={permissions.includes(permission)} onChange={() => toggle(permissions, permission, setPermissions)} /> <code>{permission}</code></label>)}</div>
-            <Button tone="primary" disabled={busy !== null} onClick={() => void act("create_key", { name: keyName, permissions })}>{busy === "create_key" ? "Creating…" : "Create API key"}</Button>
+            <Button tone="primary" disabled={busy !== null || !keyName.trim() || permissions.length === 0} onClick={() => void act("create_key", { name: keyName, permissions })}>{busy === "create_key" ? "Creating…" : "Create API key"}</Button>
           </Card>
           <Card className="developerListCard">
             {!state?.keys.length ? <p className="developerEmpty">No API keys yet.</p> : state.keys.map((key) => (
               <div className="developerRow" key={key.id}>
-                <div><strong>{key.name}</strong><code>{key.keyPrefix}</code><small>{key.permissions.join(" · ")}</small></div>
-                <div className="developerRowActions"><Badge tone={key.status === "active" ? "success" : "neutral"}>{key.status}</Badge>{key.status === "active" ? <><Button size="sm" onClick={() => void act("rotate_key", { id: key.id })}>Rotate</Button><Button size="sm" tone="danger" onClick={() => void act("revoke_key", { id: key.id })}>Revoke</Button></> : null}</div>
+                <div><strong>{key.name}</strong><code>{key.keyPrefix}</code><small>{key.permissions.join(" · ")} · last used {formatWhen(key.lastUsedAt)}</small></div>
+                <div className="developerRowActions"><Badge tone={key.status === "active" ? "success" : "neutral"}>{key.status}</Badge>{key.status === "active" ? <><Button size="sm" disabled={busy !== null} onClick={() => void act("rotate_key", { id: key.id })}>Rotate</Button><Button size="sm" tone="danger" disabled={busy !== null} onClick={() => void act("revoke_key", { id: key.id })}>Revoke</Button></> : null}</div>
               </div>
             ))}
           </Card>
@@ -157,27 +196,28 @@ export function DeveloperConsole({ projectName, environmentName }: { projectName
       </section>
 
       <section className="developerSection" aria-labelledby="tester-heading">
-        <div className="developerSectionHead"><div><span className="vlEyebrow">Request tester</span><h2 id="tester-heading">Run the real evaluation pipeline</h2><p>Edit the payload, evaluate it against the current project/environment, and inspect the persisted Decision Receipt.</p></div></div>
+        <div className="developerSectionHead"><div><span className="vlEyebrow">Request tester</span><h2 id="tester-heading">Call the real Developer API</h2><p>This tester sends the bearer key and JSON below directly to <code>/api/v1/evaluate</code>. Successful tests create a real Decision Receipt and appear in API usage.</p></div></div>
         <Card className="developerTester">
+          <Field label="Project API key" hint="Create or rotate a key above to auto-fill it for this browser session, or paste an existing secret you still hold."><Input type="password" autoComplete="off" spellCheck={false} value={testerKey} onChange={(event) => setTesterKey(event.target.value)} placeholder="vl_live_…" /></Field>
           <Textarea aria-label="Developer API request payload" value={testerPayload} onChange={(event) => setTesterPayload(event.target.value)} rows={22} spellCheck={false} />
-          <div className="testerActions"><Button tone="primary" disabled={busy !== null} onClick={() => { try { void act("test_evaluation", { payload: JSON.parse(testerPayload) }); } catch { setError("The request tester contains invalid JSON."); } }}>{busy === "test_evaluation" ? "Evaluating…" : "Evaluate action"}</Button>{testResult ? <div className="testResult"><OutcomeBadge outcome={testResult.outcome} /><span>{testResult.requestId}</span><Link href={`/dashboard/decisions/${encodeURIComponent(testResult.receiptId)}`}>Open receipt →</Link></div> : null}</div>
+          <div className="testerActions"><Button tone="primary" disabled={busy !== null || !testerKey.trim()} onClick={() => void runLiveEvaluation()}>{busy === "live_evaluation" ? "Evaluating…" : "Send real evaluation"}</Button>{testResult ? <div className="testResult"><OutcomeBadge outcome={testResult.outcome} /><span>{testResult.requestId}</span><Link href={`/dashboard/decisions/${encodeURIComponent(testResult.receiptId)}`}>Open receipt →</Link></div> : null}</div>
         </Card>
       </section>
 
       <section className="developerSection" aria-labelledby="webhooks-heading">
-        <div className="developerSectionHead"><div><span className="vlEyebrow">Outbound events</span><h2 id="webhooks-heading">Webhooks</h2><p>Signed server-to-server delivery with one-time signing secrets, connection tests, rotation, and retry history.</p></div></div>
+        <div className="developerSectionHead"><div><span className="vlEyebrow">Outbound events</span><h2 id="webhooks-heading">Webhooks</h2><p>Signed server-to-server delivery with encrypted signing credentials, connection tests, rotation, and retry history.</p></div></div>
         <div className="developerGrid">
           <Card className="developerFormCard">
             <Field label="Endpoint name"><Input value={webhookName} onChange={(event) => setWebhookName(event.target.value)} /></Field>
             <Field label="HTTPS endpoint"><Input type="url" value={webhookUrl} onChange={(event) => setWebhookUrl(event.target.value)} placeholder="https://example.com/vetolayer" /></Field>
             <div className="permissionGroup"><span>Events</span>{(state?.webhookEvents ?? []).map((event) => <label key={event}><input type="checkbox" checked={webhookEvents.includes(event)} onChange={() => toggle(webhookEvents, event, setWebhookEvents)} /> <code>{event}</code></label>)}</div>
-            <Button tone="primary" disabled={busy !== null || !webhookUrl} onClick={() => void act("create_webhook", { name: webhookName, url: webhookUrl, events: webhookEvents })}>{busy === "create_webhook" ? "Creating…" : "Create webhook"}</Button>
+            <Button tone="primary" disabled={busy !== null || !webhookName.trim() || !webhookUrl || webhookEvents.length === 0} onClick={() => void act("create_webhook", { name: webhookName, url: webhookUrl, events: webhookEvents })}>{busy === "create_webhook" ? "Creating…" : "Create webhook"}</Button>
           </Card>
           <Card className="developerListCard">
             {!state?.webhooks.length ? <p className="developerEmpty">No webhook endpoints yet.</p> : state.webhooks.map((webhook) => (
               <div className="developerRow developerWebhookRow" key={webhook.id}>
                 <div><strong>{webhook.name}</strong><span>{webhook.url}</span><small>{webhook.events.join(" · ")}</small></div>
-                <div className="developerRowActions"><Badge tone={webhook.status === "active" ? "success" : "neutral"}>{webhook.status}</Badge>{webhook.status === "active" ? <><Button size="sm" onClick={() => void act("test_webhook", { id: webhook.id })}>Test</Button><Button size="sm" onClick={() => void act("rotate_webhook_secret", { id: webhook.id })}>Rotate secret</Button><Button size="sm" tone="danger" onClick={() => void act("revoke_webhook", { id: webhook.id })}>Revoke</Button></> : null}</div>
+                <div className="developerRowActions"><Badge tone={webhook.status === "active" ? "success" : "neutral"}>{webhook.status}</Badge>{webhook.status === "active" ? <><Button size="sm" disabled={busy !== null} onClick={() => void act("test_webhook", { id: webhook.id })}>Test</Button><Button size="sm" disabled={busy !== null} onClick={() => void act("rotate_webhook_secret", { id: webhook.id })}>Rotate secret</Button><Button size="sm" tone="danger" disabled={busy !== null} onClick={() => void act("revoke_webhook", { id: webhook.id })}>Revoke</Button></> : null}</div>
               </div>
             ))}
           </Card>
@@ -191,7 +231,7 @@ export function DeveloperConsole({ projectName, environmentName }: { projectName
         </Card>
         <Card>
           <span className="vlEyebrow">Webhook deliveries</span><h2>Delivery history</h2>
-          {!state?.deliveries.length ? <p className="developerEmpty">No webhook deliveries yet.</p> : state.deliveries.map((delivery) => <div className="historyRow" key={delivery.id}><Badge tone={delivery.status === "delivered" ? "success" : delivery.status === "failed" ? "danger" : "warning"}>{delivery.status}</Badge><div><strong>{delivery.eventType}</strong><small>Attempt {delivery.attempts}{delivery.statusCode ? ` · HTTP ${delivery.statusCode}` : ""}</small></div>{delivery.status === "failed" ? <Button size="sm" onClick={() => void act("retry_delivery", { id: delivery.id })}>Retry</Button> : null}</div>)}
+          {!state?.deliveries.length ? <p className="developerEmpty">No webhook deliveries yet. Use Test on an endpoint to verify signing and delivery.</p> : state.deliveries.map((delivery) => <div className="historyRow" key={delivery.id}><Badge tone={delivery.status === "delivered" ? "success" : delivery.status === "failed" ? "danger" : "warning"}>{delivery.status}</Badge><div><strong>{delivery.eventType}</strong><small>Attempt {delivery.attempts}{delivery.statusCode ? ` · HTTP ${delivery.statusCode}` : ""}{delivery.error ? ` · ${delivery.error}` : ""}</small></div>{delivery.status === "failed" ? <Button size="sm" disabled={busy !== null} onClick={() => void act("retry_delivery", { id: delivery.id })}>Retry</Button> : null}</div>)}
         </Card>
       </section>
     </div>

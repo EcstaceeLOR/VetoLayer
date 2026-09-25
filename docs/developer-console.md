@@ -23,7 +23,7 @@ import { createVetoLayerClient, guardedToolCall } from "@vetolayer/sdk";
 
 const veto = createVetoLayerClient({
   baseUrl: process.env.VETOLAYER_URL!,
-  apiKey: process.env.VETOLAYER_API_KEY!, // the project key created in Developer Console
+  apiKey: process.env.VETOLAYER_PROJECT_API_KEY!,
 });
 
 const result = await guardedToolCall({
@@ -37,7 +37,9 @@ The key's stored scope is authoritative. Clients cannot override workspace/proje
 
 ## Request tester
 
-The Developer Console tester sends the editable payload through the same shared evaluation service used by `POST /api/v1/evaluate`. Successful tests create normal persisted Decision Receipts and request-activity records; seeded demo receipts never satisfy this flow.
+The Developer Console tester calls the real `POST /api/v1/evaluate` endpoint with `Authorization: Bearer <project key>`. A newly created or rotated API key is filled into the tester only for the current browser session; existing secrets are never recoverable from VetoLayer.
+
+Successful tests therefore exercise the same authentication, key-permission, rate-limit, validation, evaluation, persistence, and receipt path used by external applications. They create normal Decision Receipts and appear in recent API request activity.
 
 ## Outbound webhooks
 
@@ -63,7 +65,7 @@ Developer Console supports connection tests, secret rotation, revocation, delive
 
 ## Persistence
 
-Production credential management requires durable Supabase persistence. Apply [`docs/sql/developer-console.sql`](./sql/developer-console.sql), then configure:
+Production credential management requires durable Supabase persistence. Apply the repository's `supabase/migrations/202609250950_developer_console.sql` migration (the SQL reference in `docs/sql/developer-console.sql` contains the same model), then configure:
 
 ```text
 SUPABASE_URL=
@@ -78,7 +80,8 @@ All Developer Console tables have RLS enabled with no browser policies. The appl
 - Complete API keys are never stored.
 - Webhook signing secrets are encrypted server-side and are write-only in product UI.
 - API keys cannot choose a different product scope at request time.
-- Revoked keys are excluded from authentication.
+- Decision reads verify the exact project/environment scope as well as the workspace.
+- Revoked keys are excluded from authentication immediately.
 - Browser responses never include key hashes or encrypted signing-secret material.
 - Credential management requires the workspace role's existing `integrations.write` permission.
 - Archived projects reject credential/configuration changes.

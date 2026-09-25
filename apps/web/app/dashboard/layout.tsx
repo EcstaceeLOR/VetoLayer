@@ -41,7 +41,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
         <div className="sidebarResources">
           <span className="sideNavLabel">Resources</span>
-          <Link href="/#developers">Developer setup</Link>
+          <Link href="/dashboard/developers">Developer Console</Link>
           <Link href="/demo">Product example</Link>
         </div>
 
@@ -69,6 +69,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                 <Link href="/dashboard/workspace">Workspace & team</Link>
                 <Link href="/onboarding">Create another workspace</Link>
                 <Link href="/dashboard/integrations">Integration setup</Link>
+                <Link href="/dashboard/developers">Developer Console</Link>
                 <div className="accountMenuDivider" />
                 <form action={signOut}><Button tone="ghost" size="sm" type="submit">Sign out this session</Button></form>
               </div>
