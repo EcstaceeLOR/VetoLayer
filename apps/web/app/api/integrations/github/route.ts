@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../lib/server/api-auth";
+import { recordAuditEvent, workspaceAuditInput } from "../../../../lib/server/audit";
 import { GITHUB_APP_REQUIRED_PERMISSIONS, readGitHubAppConfig } from "../../../../lib/server/github-app";
 import { getGitHubAppStore, type StoredGitHubInstallation } from "../../../../lib/server/github-app-store";
 import { syncGitHubConnection, updateGenericGitHubIntegrationState } from "../../../../lib/server/github-app-service";
@@ -45,7 +46,19 @@ export async function POST(request: Request) {
     const { store: integrationStore } = getIntegrationStore();
     const now = new Date().toISOString();
     await integrationStore.save({ ...scope, integration: "github", state: "needs-config", lastCode: "GITHUB_APP_DISCONNECTED", updatedAt: now });
-    await emitIntegrationEvent({ ...scope, type: "integration.disconnected", actorUserId: auth.workspace.userId, idempotencyKey: `github:${scope.projectId}:${scope.environmentId}:disconnected:${now}`, message: "The GitHub App integration was disconnected from this environment.", code: "GITHUB_APP_DISCONNECTED" });
+    await Promise.all([
+      emitIntegrationEvent({ ...scope, type: "integration.disconnected", actorUserId: auth.workspace.userId, idempotencyKey: `github:${scope.projectId}:${scope.environmentId}:disconnected:${now}`, message: "The GitHub App integration was disconnected from this environment.", code: "GITHUB_APP_DISCONNECTED" }),
+      recordAuditEvent(workspaceAuditInput(auth.workspace, {
+        action: "integration.disconnect",
+        category: "integration",
+        targetType: "github_installation",
+        targetId: installation?.id ?? "github",
+        targetLabel: installation?.accountLogin ?? "GitHub App",
+        href: "/dashboard/integrations",
+        request,
+        metadata: { integration: "github", installationId: installation?.installationId ?? null, previousState: installation?.state ?? null, nextState: "needs-config" },
+      })),
+    ]);
     return NextResponse.json({ ok: true, installation: null, repositories: [], persistence });
   }
 
@@ -58,10 +71,22 @@ export async function POST(request: Request) {
     const available = await store.listRepositories(installation.id);
     const allowed = new Set(available.map((repo) => repo.repositoryId));
     if (repositoryIds.some((id) => !allowed.has(id))) return NextResponse.json({ error: { code: "REPOSITORY_NOT_AVAILABLE", message: "One or more repositories are not available to this GitHub App installation." } }, { status: 403 });
+    const previousRepositoryIds = available.filter((repo) => repo.connected).map((repo) => repo.repositoryId);
     const now = new Date().toISOString();
     await store.setConnectedRepositories(installation.id, repositoryIds, now);
     const repositories = await store.listRepositories(installation.id);
-    await updateGenericGitHubIntegrationState({ installation, state: installation.state === "ready" && repositories.some((repo) => repo.connected) ? "ready" : "needs-config", code: repositories.some((repo) => repo.connected) ? "GITHUB_APP_CONNECTED" : "GITHUB_NO_REPOSITORIES_CONNECTED", now });
+    const nextState = installation.state === "ready" && repositories.some((repo) => repo.connected) ? "ready" : "needs-config";
+    await updateGenericGitHubIntegrationState({ installation, state: nextState, code: repositories.some((repo) => repo.connected) ? "GITHUB_APP_CONNECTED" : "GITHUB_NO_REPOSITORIES_CONNECTED", now });
+    await recordAuditEvent(workspaceAuditInput(auth.workspace, {
+      action: "integration.repositories.update",
+      category: "integration",
+      targetType: "github_installation",
+      targetId: installation.id,
+      targetLabel: installation.accountLogin,
+      href: "/dashboard/integrations",
+      request,
+      metadata: { integration: "github", previousRepositoryIds, nextRepositoryIds: repositoryIds, nextState },
+    }));
     return NextResponse.json({ ok: true, installation: publicInstallation(installation), repositories, persistence });
   }
 
@@ -69,7 +94,18 @@ export async function POST(request: Request) {
   if (!config) return NextResponse.json({ error: { code: "GITHUB_APP_NOT_CONFIGURED", message: "The VetoLayer GitHub App is not configured on this deployment." } }, { status: 503 });
 
   try {
+    const previousState = installation.state;
     const result = await syncGitHubConnection({ scope, installationId: installation.installationId, installedByUserId: installation.installedByUserId, config });
+    await recordAuditEvent(workspaceAuditInput(auth.workspace, {
+      action: previousState === "ready" ? "integration.refresh" : "integration.reconnect",
+      category: "integration",
+      targetType: "github_installation",
+      targetId: result.installation.id,
+      targetLabel: result.installation.accountLogin,
+      href: "/dashboard/integrations",
+      request,
+      metadata: { integration: "github", previousState, nextState: result.installation.state, connectedRepositoryCount: result.repositories.filter((repo) => repo.connected).length, missingPermissions: result.missingPermissions },
+    }));
     return NextResponse.json({ ok: result.installation.state === "ready" && result.repositories.some((repo) => repo.connected), installation: publicInstallation(result.installation), repositories: result.repositories, missingPermissions: result.missingPermissions, persistence });
   } catch (error) {
     const message = error instanceof Error ? error.message : "GitHub connection refresh failed.";
@@ -78,10 +114,32 @@ export async function POST(request: Request) {
       const now = new Date().toISOString();
       await store.updateInstallationState(installation.installationId, "revoked", now);
       await updateGenericGitHubIntegrationState({ installation: { ...installation, state: "revoked", updatedAt: now }, state: "needs-config", code: "GITHUB_APP_REVOKED", now });
-      await emitIntegrationEvent({ ...scope, type: "integration.failed", actorUserId: auth.workspace.userId, idempotencyKey: `github:${installation.installationId}:revoked:${now}`, message: "GitHub revoked or removed the VetoLayer App installation. Reinstall it to restore governance.", code: "GITHUB_APP_REVOKED" });
+      await Promise.all([
+        emitIntegrationEvent({ ...scope, type: "integration.failed", actorUserId: auth.workspace.userId, idempotencyKey: `github:${installation.installationId}:revoked:${now}`, message: "GitHub revoked or removed the VetoLayer App installation. Reinstall it to restore governance.", code: "GITHUB_APP_REVOKED" }),
+        recordAuditEvent(workspaceAuditInput(auth.workspace, {
+          action: "integration.revoked",
+          category: "integration",
+          targetType: "github_installation",
+          targetId: installation.id,
+          targetLabel: installation.accountLogin,
+          href: "/dashboard/integrations",
+          request,
+          metadata: { integration: "github", previousState: installation.state, nextState: "revoked", code: "GITHUB_APP_REVOKED" },
+        })),
+      ]);
       return NextResponse.json({ error: { code: "GITHUB_APP_REVOKED", message: "GitHub no longer recognizes this installation. Reinstall VetoLayer to reconnect." } }, { status: 409 });
     }
     await emitIntegrationEvent({ ...scope, type: "integration.failed", actorUserId: auth.workspace.userId, idempotencyKey: `github:${installation.installationId}:refresh-failed:${Date.now()}`, message: "VetoLayer could not refresh the GitHub integration. Check installation permissions and connectivity.", code: "GITHUB_CONNECTION_FAILED" });
+    await recordAuditEvent(workspaceAuditInput(auth.workspace, {
+      action: "integration.refresh.failed",
+      category: "integration",
+      targetType: "github_installation",
+      targetId: installation.id,
+      targetLabel: installation.accountLogin,
+      href: "/dashboard/integrations",
+      request,
+      metadata: { integration: "github", state: installation.state, code: "GITHUB_CONNECTION_FAILED" },
+    }));
     return NextResponse.json({ error: { code: "GITHUB_CONNECTION_FAILED", message: "VetoLayer could not refresh this GitHub App installation. Check GitHub permissions and try again." } }, { status: 502 });
   }
 }
