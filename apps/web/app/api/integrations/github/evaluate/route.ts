@@ -7,7 +7,7 @@ import { getGitHubAppStore } from "../../../../../lib/server/github-app-store";
 import { mergeManagedPolicies } from "../../../../../lib/server/managed-policies";
 import { consumeRateLimit, requestClientKey } from "../../../../../lib/server/rate-limit";
 import { getReviewStore } from "../../../../../lib/server/review-store";
-import { emitReviewWebhook, reviewEvent } from "../../../../../lib/server/review-workflow";
+import { emitReviewWebhook, reviewEvent, syncReviewDecisionIndex } from "../../../../../lib/server/review-workflow";
 
 export const runtime = "nodejs";
 
@@ -97,6 +97,7 @@ export async function POST(request: Request) {
         timeline: [reviewEvent({ reviewCaseId, type: "created", summary: "Review case created from a GitHub integration REVIEW decision.", createdAt: now, receiptId: result.receipt.receiptId })],
         receiptLineage: [{ receiptId: result.receipt.receiptId, outcome: result.receipt.outcome, createdAt: result.receipt.timestamps.receiptCreatedAt, reason: "initial" }],
       });
+      await syncReviewDecisionIndex(saved);
       await emitReviewWebhook({ scope, eventType: "review.created", reviewCase: saved, action: "created" });
     }
 

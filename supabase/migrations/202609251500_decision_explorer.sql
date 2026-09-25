@@ -4,7 +4,21 @@
 
 create extension if not exists pg_trgm;
 
+-- Fresh deployments may not have the original bootstrap table yet. Keep this
+-- base table compatible with historical pseudo-workspaces; workspace/project
+-- foreign keys are intentionally not introduced here because pre-#54 records
+-- can still be migrated later without rewriting signed receipt JSON.
+create table if not exists public.vetolayer_decisions (
+  id text primary key,
+  workspace_id text not null,
+  source text not null check (source in ('demo', 'api', 'integration')),
+  receipt jsonb not null,
+  created_at timestamptz not null default now()
+);
+
 alter table public.vetolayer_decisions
+  add column if not exists project_id text,
+  add column if not exists environment_id text,
   add column if not exists receipt_id text,
   add column if not exists decision_id text,
   add column if not exists request_id text,
@@ -44,7 +58,7 @@ set receipt_id = coalesce(d.receipt->>'receiptId', d.receipt_id),
     actor_name = coalesce(d.receipt #>> '{actor,name}', d.actor_name),
     target_id = coalesce(d.receipt #>> '{action,targetId}', d.receipt #>> '{action,targetType}', d.target_id),
     outcome = coalesce(d.receipt->>'outcome', d.outcome),
-    uses_serv = (jsonb_array_length(coalesce(d.receipt->'contextualFindings', '[]'::jsonb)) > 0) or d.receipt ? 'providerTrace',
+    uses_serv = (jsonb_array_length(coalesce(d.receipt->'contextualFindings', '[]'::jsonb)) > 0) or (d.receipt ? 'providerTrace'),
     policy_refs = coalesce((select array_agg(distinct p->>'id') filter (where p->>'id' is not null) from jsonb_array_elements(coalesce(d.receipt->'policiesEvaluated', '[]'::jsonb)) p), '{}'::text[]),
     policy_keys = coalesce((select array_agg(distinct regexp_replace(p->>'id', '@v[0-9]+$', '', 'i')) filter (where p->>'id' is not null) from jsonb_array_elements(coalesce(d.receipt->'policiesEvaluated', '[]'::jsonb)) p), '{}'::text[]),
     search_text = lower(concat_ws(' ',
@@ -64,18 +78,26 @@ set receipt_id = coalesce(d.receipt->>'receiptId', d.receipt_id),
       coalesce((select string_agg(concat_ws(' ', p->>'id', p->>'name'), ' ') from jsonb_array_elements(coalesce(d.receipt->'policiesEvaluated', '[]'::jsonb)) p), '')
     ));
 
--- Backfill the review state/index for existing operational review cases. The
--- initial and latest resolution receipts are indexed directly; lineage lookups
--- remain anchored by signed action.requestId.
-update public.vetolayer_decisions d
-set review_state = rc.status,
-    review_case_id = rc.payload->>'id'
-from public.vetolayer_review_cases rc
-where rc.workspace_id = d.workspace_id
-  and (
-    d.receipt_id = rc.payload #>> '{receipt,receiptId}'
-    or d.receipt_id = rc.payload #>> '{resolutionReceipt,receiptId}'
-  );
+-- Backfill operational review state when the review table is present. Dynamic
+-- SQL keeps this migration valid on fresh deployments where #59 has not yet
+-- created the review table for some reason.
+do $$
+begin
+  if to_regclass('public.vetolayer_review_cases') is not null then
+    execute $sql$
+      update public.vetolayer_decisions d
+      set review_state = rc.status,
+          review_case_id = rc.payload->>'id'
+      from public.vetolayer_review_cases rc
+      where rc.workspace_id = d.workspace_id
+        and (
+          d.receipt_id = rc.payload #>> '{receipt,receiptId}'
+          or d.receipt_id = rc.payload #>> '{resolutionReceipt,receiptId}'
+        )
+    $sql$;
+  end if;
+end;
+$$;
 
 create unique index if not exists vetolayer_decisions_workspace_receipt_idx
   on public.vetolayer_decisions (workspace_id, receipt_id)
@@ -90,6 +112,8 @@ create index if not exists vetolayer_decisions_explorer_idx
   on public.vetolayer_decisions (workspace_id, project_id, environment_id, outcome, created_at desc);
 create index if not exists vetolayer_decisions_source_idx
   on public.vetolayer_decisions (workspace_id, source, created_at desc);
+create index if not exists vetolayer_decisions_tool_idx
+  on public.vetolayer_decisions (workspace_id, action_tool, created_at desc);
 create index if not exists vetolayer_decisions_serv_idx
   on public.vetolayer_decisions (workspace_id, uses_serv, created_at desc);
 create index if not exists vetolayer_decisions_review_idx
