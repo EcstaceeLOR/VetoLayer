@@ -7,8 +7,6 @@ function environment(): ServerEnvironment {
     servConfigured: false,
     githubTokenConfigured: false,
     persistenceConfigured: false,
-    demoWorkspaceId: "demo",
-    demoRateLimitPerMinute: 30,
     apiRateLimitPerMinute: 60,
     apiAuthConfigured: true,
     apiKey: "server-secret",
@@ -29,7 +27,7 @@ describe("Developer API workspace binding", () => {
     ).toBe("service:prod-agents");
   });
 
-  it("falls back to a dedicated service workspace, never the demo workspace", () => {
+  it("falls back to the dedicated service workspace", () => {
     expect(developerApiWorkspaceId(environment(), env())).toBe("service:developer-api");
   });
 });
