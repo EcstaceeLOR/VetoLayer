@@ -5,6 +5,7 @@ import type { DeveloperStore, StoredDeveloperWebhook, StoredWebhookDelivery } fr
 export const DEVELOPER_WEBHOOK_EVENTS = [
   "decision.created",
   "review.created",
+  "review.updated",
   "review.resolved",
   "policy.changed",
   "integration.changed",
