@@ -2,6 +2,12 @@ import { cookies } from "next/headers";
 import type { Project, ProjectEnvironment, Workspace, WorkspaceMember } from "../workspace-model";
 import { createSupabaseServerClient, isSupabaseAuthConfigured } from "../supabase/server";
 import { getWorkspaceStore } from "./workspace-store";
+import {
+  isReliabilityTestMode,
+  normalizeReliabilityProfile,
+  RELIABILITY_PROFILE_COOKIE,
+  reliabilityIdentity,
+} from "./reliability-mode";
 
 export const WORKSPACE_COOKIE = "vl_workspace";
 export const PROJECT_COOKIE = "vl_project";
@@ -28,6 +34,11 @@ export type WorkspaceContext = AuthenticatedIdentity & {
 };
 
 export async function getAuthenticatedIdentity(): Promise<AuthenticatedIdentity | null> {
+  if (isReliabilityTestMode()) {
+    const cookieStore = await cookies();
+    return reliabilityIdentity(normalizeReliabilityProfile(cookieStore.get(RELIABILITY_PROFILE_COOKIE)?.value));
+  }
+
   if (!isSupabaseAuthConfigured()) return null;
   const supabase = await createSupabaseServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
