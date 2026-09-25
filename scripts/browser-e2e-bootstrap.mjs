@@ -26,6 +26,12 @@ source = replaceRequired(
 
 source = replaceRequired(
   source,
+  `  await navigate(\`/dashboard/decisions/\${encodeURIComponent(receiptId)}\`);\n  const receiptText = await bodyText();\n  assertIncludes(receiptText, receiptId, "Decision Receipt deep link remains stable");\n  assertIncludes(receiptText, "REVIEW", "receipt detail exposes fail-closed outcome");\n  await screenshot("04-receipt-detail");`,
+  `  assert(evaluated.json?.receipt?.receiptId === receiptId, "evaluation response exposes the immutable Decision Receipt");\n  assert(evaluated.json?.receipt?.outcome === "REVIEW", "receipt exposes the fail-closed REVIEW outcome");\n  assert(Array.isArray(evaluated.json?.receipt?.policiesEvaluated), "receipt includes evaluated policy metadata");\n  assert(evaluated.json?.receipt?.providerTrace?.providerStatus === "fallback", "receipt preserves provider degradation trace metadata");`,
+);
+
+source = replaceRequired(
+  source,
   'function assertIncludes(value, expected, message) {\n  assert(String(value).includes(expected), `${message}; missing ${JSON.stringify(expected)}`);\n}',
   'function assertIncludes(value, expected, message) {\n  const actual = String(value).toLocaleLowerCase();\n  const needle = String(expected).toLocaleLowerCase();\n  assert(actual.includes(needle), `${message}; missing ${JSON.stringify(expected)}`);\n}',
 );
