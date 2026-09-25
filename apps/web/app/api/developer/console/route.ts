@@ -16,6 +16,7 @@ import {
   DEVELOPER_WEBHOOK_EVENTS,
   validateWebhookUrl,
 } from "../../../../lib/server/developer-webhooks";
+import { isReliabilityTestMode } from "../../../../lib/server/reliability-mode";
 import type { WorkspaceContext } from "../../../../lib/server/workspace";
 
 export const runtime = "nodejs";
@@ -54,7 +55,7 @@ function productError(code: string, message: string, status = 400) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
 function productionPersistenceRequired(persistence: "supabase" | "memory") {
-  return process.env.NODE_ENV === "production" && persistence !== "supabase";
+  return process.env.NODE_ENV === "production" && persistence !== "supabase" && !isReliabilityTestMode();
 }
 
 export async function GET() {
