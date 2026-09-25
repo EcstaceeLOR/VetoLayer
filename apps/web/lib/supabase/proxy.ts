@@ -9,12 +9,17 @@ function authConfig() {
   return url && publishableKey ? { url, publishableKey } : null;
 }
 
+function requestHadAuthCookie(request: NextRequest) {
+  return request.cookies.getAll().some(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"));
+}
+
 export async function updateSession(request: NextRequest) {
   const config = authConfig();
   const pathname = request.nextUrl.pathname;
   const protectedPage = protectedPagePrefixes.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
+  const hadAuthCookie = requestHadAuthCookie(request);
 
   if (!config) {
     if (protectedPage) {
@@ -53,7 +58,7 @@ export async function updateSession(request: NextRequest) {
   if (protectedPage && !user) {
     const login = request.nextUrl.clone();
     login.pathname = "/login";
-    login.searchParams.set("error", "session_expired");
+    login.searchParams.set("error", hadAuthCookie ? "session_expired" : "session_required");
     login.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(login);
   }
