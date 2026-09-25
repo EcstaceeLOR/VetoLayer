@@ -1,0 +1,673 @@
+.onboardingOperationalShell {
+  min-height: 100vh;
+  padding: 28px 32px 48px;
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--vl-accent) 7%, transparent), transparent 26%),
+    var(--vl-bg-canvas);
+}
+
+.onboardingOperationalShell .onboardingNav {
+  max-width: 1480px;
+  margin: 0 auto 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vl-space-4);
+}
+
+.onboardingNavActions {
+  display: flex;
+  align-items: center;
+  gap: var(--vl-space-4);
+  font-size: var(--vl-text-sm);
+}
+
+.onboardingNavActions a,
+.onboardingActions a {
+  color: var(--vl-text-secondary);
+  text-decoration: none;
+}
+
+.onboardingNavActions a:hover,
+.onboardingActions a:hover {
+  color: var(--vl-text-primary);
+}
+
+.onboardingUnavailable {
+  width: min(720px, 100%);
+  margin: 16vh auto 0;
+}
+
+.onboardingOperationalLayout {
+  width: min(1480px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: clamp(28px, 4vw, 64px);
+  align-items: start;
+}
+
+.onboardingProgressRail {
+  position: sticky;
+  top: 24px;
+  display: grid;
+  gap: var(--vl-space-6);
+  padding: 24px;
+  border: 1px solid var(--vl-border-subtle);
+  border-radius: var(--vl-radius-2xl);
+  background: color-mix(in srgb, var(--vl-bg-elevated) 92%, transparent);
+  box-shadow: var(--vl-shadow-sm);
+}
+
+.onboardingProgressSummary h1 {
+  margin: 8px 0 10px;
+  font-size: clamp(30px, 3vw, 44px);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.onboardingProgressSummary > p:last-of-type {
+  margin: 0;
+  color: var(--vl-text-secondary);
+  line-height: 1.6;
+  font-size: var(--vl-text-sm);
+}
+
+.onboardingProgressMeter {
+  height: 6px;
+  margin-top: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--vl-bg-muted);
+}
+
+.onboardingProgressMeter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--vl-accent);
+  transition: width var(--vl-motion-slow) var(--vl-ease-standard);
+}
+
+.onboardingDurability {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.onboardingStepList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.onboardingStepList button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 11px;
+  border: 1px solid transparent;
+  border-radius: var(--vl-radius-lg);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.onboardingStepList button:hover,
+.onboardingStepList button.active {
+  background: var(--vl-bg-muted);
+  border-color: var(--vl-border-subtle);
+}
+
+.onboardingStepList button > span:first-child {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--vl-border-strong);
+  color: var(--vl-text-tertiary);
+  font: 700 10px/1 var(--vl-font-mono);
+}
+
+.onboardingStepList button > span:first-child.complete {
+  border-color: color-mix(in srgb, var(--vl-outcome-allow) 55%, transparent);
+  background: color-mix(in srgb, var(--vl-outcome-allow) 10%, transparent);
+  color: var(--vl-outcome-allow);
+}
+
+.onboardingStepList button > span:last-child {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.onboardingStepList strong {
+  font-size: var(--vl-text-sm);
+}
+
+.onboardingStepList small {
+  color: var(--vl-text-tertiary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.onboardingRailFooter {
+  padding-top: 18px;
+  border-top: 1px solid var(--vl-border-subtle);
+  display: grid;
+  gap: 8px;
+}
+
+.onboardingRailFooter small {
+  color: var(--vl-text-tertiary);
+  line-height: 1.5;
+}
+
+.onboardingWorkArea {
+  min-width: 0;
+  display: grid;
+  gap: 18px;
+}
+
+.onboardingWorkHeader {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vl-space-4);
+}
+
+.onboardingWorkHeader > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.onboardingWorkHeader span {
+  color: var(--vl-text-tertiary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.onboardingWorkHeader strong {
+  font-size: var(--vl-text-lg);
+}
+
+.onboardingScopeChip {
+  max-width: 62%;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 12px;
+  border: 1px solid var(--vl-border-subtle);
+  border-radius: 999px;
+  background: var(--vl-bg-surface);
+  overflow: hidden;
+}
+
+.onboardingScopeChip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--vl-text-secondary);
+}
+
+.onboardingScopeChip b {
+  color: var(--vl-text-tertiary);
+  font-weight: 500;
+}
+
+.onboardingOperationalCard {
+  min-height: 560px;
+  padding: clamp(26px, 4vw, 48px);
+  display: grid;
+  align-content: start;
+  gap: 22px;
+}
+
+.onboardingOperationalCard > h2 {
+  max-width: 760px;
+  margin: 0;
+  font-size: clamp(32px, 4.8vw, 60px);
+  line-height: .98;
+  letter-spacing: -.05em;
+}
+
+.onboardingOperationalCard > .muted {
+  max-width: 760px;
+  margin: -8px 0 0;
+  line-height: 1.7;
+}
+
+.onboardingResourceList,
+.onboardingUseCaseGrid,
+.onboardingIntegrationGrid,
+.onboardingPolicyList,
+.onboardingCompletionLinks {
+  display: grid;
+  gap: 12px;
+}
+
+.onboardingResourceList {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.onboardingResourceList > button,
+.onboardingUseCaseGrid > button,
+.onboardingIntegrationGrid > button {
+  border: 1px solid var(--vl-border-subtle);
+  border-radius: var(--vl-radius-xl);
+  background: var(--vl-bg-surface);
+  color: inherit;
+  padding: 18px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--vl-motion-fast) var(--vl-ease-standard), transform var(--vl-motion-fast) var(--vl-ease-standard), background var(--vl-motion-fast) var(--vl-ease-standard);
+}
+
+.onboardingResourceList > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.onboardingResourceList > button:hover,
+.onboardingUseCaseGrid > button:hover,
+.onboardingIntegrationGrid > button:hover {
+  transform: translateY(-1px);
+  border-color: var(--vl-border-strong);
+}
+
+.onboardingResourceList > button.selected,
+.onboardingUseCaseGrid > button.selected,
+.onboardingIntegrationGrid > button.selected {
+  border-color: color-mix(in srgb, var(--vl-accent) 60%, var(--vl-border-strong));
+  background: color-mix(in srgb, var(--vl-accent) 5%, var(--vl-bg-surface));
+}
+
+.onboardingResourceList button > span:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.onboardingResourceList small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--vl-text-tertiary);
+  font-family: var(--vl-font-mono);
+  font-size: 10px;
+}
+
+.onboardingDivider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--vl-text-tertiary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.onboardingDivider::before,
+.onboardingDivider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--vl-border-subtle);
+}
+
+.onboardingFormGrid {
+  display: grid;
+  gap: 18px;
+}
+
+.onboardingInlineForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.onboardingActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.onboardingActionsSpread {
+  justify-content: space-between;
+  padding-top: 8px;
+}
+
+.onboardingActionsSpread > div {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.onboardingUseCaseGrid,
+.onboardingIntegrationGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.onboardingIntegrationGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.onboardingUseCaseGrid button,
+.onboardingIntegrationGrid button {
+  display: grid;
+  gap: 10px;
+}
+
+.onboardingUseCaseGrid button > span,
+.onboardingIntegrationGrid button > span,
+.onboardingPolicyStarter > div > span {
+  color: var(--vl-text-tertiary);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.onboardingUseCaseGrid p,
+.onboardingIntegrationGrid p,
+.onboardingPolicyStarter p {
+  margin: 0;
+  color: var(--vl-text-secondary);
+  font-size: var(--vl-text-sm);
+  line-height: 1.6;
+}
+
+.onboardingPolicyStarter {
+  padding: 22px;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--vl-accent) 28%, var(--vl-border-subtle));
+  border-radius: var(--vl-radius-xl);
+  background: color-mix(in srgb, var(--vl-accent) 4%, var(--vl-bg-surface));
+}
+
+.onboardingPolicyStarter > div {
+  display: grid;
+  gap: 7px;
+}
+
+.onboardingPolicyList label {
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--vl-border-subtle);
+  border-radius: var(--vl-radius-lg);
+  background: var(--vl-bg-surface);
+  cursor: pointer;
+}
+
+.onboardingPolicyList label > span {
+  display: grid;
+  gap: 3px;
+}
+
+.onboardingPolicyList small {
+  color: var(--vl-text-tertiary);
+  text-transform: capitalize;
+}
+
+.onboardingReadiness {
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--vl-border-subtle);
+  border-radius: var(--vl-radius-xl);
+  background: var(--vl-bg-surface);
+}
+
+.onboardingReadiness.ready {
+  border-color: color-mix(in srgb, var(--vl-outcome-allow) 35%, var(--vl-border-subtle));
+}
+
+.onboardingReadiness.blocked {
+  border-color: color-mix(in srgb, var(--vl-outcome-review) 35%, var(--vl-border-subtle));
+}
+
+.onboardingReadiness > div:first-child {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.onboardingReadinessDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--vl-outcome-review);
+}
+
+.onboardingReadiness.ready .onboardingReadinessDot {
+  background: var(--vl-outcome-allow);
+}
+
+.onboardingReadiness p {
+  margin: 0;
+  color: var(--vl-text-secondary);
+}
+
+.onboardingReadiness dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.onboardingReadiness dl > div {
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+  border-radius: var(--vl-radius-md);
+  background: var(--vl-bg-muted);
+}
+
+.onboardingReadiness dt {
+  color: var(--vl-text-tertiary);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.onboardingReadiness dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.onboardingNextSteps {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+
+.onboardingCompletionCard {
+  background:
+    radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--vl-accent) 9%, transparent), transparent 34%),
+    var(--vl-bg-elevated);
+}
+
+.onboardingReceiptHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: start;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--vl-border-subtle);
+}
+
+.onboardingReceiptHero > div {
+  display: grid;
+  gap: 12px;
+}
+
+.onboardingReceiptHero h2 {
+  margin: 0;
+  max-width: 720px;
+  font-size: clamp(34px, 4vw, 56px);
+  line-height: 1;
+  letter-spacing: -.045em;
+}
+
+.onboardingReceiptHero p {
+  margin: 0;
+  color: var(--vl-text-secondary);
+  line-height: 1.65;
+}
+
+.onboardingReceiptHash {
+  max-width: 260px;
+  padding: 10px 12px;
+  border: 1px solid var(--vl-border-subtle);
+  border-radius: var(--vl-radius-md);
+  color: var(--vl-text-tertiary);
+  font: 11px/1.5 var(--vl-font-mono);
+  overflow-wrap: anywhere;
+}
+
+.onboardingCompletionLinks {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.onboardingCompletionLinks a {
+  min-height: 116px;
+  padding: 18px;
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  border: 1px solid var(--vl-border-subtle);
+  border-radius: var(--vl-radius-xl);
+  background: var(--vl-bg-surface);
+  color: inherit;
+  text-decoration: none;
+}
+
+.onboardingCompletionLinks a:hover {
+  border-color: var(--vl-border-strong);
+}
+
+.onboardingCompletionLinks span {
+  color: var(--vl-text-secondary);
+  font-size: var(--vl-text-sm);
+  line-height: 1.55;
+}
+
+@media (max-width: 1080px) {
+  .onboardingOperationalLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .onboardingProgressRail {
+    position: static;
+  }
+
+  .onboardingStepList {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .onboardingStepList button {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .onboardingRailFooter {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .onboardingOperationalShell {
+    padding: 20px 16px 32px;
+  }
+
+  .onboardingOperationalShell .onboardingNav,
+  .onboardingWorkHeader,
+  .onboardingReceiptHero,
+  .onboardingPolicyStarter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .onboardingNavActions {
+    flex-wrap: wrap;
+  }
+
+  .onboardingStepList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .onboardingStepList small {
+    display: none;
+  }
+
+  .onboardingWorkHeader {
+    display: grid;
+  }
+
+  .onboardingScopeChip {
+    max-width: 100%;
+    border-radius: var(--vl-radius-lg);
+  }
+
+  .onboardingOperationalCard {
+    min-height: 0;
+    padding: 22px;
+  }
+
+  .onboardingResourceList,
+  .onboardingUseCaseGrid,
+  .onboardingIntegrationGrid,
+  .onboardingCompletionLinks,
+  .onboardingReadiness dl {
+    grid-template-columns: 1fr;
+  }
+
+  .onboardingInlineForm {
+    grid-template-columns: 1fr;
+  }
+
+  .onboardingActionsSpread {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .onboardingActionsSpread > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .onboardingReceiptHero {
+    display: grid;
+  }
+
+  .onboardingReceiptHash {
+    max-width: none;
+  }
+}
+
+@media (max-width: 460px) {
+  .onboardingStepList {
+    grid-template-columns: 1fr;
+  }
+}
