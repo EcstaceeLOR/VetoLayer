@@ -1,4 +1,4 @@
-import type { ActionRequest, Evidence, Policy } from "@vetolayer/core";
+import type { ActionRequest, Evidence, JsonValue, Policy } from "@vetolayer/core";
 import type { OnboardingIntegrationChoice, OnboardingUseCase } from "./onboarding-model";
 
 export const onboardingPolicyPackNames: Record<OnboardingUseCase, string> = {
@@ -140,7 +140,7 @@ export function buildOnboardingTestInput(input: {
   target: string;
   reason: string;
   now: Date;
-}): { action: ActionRequest; evidence: Evidence[]; facts: Record<string, unknown> } {
+}): { action: ActionRequest; evidence: Evidence[]; facts: Record<string, JsonValue> } {
   const timestamp = input.now.toISOString();
   const id = `onboarding_${input.useCase}_${input.now.getTime()}`;
   const actor = {
