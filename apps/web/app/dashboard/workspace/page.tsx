@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { WorkspaceManagement } from "../../../components/workspace-management";
+import { hasWorkspacePermission } from "../../../lib/workspace-model";
 import { getAuthenticatedWorkspace } from "../../../lib/server/workspace";
 import { getWorkspaceStore } from "../../../lib/server/workspace-store";
 
@@ -10,9 +11,10 @@ export default async function WorkspacePage() {
   if (!context) redirect("/onboarding");
 
   const { store } = getWorkspaceStore();
+  const canManageMembers = hasWorkspacePermission(context.role, "members.manage");
   const [members, invitations, projects, environments] = await Promise.all([
-    store.listMembers(context.workspaceId),
-    store.listInvitations(context.workspaceId),
+    canManageMembers ? store.listMembers(context.workspaceId) : Promise.resolve([]),
+    canManageMembers ? store.listInvitations(context.workspaceId) : Promise.resolve([]),
     store.listProjects(context.workspaceId, true),
     store.listEnvironments(context.workspaceId, context.projectId, true),
   ]);
@@ -26,7 +28,17 @@ export default async function WorkspacePage() {
       projects={projects}
       environments={environments}
       members={members}
-      invitations={invitations.map(({ tokenHash: _tokenHash, ...invite }) => invite)}
+      invitations={invitations.map((invite) => ({
+        id: invite.id,
+        workspaceId: invite.workspaceId,
+        email: invite.email,
+        role: invite.role,
+        status: invite.status,
+        invitedByUserId: invite.invitedByUserId,
+        expiresAt: invite.expiresAt,
+        createdAt: invite.createdAt,
+        ...(invite.acceptedAt ? { acceptedAt: invite.acceptedAt } : {}),
+      }))}
     />
   );
 }
