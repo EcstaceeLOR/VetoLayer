@@ -30,7 +30,12 @@ export async function POST(request: Request) {
   const { store } = getDataLifecycleStore();
 
   if (action === "export") {
-    const job = await store.create({ workspaceId: auth.workspace.workspaceId, requestedByUserId: auth.workspace.userId, kind: "workspace_export" });
+    const job = await store.create({
+      workspaceId: auth.workspace.workspaceId,
+      requestedByUserId: auth.workspace.userId,
+      kind: "workspace_export",
+      payload: { workspaceName: auth.workspace.workspace.name },
+    });
     await recordAuditEvent(workspaceAuditInput(auth.workspace, {
       action: "data.export.requested", category: "settings", targetType: "workspace_export", targetId: job.id,
       targetLabel: auth.workspace.workspace.name, href: "/dashboard/data", request,
