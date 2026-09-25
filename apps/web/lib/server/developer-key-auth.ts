@@ -1,6 +1,6 @@
 import type { ProductScope } from "../workspace-model";
 import { developerApiScope } from "./api-workspace";
-import { getDeveloperStore, type DeveloperKeyPermission } from "./developer-store";
+import { getDeveloperStore, type DeveloperKeyPermission, type DeveloperStore } from "./developer-store";
 import { readServerEnvironment } from "./env";
 
 export type DeveloperCredential = {
@@ -24,6 +24,7 @@ export async function authenticateDeveloperRequest(
   request: Request,
   requiredPermission: DeveloperKeyPermission = "evaluate",
   nodeEnv: string | undefined = process.env.NODE_ENV,
+  storeOverride?: DeveloperStore,
 ): Promise<DeveloperAuthResult> {
   let environment;
   try { environment = readServerEnvironment(); } catch {
@@ -57,7 +58,7 @@ export async function authenticateDeveloperRequest(
   }
 
   try {
-    const { store } = getDeveloperStore();
+    const store = storeOverride ?? getDeveloperStore().store;
     const record = await store.findActiveApiKeyBySecret(token);
     if (!record) {
       return { ok: false, status: 401, body: { error: { code: "INVALID_API_KEY", message: "The supplied VetoLayer API key is invalid or revoked." } } };
