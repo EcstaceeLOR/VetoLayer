@@ -12,7 +12,9 @@ export type WorkspacePermission =
   | "integrations.write"
   | "decisions.read"
   | "reviews.read"
-  | "reviews.resolve";
+  | "reviews.resolve"
+  | "audit.read"
+  | "audit.export";
 
 export type Workspace = {
   id: string;
@@ -96,6 +98,8 @@ const rolePermissions: Record<WorkspaceRole, ReadonlySet<WorkspacePermission>> =
     "decisions.read",
     "reviews.read",
     "reviews.resolve",
+    "audit.read",
+    "audit.export",
   ]),
   admin: new Set<WorkspacePermission>([
     "workspace.manage",
@@ -109,6 +113,8 @@ const rolePermissions: Record<WorkspaceRole, ReadonlySet<WorkspacePermission>> =
     "decisions.read",
     "reviews.read",
     "reviews.resolve",
+    "audit.read",
+    "audit.export",
   ]),
   reviewer: new Set<WorkspacePermission>([
     "policies.read",
