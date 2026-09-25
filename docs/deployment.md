@@ -20,7 +20,7 @@ Do not configure the Output Directory as `apps/web/.next` when Root Directory is
 
 ## 1. SERV Reasoning
 
-Required for real contextual judgment:
+Required for real contextual judgment and for completing the authenticated operational onboarding flow:
 
 ```text
 SERV_API_KEY=...
@@ -29,7 +29,7 @@ SERV_BASE_URL=https://inference-api.openserv.ai/v1
 SERV_TIMEOUT_MS=20000
 ```
 
-If SERV is unavailable, malformed, or unconfigured, VetoLayer fails safely to `REVIEW`; it never silently approves the action.
+If SERV is unavailable, malformed, or unconfigured, VetoLayer fails safely to `REVIEW`; it never silently approves the action. Operational onboarding goes one step further: its final test is not marked complete unless SERV returns a validated live reasoning result with `providerStatus: ok`.
 
 ## 2. Supabase Auth
 
@@ -47,21 +47,22 @@ Enable email/password authentication and allow the production callback URL:
 https://<your-production-domain>/auth/callback
 ```
 
-See [`production-auth.md`](production-auth.md) and [`auth-workspaces.md`](auth-workspaces.md).
+See [`auth-production.md`](auth-production.md) and [`auth-workspaces.md`](auth-workspaces.md).
 
 ## 3. Durable product persistence
 
-Durable persistence is **required for production workspace creation and management**. Configure both server-only values:
+Durable persistence is **required for production workspace creation, onboarding progress, and product operation**. Configure both server-only values:
 
 ```text
 SUPABASE_URL=https://<project>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 ```
 
-Run:
+Apply the migrations in order:
 
 ```text
 supabase/migrations/202609250100_workspace_model.sql
+supabase/migrations/202609250600_onboarding_state.sql
 ```
 
 The production model includes:
@@ -71,24 +72,25 @@ The production model includes:
 - `vetolayer_projects`
 - `vetolayer_environments`
 - `vetolayer_workspace_invitations`
+- `vetolayer_onboarding_states`
 - `vetolayer_decisions`
 - `vetolayer_policies`
 - `vetolayer_review_cases`
 - `vetolayer_integration_configs`
 
-The migration also adds project/environment scope indexes to the existing operational tables and provides a one-time bridge for historical `user:<id>` workspaces. See [`auth-workspaces.md`](auth-workspaces.md).
+The workspace migration adds project/environment scope indexes to the existing operational tables and provides a one-time bridge for historical `user:<id>` workspaces. The onboarding migration stores only resume selections and the receipt reference; VetoLayer revalidates real workspace, integration, policy, SERV, and receipt state every time onboarding loads. See [`auth-workspaces.md`](auth-workspaces.md) and [`onboarding.md`](onboarding.md).
 
 The service-role key never enters browser code. Application routes authenticate the Supabase user, validate workspace membership, role, project ownership, and environment ownership, then perform server-side persistence.
 
 ## 4. GitHub Gate
 
-Optional for the seeded public example, required for live GitHub evidence:
+Optional for the public example, required when a user chooses GitHub as their real onboarding/integration path:
 
 ```text
 GITHUB_TOKEN=...
 ```
 
-The token stays server-only.
+The token stays server-only. Issue #56 replaces this server-token setup with a proper GitHub App installation flow; until then the operational onboarding step tests the current server-side GitHub connection rather than pretending a repository has been installed.
 
 ## 5. Developer API
 
@@ -113,7 +115,7 @@ VETOLAYER_DEMO_WORKSPACE_ID=demo
 VETOLAYER_DEMO_RATE_LIMIT_PER_MINUTE=30
 ```
 
-The `/demo` flow remains a public product example; it is not the authenticated product state.
+The `/demo` flow remains a public product example; it is not the authenticated product state and its seeded receipts never satisfy operational onboarding completion.
 
 ## 7. Health endpoint
 
@@ -148,9 +150,11 @@ SMOKE_BASE_URL=https://<your-production-domain> pnpm release:smoke
 - insufficient workspace role -> `403 FORBIDDEN`
 - archived project write -> `409 PROJECT_ARCHIVED`
 - production workspace persistence missing -> `503 WORKSPACE_PERSISTENCE_REQUIRED`
+- production onboarding persistence missing -> `503 ONBOARDING_PERSISTENCE_REQUIRED`
 - invalid Developer API token -> `401`
 - rate limit exceeded -> `429` with `Retry-After`
 - SERV/provider failure -> conservative `REVIEW`, never accidental `ALLOW`
+- onboarding SERV live-check failure -> receipt remains auditable, but onboarding stays incomplete until a validated live SERV result succeeds
 
 ## Secret handling
 

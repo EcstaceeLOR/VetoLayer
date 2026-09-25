@@ -1,23 +1,45 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { OnboardingFlow } from "../../components/onboarding-flow";
+import { Notice } from "../../components/ui/primitives";
 import { VetoLayerLogo } from "../../components/vetolayer-logo";
+import { loadOnboardingSnapshot } from "../../lib/server/onboarding-progress";
+import "./onboarding.css";
 
-export default function OnboardingPage() {
+export const dynamic = "force-dynamic";
+
+export default async function OnboardingPage() {
+  let snapshot;
+  try {
+    snapshot = await loadOnboardingSnapshot();
+  } catch {
+    return (
+      <main className="onboardingShell onboardingOperationalShell" id="main-content" tabIndex={-1}>
+        <nav className="onboardingNav" aria-label="Onboarding navigation">
+          <Link href="/" className="brand" aria-label="VetoLayer home"><VetoLayerLogo size="md" /></Link>
+          <Link href="/account">Account & security</Link>
+        </nav>
+        <div className="onboardingUnavailable">
+          <Notice tone="danger" title="Setup service unavailable">
+            VetoLayer could not load durable onboarding state. Confirm Supabase persistence is configured and the Issue #55 onboarding migration has been applied, then reload this page.
+          </Notice>
+        </div>
+      </main>
+    );
+  }
+
+  if (!snapshot) redirect("/login?next=/onboarding");
+
   return (
-    <main className="onboardingShell" id="main-content" tabIndex={-1}>
+    <main className="onboardingShell onboardingOperationalShell" id="main-content" tabIndex={-1}>
       <nav className="onboardingNav" aria-label="Onboarding navigation">
         <Link href="/" className="brand" aria-label="VetoLayer home"><VetoLayerLogo size="md" /></Link>
-        <Link href="/demo">View demo instead</Link>
+        <div className="onboardingNavActions">
+          {snapshot.selected ? <Link href="/dashboard">Exit and resume later</Link> : <Link href="/">Exit setup</Link>}
+          <Link href="/account">Account</Link>
+        </div>
       </nav>
-      <div className="onboardingLayout">
-        <aside className="onboardingAside" aria-label="VetoLayer onboarding principles">
-          <p className="eyebrow">GET TO YOUR FIRST DECISION</p>
-          <h2>Set up the control layer, not another AI dashboard.</h2>
-          <p>VetoLayer only needs enough context to know what an agent is trying to do, which policies apply, and what evidence should be trusted.</p>
-          <div className="onboardingPrinciples"><div><span>01</span><p><strong>Hard rules stay hard</strong>Deterministic restrictions never become fuzzy model judgment.</p></div><div><span>02</span><p><strong>SERV handles ambiguity</strong>Context, exceptions, conflicting evidence, and uncertainty are reasoned over explicitly.</p></div><div><span>03</span><p><strong>Every verdict is inspectable</strong>Decision Receipts preserve what happened and why.</p></div></div>
-        </aside>
-        <OnboardingFlow />
-      </div>
+      <OnboardingFlow initialSnapshot={snapshot} />
     </main>
   );
 }
