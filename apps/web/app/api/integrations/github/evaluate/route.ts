@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { evaluateGitHubPullRequest, type GitHubGateOperation } from "@vetolayer/github-gate";
-import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../../../lib/server/api-auth";
-import { getDecisionStore } from "../../../../../../lib/server/decision-store";
-import { getGitHubInstallationToken, readGitHubAppConfig } from "../../../../../../lib/server/github-app";
-import { getGitHubAppStore } from "../../../../../../lib/server/github-app-store";
-import { consumeRateLimit, requestClientKey } from "../../../../../../lib/server/rate-limit";
-import { getReviewStore } from "../../../../../../lib/server/review-store";
+import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../../lib/server/api-auth";
+import { getDecisionStore } from "../../../../../lib/server/decision-store";
+import { getGitHubInstallationToken, readGitHubAppConfig } from "../../../../../lib/server/github-app";
+import { getGitHubAppStore } from "../../../../../lib/server/github-app-store";
+import { consumeRateLimit, requestClientKey } from "../../../../../lib/server/rate-limit";
+import { getReviewStore } from "../../../../../lib/server/review-store";
 
 export const runtime = "nodejs";
 
@@ -22,10 +22,7 @@ export async function POST(request: Request) {
   const archived = rejectArchivedProjectWrite(auth.workspace);
   if (archived) return archived;
 
-  const rate = consumeRateLimit({
-    key: `github-evaluate:${auth.workspace.workspaceId}:${auth.workspace.userId}:${requestClientKey(request)}`,
-    limit: 30,
-  });
+  const rate = consumeRateLimit({ key: `github-evaluate:${auth.workspace.workspaceId}:${auth.workspace.userId}:${requestClientKey(request)}`, limit: 30 });
   if (!rate.allowed) {
     const retryAfter = Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000));
     return NextResponse.json({ error: { code: "RATE_LIMITED", message: "Too many GitHub evaluations. Try again shortly." } }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
@@ -48,9 +45,7 @@ export async function POST(request: Request) {
   const scope = { workspaceId: auth.workspace.workspaceId, projectId: auth.workspace.projectId, environmentId: auth.workspace.environmentId };
   const { store: githubStore } = getGitHubAppStore();
   const installation = await githubStore.getInstallation(scope);
-  if (!installation || installation.state !== "ready") {
-    return NextResponse.json({ error: { code: "GITHUB_APP_NOT_READY", message: "Connect a healthy GitHub App installation before evaluating a pull request." } }, { status: 409 });
-  }
+  if (!installation || installation.state !== "ready") return NextResponse.json({ error: { code: "GITHUB_APP_NOT_READY", message: "Connect a healthy GitHub App installation before evaluating a pull request." } }, { status: 409 });
   const repositories = await githubStore.listRepositories(installation.id);
   const repository = repositories.find((candidate) => candidate.repositoryId === repositoryId && candidate.connected);
   if (!repository) return NextResponse.json({ error: { code: "REPOSITORY_NOT_CONNECTED", message: "That repository is not connected to the active VetoLayer project and environment." } }, { status: 403 });
@@ -74,13 +69,7 @@ export async function POST(request: Request) {
     });
 
     const { store: decisionStore } = getDecisionStore();
-    await decisionStore.save({
-      id: result.receipt.receiptId,
-      ...scope,
-      source: "integration",
-      receipt: result.receipt,
-      createdAt: result.receipt.timestamps.receiptCreatedAt,
-    });
+    await decisionStore.save({ id: result.receipt.receiptId, ...scope, source: "integration", receipt: result.receipt, createdAt: result.receipt.timestamps.receiptCreatedAt });
 
     let reviewCaseId: string | undefined;
     if (result.receipt.outcome === "REVIEW") {
@@ -94,24 +83,13 @@ export async function POST(request: Request) {
         title: `${operation.replaceAll("-", " ")} · ${repository.fullName}#${pullRequest}`,
         source: "integration",
         receipt: result.receipt,
-        context: {
-          kind: "github",
-          snapshot: result.snapshot,
-          operation,
-          restrictedWindow: false,
-        },
+        context: { kind: "github", snapshot: result.snapshot, operation, restrictedWindow: false },
         createdAt: now,
         updatedAt: now,
       });
     }
 
-    return NextResponse.json({
-      outcome: result.receipt.outcome,
-      summary: result.receipt.decisionSummary,
-      receipt: result.receipt,
-      reviewCaseId,
-      repository: { repositoryId: repository.repositoryId, fullName: repository.fullName },
-    });
+    return NextResponse.json({ outcome: result.receipt.outcome, summary: result.receipt.decisionSummary, receipt: result.receipt, reviewCaseId, repository: { repositoryId: repository.repositoryId, fullName: repository.fullName } });
   } catch {
     return NextResponse.json({ error: { code: "GITHUB_EVALUATION_FAILED", message: "VetoLayer could not collect the required GitHub evidence. No action was approved." } }, { status: 503 });
   }
