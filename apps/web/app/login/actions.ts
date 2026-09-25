@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isValidEmail, sanitizeDisplayName, validateNewPassword } from "../../lib/auth/ux";
 import { resolveAppOrigin, safeAppPath } from "../../lib/server/app-origin";
+import { recordUserSecurityAudit } from "../../lib/server/audit";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 
 function readCredentials(formData: FormData) {
@@ -18,14 +19,20 @@ function loginRedirect(params: Record<string, string>) {
   redirect(`/login?${query.toString()}`);
 }
 
+function identityFromUser(user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) {
+  const displayName = typeof user.user_metadata?.display_name === "string" ? user.user_metadata.display_name.trim() : undefined;
+  return { userId: user.id, ...(user.email ? { email: user.email } : {}), ...(displayName ? { displayName } : {}) };
+}
+
 export async function signIn(formData: FormData) {
   const { email, password, next } = readCredentials(formData);
   if (!isValidEmail(email) || !password) loginRedirect({ error: "invalid_credentials", next, mode: "signin" });
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) loginRedirect({ error: "sign_in_failed", next, mode: "signin" });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error || !data.user) loginRedirect({ error: "sign_in_failed", next, mode: "signin" });
 
+  await recordUserSecurityAudit({ ...identityFromUser(data.user), action: "security.sign_in", metadata: { authMethod: "password" } });
   redirect(next);
 }
 
@@ -59,6 +66,8 @@ export async function signUp(formData: FormData) {
 
 export async function signOut() {
   const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) await recordUserSecurityAudit({ ...identityFromUser(user), action: "security.sign_out", metadata: { scope: "local" } });
   await supabase.auth.signOut({ scope: "local" });
   redirect("/login?message=signed_out");
 }
