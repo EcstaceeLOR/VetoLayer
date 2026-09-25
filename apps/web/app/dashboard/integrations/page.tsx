@@ -24,6 +24,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
           <p className="eyebrow">INTEGRATIONS</p>
           <h1 className="dashboardTitle">Connect the tools VetoLayer will govern.</h1>
           <p className="dashboardIntro">Install VetoLayer as a GitHub App or use the stable Developer API. Connections are scoped to the active workspace, project, and environment; operational tokens never enter the browser.</p>
+          <div className="emptyActions"><Link className="rowLink" href="/dashboard/docs/github-app">GitHub App setup →</Link><Link className="rowLink" href="/dashboard/docs/troubleshooting">Integration troubleshooting →</Link></div>
         </div>
       </header>
 
