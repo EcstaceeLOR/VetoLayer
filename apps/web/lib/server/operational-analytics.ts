@@ -1,8 +1,10 @@
 import type { Project, ProjectEnvironment } from "../workspace-model";
+import { hasWorkspacePermission } from "../workspace-model";
 import { buildOperationalAnalytics, type AnalyticsFilters, type OperationalAnalyticsReport } from "../operational-analytics";
 import { getAuditStore } from "./audit-store";
 import { getDecisionStore } from "./decision-store";
 import { getReviewStore } from "./review-store";
+import { getAuthenticatedIdentity } from "./workspace";
 import { getWorkspaceStore } from "./workspace-store";
 
 const MAX_DECISIONS = 5_000;
@@ -97,18 +99,23 @@ export async function loadOperationalAnalytics(workspaceId: string, requestedFil
   });
 
   const { store: auditStore, persistence: auditPersistence } = getAuditStore();
+  const identity = await getAuthenticatedIdentity();
+  const membership = identity ? await workspaceStore.getMembership(workspaceId, identity.userId) : null;
+  const canReadAudit = Boolean(membership && hasWorkspacePermission(membership.role, "audit.read"));
   let auditEvents: Awaited<ReturnType<typeof auditStore.list>> = [];
-  let auditAvailable = true;
-  try {
-    auditEvents = await auditStore.list(workspaceId, {
-      ...(filters.projectId ? { projectId: filters.projectId } : {}),
-      ...(filters.environmentId ? { environmentId: filters.environmentId } : {}),
-      from: filters.from,
-      to: filters.to,
-      limit: MAX_AUDIT_EVENTS,
-    });
-  } catch {
-    auditAvailable = false;
+  let auditAvailable = canReadAudit;
+  if (canReadAudit) {
+    try {
+      auditEvents = await auditStore.list(workspaceId, {
+        ...(filters.projectId ? { projectId: filters.projectId } : {}),
+        ...(filters.environmentId ? { environmentId: filters.environmentId } : {}),
+        from: filters.from,
+        to: filters.to,
+        limit: MAX_AUDIT_EVENTS,
+      });
+    } catch {
+      auditAvailable = false;
+    }
   }
 
   return {
@@ -119,7 +126,7 @@ export async function loadOperationalAnalytics(workspaceId: string, requestedFil
       filters,
       now,
       truncated: total > decisions.length,
-      auditTruncated: auditEvents.length >= MAX_AUDIT_EVENTS,
+      auditTruncated: auditAvailable && auditEvents.length >= MAX_AUDIT_EVENTS,
     }),
     projects,
     environments,
