@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
-import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../../../lib/server/api-auth";
-import { createGitHubInstallUrl, readGitHubAppConfig } from "../../../../../../lib/server/github-app";
-import { getGitHubAppStore } from "../../../../../../lib/server/github-app-store";
+import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../../lib/server/api-auth";
+import { createGitHubInstallUrl, readGitHubAppConfig } from "../../../../../lib/server/github-app";
+import { getGitHubAppStore } from "../../../../../lib/server/github-app-store";
 
 export const runtime = "nodejs";
 
