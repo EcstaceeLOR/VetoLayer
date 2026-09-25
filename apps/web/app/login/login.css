@@ -1,5 +1,6 @@
 .authShell { min-height: 100vh; padding: 32px; display: grid; place-items: center; }
 .authFrame { width: min(1120px, 100%); display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(360px, .8fr); gap: 56px; align-items: center; }
+.authFrameCompact { width: min(1040px, 100%); }
 .authBrand { position: absolute; top: 30px; left: 32px; }
 .authIntro h1 { font-size: clamp(52px, 7vw, 88px); line-height: .94; letter-spacing: -.065em; margin: 0; max-width: 760px; }
 .authIntro > p:last-child { color: #9ca5b5; max-width: 640px; line-height: 1.7; font-size: 17px; margin-top: 28px; }
@@ -7,23 +8,16 @@
 .authCardHeader { display: flex; justify-content: space-between; gap: 20px; align-items: center; padding-bottom: 20px; border-bottom: 1px solid var(--line); color: #c8cfda; font-size: 12px; }
 .authCardHeader > div { display: flex; gap: 8px; align-items: center; }
 .authStatusDot { width: 7px; height: 7px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 14px rgba(216,255,97,.6); }
-.authState { border: 1px solid var(--line); border-radius: 999px; padding: 6px 9px; font: 700 9px/1 ui-monospace, monospace; text-transform: uppercase; letter-spacing: .08em; }
-.authState.ready { color: var(--allow); }
-.authState.needsConfig { color: var(--review); }
-.authNotice { margin-top: 18px; padding: 12px 14px; border-radius: 12px; font-size: 12px; line-height: 1.5; }
-.authNotice.error { color: var(--block); background: rgba(255,155,155,.06); border: 1px solid rgba(255,155,155,.25); }
-.authNotice.success { color: var(--allow); background: rgba(173,255,180,.05); border: 1px solid rgba(173,255,180,.22); }
+.authModeSwitch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 18px; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: #0b0e14; }
+.authModeSwitch a { min-height: 38px; display: grid; place-items: center; border-radius: 9px; color: #7f899a; font-size: 12px; font-weight: 750; }
+.authModeSwitch a.active { color: var(--text); background: var(--panel-2); box-shadow: inset 0 0 0 1px #2c3442; }
 .authForm { display: grid; gap: 16px; margin-top: 22px; }
-.authForm label { display: grid; gap: 8px; }
-.authForm label span { color: #7f899a; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
-.authForm input { width: 100%; border: 1px solid var(--line); background: #0b0e14; color: var(--text); border-radius: 12px; padding: 13px 14px; outline: none; }
-.authForm input:focus { border-color: #596376; box-shadow: 0 0 0 3px rgba(216,255,97,.05); }
-.authForm input:disabled { opacity: .5; }
-.authActions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
-.authActions button { border-radius: 12px; padding: 13px 15px; font-weight: 800; cursor: pointer; }
-.authActions button:disabled { cursor: not-allowed; opacity: .45; }
-.authPrimary { border: 1px solid var(--accent); background: var(--accent); color: #10130b; }
-.authSecondary { border: 1px solid var(--line); background: transparent; color: var(--text); }
+.authForm .vlButton { width: 100%; }
+.authInlineLinks { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.authInlineLinks a { color: #aeb6c4; font-size: 11px; text-decoration: underline; text-decoration-color: #3a4352; text-underline-offset: 3px; }
+.authInlineLinks a:hover { color: var(--text); }
+.authInlineLinksFooter { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
+.authRecoveryActions { display: grid; gap: 10px; margin-top: 18px; }
 .authFinePrint { color: #697386; font-size: 11px; line-height: 1.6; margin: 20px 0 0; }
 @media (max-width: 860px) { .authShell { padding: 90px 20px 40px; } .authFrame { grid-template-columns: 1fr; gap: 32px; } .authBrand { left: 20px; } .authIntro h1 { font-size: clamp(46px, 15vw, 72px); } }
-@media (max-width: 520px) { .authActions { grid-template-columns: 1fr; } .authCard { padding: 20px; } }
+@media (max-width: 520px) { .authCard { padding: 20px; } .authInlineLinks { align-items: flex-start; flex-direction: column; } }
