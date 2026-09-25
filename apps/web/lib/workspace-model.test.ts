@@ -10,6 +10,16 @@ describe("workspace role permissions", () => {
     expect(hasWorkspacePermission("reviewer", "members.manage")).toBe(false);
   });
 
+  it("keeps activity and security audit access limited to workspace administrators", () => {
+    expect(hasWorkspacePermission("owner", "audit.read")).toBe(true);
+    expect(hasWorkspacePermission("owner", "audit.export")).toBe(true);
+    expect(hasWorkspacePermission("admin", "audit.read")).toBe(true);
+    expect(hasWorkspacePermission("admin", "audit.export")).toBe(true);
+    expect(hasWorkspacePermission("reviewer", "audit.read")).toBe(false);
+    expect(hasWorkspacePermission("reviewer", "audit.export")).toBe(false);
+    expect(hasWorkspacePermission("member", "audit.read")).toBe(false);
+  });
+
   it("keeps owner-only and admin-safe boundaries explicit", () => {
     expect(hasWorkspacePermission("owner", "workspace.archive")).toBe(true);
     expect(hasWorkspacePermission("admin", "workspace.archive")).toBe(false);
