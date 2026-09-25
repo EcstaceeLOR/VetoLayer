@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { Badge, Button, Card, Notice } from "../../../components/ui/primitives";
 import type { IntegrationKey, IntegrationReadiness, IntegrationTestResult } from "../../../lib/integration-contracts";
 import styles from "./integration-setup.module.css";
 
@@ -14,7 +15,6 @@ const sdkSnippet = `import { createVetoLayerClient, guardedToolCall } from "@vet
 const veto = createVetoLayerClient({
   baseUrl: process.env.VETOLAYER_URL!,
   apiKey: process.env.VETOLAYER_API_KEY,
-  workspaceId: "production",
 });
 
 const result = await guardedToolCall({
@@ -87,7 +87,7 @@ export function IntegrationSetup({ initialReadiness }: Props) {
 
   return (
     <div className={styles.stack}>
-      <section className={styles.card}>
+      <Card className={styles.card}>
         <div className={styles.cardHeader}>
           <div className={styles.identity}>
             <div className={styles.icon}>GH</div>
@@ -96,9 +96,7 @@ export function IntegrationSetup({ initialReadiness }: Props) {
               <p>Collect live pull-request, review, changed-file, and CI evidence before an autonomous coding agent merges or deploys.</p>
             </div>
           </div>
-          <span className={`${styles.badge} ${github.ready ? styles.ready : styles.warning}`}>
-            {github.ready ? "READY" : "NEEDS SETUP"}
-          </span>
+          <Badge tone={github.ready ? "success" : "warning"}>{github.ready ? "Ready" : "Needs setup"}</Badge>
         </div>
 
         <div className={styles.body}>
@@ -112,9 +110,9 @@ export function IntegrationSetup({ initialReadiness }: Props) {
             </ol>
             <pre className={styles.code}>{githubSnippet}</pre>
             <div className={styles.actions}>
-              <button className={styles.testButton} type="button" onClick={() => testConnection("github")} disabled={testing === "github"}>
+              <Button tone="secondary" type="button" onClick={() => testConnection("github")} disabled={testing === "github"}>
                 {testing === "github" ? "Testing…" : "Test GitHub connection"}
-              </button>
+              </Button>
               <Link className={styles.secondaryLink} href="/demo">Open flagship demo →</Link>
             </div>
             <TestResult result={results.github} />
@@ -126,16 +124,13 @@ export function IntegrationSetup({ initialReadiness }: Props) {
             <div className={styles.configRow}><span>SERV contextual reasoning</span><strong className={!github.servConfigured ? styles.missing : undefined}>{github.servConfigured ? "Configured" : "Missing"}</strong></div>
             <div className={styles.configRow}><span>Gate readiness</span><strong>{github.ready ? "Ready to evaluate" : "Incomplete"}</strong></div>
             {github.missing.length > 0 ? (
-              <div className={`${styles.result} ${styles.warning}`}>
-                <strong>Required next</strong>
-                <p>Add {github.missing.join(" and ")} on the server. Secret values are never returned to this page.</p>
-              </div>
+              <Notice tone="warning" title="Required next">Add {github.missing.join(" and ")} on the server. Secret values are never returned to this page.</Notice>
             ) : null}
           </div>
         </div>
-      </section>
+      </Card>
 
-      <section className={styles.card}>
+      <Card className={styles.card}>
         <div className={styles.cardHeader}>
           <div className={styles.identity}>
             <div className={styles.icon}>API</div>
@@ -145,9 +140,9 @@ export function IntegrationSetup({ initialReadiness }: Props) {
               <span className={styles.endpoint}>POST {developerApi.endpoint}</span>
             </div>
           </div>
-          <span className={`${styles.badge} ${developerApi.ready ? styles.ready : styles.warning}`}>
-            {developerApi.state === "ready" ? "READY" : developerApi.state === "local-only" ? "LOCAL / DEMO" : "NEEDS SETUP"}
-          </span>
+          <Badge tone={developerApi.ready ? "success" : developerApi.state === "local-only" ? "info" : "warning"}>
+            {developerApi.state === "ready" ? "Ready" : developerApi.state === "local-only" ? "Local / demo" : "Needs setup"}
+          </Badge>
         </div>
 
         <div className={styles.body}>
@@ -155,9 +150,9 @@ export function IntegrationSetup({ initialReadiness }: Props) {
             <p className={styles.label}>Server-side TypeScript client</p>
             <pre className={styles.code}>{sdkSnippet}</pre>
             <div className={styles.actions}>
-              <button className={styles.testButton} type="button" onClick={() => testConnection("developer-api")} disabled={testing === "developer-api"}>
+              <Button tone="secondary" type="button" onClick={() => testConnection("developer-api")} disabled={testing === "developer-api"}>
                 {testing === "developer-api" ? "Testing…" : "Test API configuration"}
-              </button>
+              </Button>
               <Link className={styles.secondaryLink} href="/dashboard/decisions">Inspect decisions →</Link>
             </div>
             <TestResult result={results["developer-api"]} />
@@ -169,30 +164,29 @@ export function IntegrationSetup({ initialReadiness }: Props) {
             <div className={styles.configRow}><span>Bearer authentication</span><strong className={!developerApi.authConfigured ? styles.missing : undefined}>{developerApi.authConfigured ? "Enabled" : "Not configured"}</strong></div>
             <div className={styles.configRow}><span>Production readiness</span><strong>{developerApi.ready ? "Ready" : "Needs API key"}</strong></div>
             {developerApi.missing.length > 0 ? (
-              <div className={`${styles.result} ${styles.warning}`}>
-                <strong>Required next</strong>
-                <p>Set {developerApi.missing.join(" and ")} server-side before exposing the Developer API publicly.</p>
-              </div>
+              <Notice tone="warning" title="Required next">Set {developerApi.missing.join(" and ")} server-side before exposing the Developer API publicly.</Notice>
             ) : null}
           </div>
         </div>
-      </section>
+      </Card>
 
-      <div className={styles.note}>
-        <strong>Credential boundary:</strong> GitHub, SERV, and VetoLayer API secrets remain server-only. This screen receives readiness booleans and test outcomes only; it never renders or reads back credential values.
-      </div>
+      <Notice tone="info" title="Credential boundary">
+        GitHub, SERV, and VetoLayer API secrets remain server-only. This screen receives readiness booleans and test outcomes only; it never renders or reads back credential values.
+      </Notice>
     </div>
   );
 }
 
 function TestResult({ result }: { result?: IntegrationTestResult }) {
   if (!result) return null;
+  const tone = result.level === "success" ? "success" : result.level === "warning" ? "warning" : "danger";
   return (
-    <div className={`${styles.result} ${styles[result.level]}`} aria-live="polite">
-      <strong>{result.code.replaceAll("_", " ")}</strong>
-      <p>{result.message}</p>
-      {result.details?.account ? <small>Connected GitHub account: {result.details.account}</small> : null}
-      {result.details?.auth ? <small>Bearer authentication: {result.details.auth}</small> : null}
+    <div aria-live="polite">
+      <Notice tone={tone} title={result.code.replaceAll("_", " ")}>
+        {result.message}
+      </Notice>
+      {result.details?.account ? <small className={styles.testMeta}>Connected GitHub account: {result.details.account}</small> : null}
+      {result.details?.auth ? <small className={styles.testMeta}>Bearer authentication: {result.details.auth}</small> : null}
       {result.nextSteps?.length ? <ul className={styles.nextSteps}>{result.nextSteps.map((step) => <li key={step}>{step}</li>)}</ul> : null}
     </div>
   );

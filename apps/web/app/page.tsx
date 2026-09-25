@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ArrowRightIcon } from "../components/ui/icons";
+import { ButtonLink, OutcomeBadge } from "../components/ui/primitives";
 import { VetoLayerLogo } from "../components/vetolayer-logo";
 import { isSupabaseAuthConfigured } from "../lib/supabase/server";
 
@@ -29,10 +31,10 @@ export default function HomePage() {
             <>
               <Link href="/login">Sign in</Link>
               <Link href="/dashboard">Control center</Link>
-              <Link className="navCta" href="/onboarding">Start building</Link>
+              <ButtonLink className="navCta" tone="primary" size="sm" href="/onboarding">Start building</ButtonLink>
             </>
           ) : (
-            <Link className="navCta" href="/demo">Try VetoLayer</Link>
+            <ButtonLink className="navCta" tone="primary" size="sm" href="/demo">Try VetoLayer</ButtonLink>
           )}
         </div>
       </nav>
@@ -45,10 +47,10 @@ export default function HomePage() {
             VetoLayer sits between autonomous agents and high-impact tools. It checks hard policy deterministically, uses SERV Reasoning for contextual judgment, and returns an auditable verdict before the action becomes real.
           </p>
           <div className="heroActions">
-            <Link className="primaryButton" href={primaryHref}>
-              {authConfigured ? "Create your first gate →" : "Run the live demo →"}
-            </Link>
-            <Link className="secondaryButton" href="/demo">Watch the flagship decision</Link>
+            <ButtonLink tone="primary" size="lg" href={primaryHref}>
+              {authConfigured ? "Create your first gate" : "Run the live demo"}<ArrowRightIcon />
+            </ButtonLink>
+            <ButtonLink tone="secondary" size="lg" href="/demo">Watch the flagship decision</ButtonLink>
           </div>
           <div className="decisionStrip" aria-label="Possible VetoLayer outcomes">
             <span className="decisionSignal allow"><b>ALLOW</b><small>safe to execute</small></span>
@@ -57,7 +59,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="heroConsole" aria-label="Example VetoLayer decision">
+        <div className="heroConsole vlCard vlCardRaised" aria-label="Example VetoLayer decision">
           <div className="consoleTop"><span>LIVE DECISION</span><span className="consoleId">VT-2041</span></div>
           <div className="consoleAction">
             <small>PROPOSED ACTION</small>
@@ -69,14 +71,14 @@ export default function HomePage() {
             <div><span className="checkPass" aria-hidden="true">✓</span><p><b>Critical incident confirmed</b><small>INC-2041 · active exposure</small></p></div>
             <div><span className="checkWarn" aria-hidden="true">!</span><p><b>Security approval missing</b><small>Contextual exception incomplete</small></p></div>
           </div>
-          <div className="consoleVerdict"><span className="outcomeBadge review">REVIEW</span><p>SERV found the emergency exception plausible, but one required condition is unresolved.</p></div>
+          <div className="consoleVerdict"><OutcomeBadge outcome="REVIEW" /><p>SERV found the emergency exception plausible, but one required condition is unresolved.</p></div>
           <div className="consoleFooter"><span>SERV reasoning trace attached</span><span>Receipt integrity ✓</span></div>
         </div>
       </section>
 
       <section className="marketingProof">
         <div>
-          <p className="eyebrow">THE PRODUCT THESIS</p>
+          <p className="vlEyebrow">The product thesis</p>
           <h2>Permission answers <em>can</em>.<br />VetoLayer answers <em>should</em>.</h2>
         </div>
         <p>
@@ -86,12 +88,12 @@ export default function HomePage() {
 
       <section className="controlPathSection">
         <div className="sectionHeading marketingSectionHeading">
-          <div><p className="eyebrow">CONTROL PATH</p><h2>One decision path. No hidden magic.</h2></div>
+          <div><p className="vlEyebrow">Control path</p><h2>One decision path. No hidden magic.</h2></div>
           <span className="sectionMeta">Hard rules + SERV contextual judgment</span>
         </div>
         <div className="controlPathGrid">
           {controlPath.map(([number, title, copy]) => (
-            <article key={number} className="controlPathCard">
+            <article key={number} className="controlPathCard vlCard">
               <span>{number}</span><h3>{title}</h3><p>{copy}</p>
             </article>
           ))}
@@ -100,22 +102,22 @@ export default function HomePage() {
 
       <section className="marketSection">
         <div className="marketIntro">
-          <p className="eyebrow">START NARROW. EXPAND NATURALLY.</p>
+          <p className="vlEyebrow">Start narrow. Expand naturally.</p>
           <h2>Built first for coding agents. Designed for every high-impact action.</h2>
           <p>Our beachhead is developer security because the failure mode is immediate and measurable. The same decision contract later supports other policy packs without changing the core architecture.</p>
         </div>
         <div className="useCaseGrid">
-          {useCases.map(([title, copy]) => <article key={title}><h3>{title}</h3><p>{copy}</p></article>)}
+          {useCases.map(([title, copy]) => <article className="vlCard" key={title}><h3>{title}</h3><p>{copy}</p></article>)}
         </div>
       </section>
 
-      <section className="finalCta">
-        <div><p className="eyebrow">MAKE AUTONOMY EARN TRUST</p><h2>Put judgment between the agent and the action.</h2></div>
+      <section className="finalCta vlCard vlCardRaised">
+        <div><p className="vlEyebrow">Make autonomy earn trust</p><h2>Put judgment between the agent and the action.</h2></div>
         <div className="heroActions">
-          <Link className="primaryButton" href={primaryHref}>
-            {authConfigured ? "Set up VetoLayer →" : "Run the flagship demo →"}
-          </Link>
-          <Link className="secondaryButton" href="/demo">Open live demo</Link>
+          <ButtonLink tone="primary" size="lg" href={primaryHref}>
+            {authConfigured ? "Set up VetoLayer" : "Run the flagship demo"}<ArrowRightIcon />
+          </ButtonLink>
+          <ButtonLink tone="secondary" size="lg" href="/demo">Open live demo</ButtonLink>
         </div>
       </section>
 

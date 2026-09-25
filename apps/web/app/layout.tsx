@@ -6,6 +6,8 @@ import "./policy-studio.css";
 import "./human-review.css";
 import "./review-demo.css";
 import "./accessibility.css";
+import "./design-system.css";
+import "./design-system-compat.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://vetolayer.vercel.app"),
@@ -30,7 +32,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: "dark",
-  themeColor: "#080a0f",
+  themeColor: "#07090d",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -1,9 +1,9 @@
 "use client";
 
 import type { DecisionReceipt, HumanReviewRecord } from "@vetolayer/core";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { Button, ButtonLink, EmptyState, Field, Input, Notice, OutcomeBadge, Textarea } from "./ui/primitives";
 
 type ReviewCaseView = {
   id: string;
@@ -97,12 +97,13 @@ export function ReviewInbox() {
 
   if (!cases.length) {
     return (
-      <div className="reviewEmptyState">
-        <span className="reviewEmptyMark">✓</span>
-        <h2>No actions need human judgment.</h2>
-        <p>When a VetoLayer evaluation returns REVIEW, the action appears here with its policy findings, SERV reasoning, evidence, and unresolved conditions.</p>
-        <Link className="primaryButton" href="/demo">Run the flagship REVIEW scenario →</Link>
-      </div>
+      <EmptyState
+        icon="✓"
+        eyebrow="Review queue clear"
+        title="No actions need human judgment."
+        copy="When a VetoLayer evaluation returns REVIEW, the action appears here with its policy findings, SERV reasoning, evidence, and unresolved conditions."
+        action={<ButtonLink tone="primary" href="/demo">Run the flagship REVIEW scenario →</ButtonLink>}
+      />
     );
   }
 
@@ -115,7 +116,7 @@ export function ReviewInbox() {
             const receipt = item.resolutionReceipt ?? item.receipt;
             return (
               <button key={item.id} className={selectedId === item.id ? "reviewCaseItem active" : "reviewCaseItem"} onClick={() => setSelectedId(item.id)}>
-                <div><span className={`outcomeBadge ${receipt.outcome.toLowerCase()}`}>{receipt.outcome}</span><span className={item.status === "pending" ? "caseStatus pending" : "caseStatus"}>{item.status}</span></div>
+                <div><OutcomeBadge outcome={receipt.outcome} /><span className={item.status === "pending" ? "caseStatus pending" : "caseStatus"}>{item.status}</span></div>
                 <strong>{item.title}</strong><small>{receipt.action.tool}.{receipt.action.operation}</small>
                 <time>{formatTime(item.updatedAt)}</time>
               </button>
@@ -127,8 +128,8 @@ export function ReviewInbox() {
       {selected && activeReceipt ? (
         <section className="reviewDetailPane">
           <div className="reviewDetailTop">
-            <div><p className="eyebrow">HUMAN REVIEW · {selected.id}</p><h2>{selected.title}</h2><p>{activeReceipt.decisionSummary}</p></div>
-            <span className={`reviewOutcome ${activeReceipt.outcome.toLowerCase()}`}>{activeReceipt.outcome}</span>
+            <div><p className="vlEyebrow">Human review · {selected.id}</p><h2>{selected.title}</h2><p>{activeReceipt.decisionSummary}</p></div>
+            <OutcomeBadge outcome={activeReceipt.outcome} className="reviewOutcome" />
           </div>
 
           <div className="reviewContextStrip">
@@ -140,7 +141,7 @@ export function ReviewInbox() {
 
           <div className="reviewEvidenceLayout">
             <div className="reviewReasoningColumn">
-              <section className="reviewCard">
+              <section className="reviewCard vlCard">
                 <div className="reviewCardHead"><span>POLICY FINDINGS</span><small>{activeReceipt.deterministicFindings.length} rules · {activeReceipt.contextualFindings.length} SERV</small></div>
                 {[...activeReceipt.deterministicFindings, ...activeReceipt.contextualFindings].map((finding) => (
                   <div className="reviewFinding" key={finding.id}>
@@ -151,7 +152,7 @@ export function ReviewInbox() {
                 ))}
               </section>
 
-              <section className="reviewCard">
+              <section className="reviewCard vlCard">
                 <div className="reviewCardHead"><span>EVIDENCE CONSIDERED</span><small>{activeReceipt.evidenceUsed.length} items</small></div>
                 {activeReceipt.evidenceUsed.map((evidence) => (
                   <details className="reviewEvidence" key={evidence.id}>
@@ -162,11 +163,11 @@ export function ReviewInbox() {
               </section>
 
               {activeReceipt.missingEvidence.length ? (
-                <section className="reviewCard unresolvedCard"><div className="reviewCardHead"><span>UNRESOLVED</span><small>{activeReceipt.missingEvidence.length} missing</small></div>{activeReceipt.requirementsToChangeOutcome.map((item) => <p className="unresolvedItem" key={item}>{item}</p>)}</section>
+                <section className="reviewCard unresolvedCard vlCard"><div className="reviewCardHead"><span>UNRESOLVED</span><small>{activeReceipt.missingEvidence.length} missing</small></div>{activeReceipt.requirementsToChangeOutcome.map((item) => <p className="unresolvedItem" key={item}>{item}</p>)}</section>
               ) : null}
             </div>
 
-            <aside className="reviewActionPanel">
+            <aside className="reviewActionPanel vlCard vlCardRaised">
               <div className="reviewActionIntro"><span>HUMAN JUDGMENT</span><h3>{selected.status === "pending" ? "Resolve this REVIEW" : "Review recorded"}</h3><p>A human action becomes evidence and triggers the entire policy + SERV pipeline again. It cannot override a hard BLOCK.</p></div>
 
               {selected.review ? (
@@ -180,18 +181,18 @@ export function ReviewInbox() {
 
               {selected.status === "pending" ? (
                 <>
-                  <label className="reviewField">Reviewer<input value={reviewerName} onChange={(event) => setReviewerName(event.target.value)} /></label>
-                  <label className="reviewField">Rationale<textarea rows={5} value={rationale} onChange={(event) => setRationale(event.target.value)} /></label>
-                  <label className="reviewField">Evidence to request<textarea rows={3} value={requestedEvidence} onChange={(event) => setRequestedEvidence(event.target.value)} /><small>Used only for “Request evidence”. One item per line.</small></label>
-                  {error ? <div className="reviewError">{error}</div> : null}
+                  <Field label="Reviewer"><Input value={reviewerName} onChange={(event) => setReviewerName(event.target.value)} /></Field>
+                  <Field label="Rationale"><Textarea rows={5} value={rationale} onChange={(event) => setRationale(event.target.value)} /></Field>
+                  <Field label="Evidence to request" hint="Used only for Request evidence. One item per line."><Textarea rows={3} value={requestedEvidence} onChange={(event) => setRequestedEvidence(event.target.value)} /></Field>
+                  {error ? <Notice tone="danger" title="Review action failed" role="alert">{error}</Notice> : null}
                   <div className="reviewActionButtons">
-                    <button disabled={submitting !== null} className="reviewApprove" onClick={() => submit("approve")}>{submitting === "approve" ? "Re-evaluating…" : "Approve & re-evaluate"}</button>
-                    <button disabled={submitting !== null} className="reviewRequest" onClick={() => submit("request_evidence")}>{submitting === "request_evidence" ? "Re-evaluating…" : "Request evidence"}</button>
-                    <button disabled={submitting !== null} className="reviewReject" onClick={() => submit("reject")}>{submitting === "reject" ? "Re-evaluating…" : "Reject & re-evaluate"}</button>
+                    <Button tone="primary" disabled={submitting !== null} onClick={() => submit("approve")}>{submitting === "approve" ? "Re-evaluating…" : "Approve & re-evaluate"}</Button>
+                    <Button tone="secondary" disabled={submitting !== null} onClick={() => submit("request_evidence")}>{submitting === "request_evidence" ? "Re-evaluating…" : "Request evidence"}</Button>
+                    <Button tone="danger" disabled={submitting !== null} onClick={() => submit("reject")}>{submitting === "reject" ? "Re-evaluating…" : "Reject & re-evaluate"}</Button>
                   </div>
                 </>
               ) : (
-                <div className="resolvedReviewMessage"><span>Decision re-evaluated</span><strong className={activeReceipt.outcome.toLowerCase()}>{activeReceipt.outcome}</strong><p>The resulting receipt includes the human review inside the verified review-state evidence used by policy evaluation.</p></div>
+                <div className="resolvedReviewMessage"><span>Decision re-evaluated</span><OutcomeBadge outcome={activeReceipt.outcome} /><p>The resulting receipt includes the human review inside the verified review-state evidence used by policy evaluation.</p></div>
               )}
             </aside>
           </div>
