@@ -6,193 +6,197 @@
 
 **Agents can think freely. They shouldn't act freely.**
 
-> **VetoLayer is a pre-execution reasoning and approval layer for autonomous AI agents.** It decides whether an agent **should** perform a proposed high-impact action given policy, evidence, exceptions, and current context — before the action reaches the real world.
+> **VetoLayer is a pre-execution reasoning and approval layer for autonomous AI agents.** It evaluates a proposed high-impact action against deterministic rules, contextual policy, evidence, exceptions, and current state before the action reaches the real world.
 
 **SERV Hackathon:** Edition 01 · Open Track  
-**Core output:** `ALLOW | REVIEW | BLOCK` + tamper-evident Decision Receipt  
+**Decision:** `ALLOW | REVIEW | BLOCK`  
+**Audit artifact:** tamper-evident Decision Receipt with SHA-256 integrity metadata  
 **Initial market wedge:** AI coding and deployment agents  
-**Public deployment:** https://vetolayer.vercel.app — deployed; live SERV-readiness verification remains part of Issue #12.
+**Public product URL:** https://vetolayer.vercel.app
 
-Brand usage and the Gate-V construction are documented in [`docs/brand.md`](docs/brand.md).
+> Release status for judges: the repository's latest product gate is green. A fresh Production Smoke against the latest deployed `main` remains the final closure check in Issue #12 because the Vercel account is currently rate-limited from creating another deployment.
 
 ## 60-second judge view
 
 Autonomous agents increasingly have credentials that let them merge code, deploy production, issue refunds, change protected configuration, and call other consequential tools. Traditional authorization answers **can this agent act?** VetoLayer answers **should this agent act right now?**
 
-VetoLayer evaluates proposed actions in two layers:
+VetoLayer evaluates every proposed action in two layers:
 
-1. **Deterministic policy first** — thresholds, protected environments, required approvals/evidence, freshness, and explicit denies remain hard and reproducible.
-2. **SERV Reasoning only when judgment is required** — ambiguous policy language, exceptions, conflicting evidence, incident context, and unresolved conditions are evaluated contextually.
+1. **Deterministic policy first** — hard limits, protected environments, required evidence, freshness rules, and explicit denies stay reproducible.
+2. **SERV Reasoning when judgment is actually required** — ambiguous policy language, exceptions, conflicting evidence, incident context, and unresolved conditions are evaluated contextually.
 
-The final decision is `ALLOW`, `REVIEW`, or `BLOCK`, accompanied by an inspectable Decision Receipt containing the policies, evidence, reasoning trace, missing/contradictory evidence, exception path, timestamps, and a SHA-256 integrity marker.
+The orchestrator combines those findings into `ALLOW`, `REVIEW`, or `BLOCK`. SERV cannot override an explicit deterministic hard `BLOCK`, and missing/invalid contextual reasoning cannot silently become `ALLOW`; provider or schema failure safely degrades to `REVIEW`.
 
-The flagship demo proves the distinction with the **same auth-sensitive production deployment evaluated twice**: first `REVIEW` because security approval is missing; then the security-lead approval is added as clearly labelled seeded human-review evidence and the complete deterministic + SERV pipeline runs again. No sign-in is required to complete the public demo.
+Every evaluation produces a Decision Receipt containing the action, actor, scope, exact policy versions, deterministic/SERV findings, evidence, missing or contradictory evidence, exception path, reasoning trace, timestamps, lineage, provider status, and an integrity hash.
+
+## Why SERV is central
+
+SERV is not used as a decorative model call or chatbot. `@vetolayer/serv` receives a normalized contextual bundle containing:
+
+- the proposed action and actor;
+- applicable contextual policy versions;
+- deterministic findings that already resolved hard facts;
+- verified evidence and freshness metadata;
+- environment/incident context;
+- exception requirements and contradictions.
+
+SERV must return structured policy findings, evidence usage, missing/contradictory evidence, exception analysis, rationale, confidence, and an outcome recommendation. VetoLayer schema-validates and grounds the result before the core orchestrator can use it.
+
+This split is the product thesis:
+
+> **Deterministic facts stay deterministic. Contextual judgment goes to SERV. Final authority stays inside VetoLayer core.**
+
+See [`docs/serv-reasoning.md`](docs/serv-reasoning.md).
 
 ## The control path
 
 ```text
-AI Agent
-   ↓
-Action Request
-   ↓
+Autonomous Agent
+      ↓
+Proposed Action
+      ↓
+VetoLayer scope + policy resolution
+      ↓
 Deterministic Policy Engine
-   ├── hard BLOCK / deterministic result ──────────────┐
-   └── contextual policy requires judgment            │
-                         ↓                              │
-                    SERV Reasoning                      │
-                         ↓                              │
-               ALLOW / REVIEW / BLOCK ◄────────────────┘
-                         ↓
-                  Decision Receipt
-                         ↓
-                  External Tool
+      ├── hard restriction / factual result ───────────┐
+      └── contextual policy needs judgment            │
+                              ↓                         │
+                         SERV Reasoning                 │
+                              ↓                         │
+                    ALLOW / REVIEW / BLOCK ◄────────────┘
+                              ↓
+                       Decision Receipt
+                              ↓
+          execute / hold for review / prevent action
 ```
 
-The invariant is simple:
+## Flagship product workflow
 
-> **Deterministic facts stay deterministic. Contextual judgment goes to SERV. Final precedence stays inside VetoLayer core.**
+The flagship scenario is an autonomous coding agent proposing an **authentication/security production deployment during a restricted change window**.
 
-SERV cannot override an explicit deterministic hard `BLOCK`. Missing critical evidence cannot silently become `ALLOW`. Malformed, unavailable, or ungrounded SERV output safely degrades to `REVIEW`.
+- A critical security incident exists.
+- The patch changes sensitive auth paths.
+- CI/security checks pass.
+- The policy allows an emergency exception only when the incident and the correct human approval are verified.
+- Security-lead approval is initially missing.
 
-## Why SERV is essential
+The first evaluation returns **`REVIEW`** because the exception is not sufficiently supported. A reviewer adds the missing evidence inside the real Human Review workflow; VetoLayer creates a new immutable receipt and re-evaluates the same action through deterministic policy + SERV + the orchestrator. Only then can the action become **`ALLOW`**.
 
-SERV is not a decorative model call or generic chatbot. `@vetolayer/serv` receives a normalized contextual bundle containing the proposed action, applicable contextual policies, deterministic findings, verified evidence, environment/incident context, and documented exception criteria.
+Human review is therefore **evidence**, not an out-of-band bypass.
 
-It must return structured findings containing:
-
-- recommended `ALLOW | REVIEW | BLOCK`
-- policy-by-policy findings
-- evidence used
-- missing and contradictory evidence
-- exception analysis
-- rationale and confidence
-
-VetoLayer schema-validates the response and grounds every cited policy/evidence ID before core orchestration can use it. If validation or the provider fails, the action escalates to `REVIEW`.
-
-See [`docs/serv-reasoning.md`](docs/serv-reasoning.md).
-
-## Flagship demo
-
-An autonomous coding agent proposes an **authentication/security patch to production during a restricted deployment window**.
-
-```text
-Restricted deployment window      ✓
-Critical security incident         ✓
-Sensitive auth/security changes    ✓
-CI / security checks               ✓
-Security-lead approval             ✕
-
-VetoLayer → REVIEW
-```
-
-The public demo then adds a clearly labelled seeded `HumanReviewRecord` from the security lead. The action, PR, changed files, incident, and CI state remain unchanged. VetoLayer re-runs the deterministic + SERV + orchestrator path:
-
-```text
-Restricted deployment window      ✓
-Critical security incident         ✓
-Sensitive auth/security changes    ✓
-CI / security checks               ✓
-Security-lead approval             ✓
-
-VetoLayer → ALLOW   (only if SERV and policy evidence support it)
-```
-
-The UI cannot request the resolved state directly. The second decision must pass through the demo human-review endpoint, and both evaluations produce a new Decision Receipt. If SERV is unavailable, the second pass remains `REVIEW` rather than pretending the live reasoning succeeded.
-
-**Demo route:** `/demo`  
-**Public URL:** https://vetolayer.vercel.app/demo
+For judges who want a no-account proof surface, `/demo` remains an explicitly labelled public sandbox using seeded scenario inputs with the same real evaluation/orchestration/receipt code paths. The product itself does not depend on `/demo`.
 
 See [`docs/demo-script.md`](docs/demo-script.md).
 
-## Product surface
+## Finished product surface
 
-| Surface | What it proves |
+| Surface | Shipped capability |
 | --- | --- |
-| Landing + onboarding | A new user can understand the product and reach a useful action quickly. |
-| Authenticated workspaces | Supabase login plus real workspace/project/environment roles isolate product data. |
-| Control Center | Decision stream, receipt drill-down, filters, and decision-health analytics. |
-| Policy Studio | Author deterministic and SERV-contextual policy, then simulate it. |
-| Human Review Inbox | Human decisions become evidence and trigger re-evaluation. |
-| Integrations | GitHub App installations/repositories and Developer API readiness without exposing secrets. |
-| GitHub Gate | Real PR metadata, changed files, reviews, and check-run evidence authenticated with short-lived App installation tokens. |
-| Developer API + SDK | Framework-agnostic evaluate-before-execute boundary. |
-| Decision Receipts | Canonical SHA-256 tamper-evident audit artifacts. |
-| First-run / Demo UX | Live, Demo, and Empty states stay visibly distinct. |
-| Accessibility | Keyboard focus, skip navigation, non-color outcome cues, reduced motion, and responsive fallbacks. |
-| Release gate | CI requires lint, typecheck, tests, production build, and release smoke. |
+| Public site + auth | Product landing, pricing, sign-in, recovery, verification, and account security flows. |
+| Onboarding | Create/select workspace, project and environment; connect GitHub or Developer API; install a starter policy pack; verify SERV; run a real test action. |
+| Workspaces / RBAC | Workspace, project, environment, member and role administration with server-side authorization. |
+| GitHub integration | GitHub App installation, repository selection, webhook verification, short-lived installation credentials, and real PR/check/review evidence. |
+| Developer Console | Scoped API keys, rotation/revocation, signed webhook endpoints, delivery history/retry, SDK setup, and live request tester. |
+| Policy Studio | Drafts, templates, versioning, diffs, simulation, activation, archive, and exact policy-version references. |
+| Human Review | Queue, assignment, comments, evidence requests, evidence submission, re-evaluation, timeline, due state, and receipt lineage. |
+| Decision Explorer / Receipt Center | Indexed search, filters, saved views, exact pagination, integrity verification, lineage, comparison, JSON export, and incident export. |
+| Notifications | In-product alerts, email preferences, project subscriptions, signed outbound webhooks, retries/backoff, deduplication, and delivery history. |
+| Security Audit | Append-only actor/action/target history, correlation IDs, filters, deep links, redaction, and authorized export. |
+| Operational Analytics | Outcome trends, policy friction, review turnaround/aging, evidence health, SERV ratios, re-evaluation outcomes, integration reliability, drill-downs, CSV/JSON reports. |
+| Settings / Data | Workspace administration, retention, concurrency protection, safe export, ownership transfer, offboarding, and delayed destructive jobs. |
+| Plans / Usage | Real usage meters and server-enforced project, seat and decision entitlements; no fake checkout. |
+| Docs / Help | In-product documentation, stable developer guides, webhook reference, troubleshooting, contextual help, and release notes. |
+| Reliability | Readiness vs liveness, request correlation, sanitized error capture, recovery boundaries, browser E2E, performance budgets, production smoke workflow, and strict route/console QA. |
 
-## Decision health
+The final product-completion program (#49) is complete; every child issue #50–#69 is closed.
 
-The Control Center derives metrics from Decision Receipts rather than fake counters:
+## Why this is creative
 
-- `ALLOW / REVIEW / BLOCK` distribution
-- unresolved reviews
-- SERV-assisted vs deterministic-only decisions
-- actions by tool/integration
-- policies causing the most friction
-- evidence completeness trends
+VetoLayer uses reasoning as an **enforcement boundary**, not a chat interface. It deliberately combines two kinds of control that normally get conflated:
 
-Those metrics drill back into the underlying decisions and policies so teams can see where autonomy is getting stuck and why.
+- deterministic policy for facts and non-negotiable restrictions;
+- contextual SERV judgment for exceptions and ambiguous evidence.
 
-## Market path
+That lets the system remain fail-closed without pretending every governance decision is reducible to static thresholds.
 
-The beachhead is **AI coding and deployment agents** because engineering teams want more autonomous software work without granting unchecked authority over production.
+## Why this is user-ready
+
+A user can sign up, create a workspace/project/environment, connect GitHub or the Developer API, activate a policy, submit an action, receive a decision, resolve `REVIEW`, and inspect the resulting receipt without editing code or reading repository internals.
+
+Returning users get durable/searchable product state, analytics, audit history, notifications, settings, data lifecycle controls, and developer tooling.
+
+## Revenue path
+
+The beachhead is **AI coding and deployment agents**, where teams want more autonomy without giving agents unchecked authority over production.
 
 ```text
 Engineering       → deploys, merges, infrastructure changes
 Customer Support  → refunds, credits, subscription changes
 Procurement       → purchases, vendor approvals, exceptions
-Finance           → invoice / payment approval workflows
+Finance           → invoice/payment approval workflows
 Operations        → privileged configuration and workflow actions
 ```
 
-The revenue model is infrastructure: governed evaluations, policy management, integrations, review workflows, audit history, and enterprise controls as agent autonomy increases.
+The commercial model is infrastructure: governed evaluations, managed policies, integrations, human review, audit/analytics, notifications/webhooks, usage entitlements, and enterprise controls as autonomous action volume grows.
 
 ## Safety and evaluation proof
 
 Automated coverage includes:
 
-- missing/stale critical evidence → `REVIEW`
-- contradictory evidence → `REVIEW`
-- malformed/unavailable SERV → fallback + `REVIEW`
-- fully supported contextual exception → may `ALLOW`
-- deterministic hard `BLOCK` vs contextual allow → hard `BLOCK`; SERV cannot override it
-- prompt-injection-like text inside evidence → treated as untrusted data
-- public flagship HTTP flow → same action `REVIEW → human-review evidence → ALLOW`
-- direct attempt to skip to the demo's resolved state → rejected
-- GitHub App callback requires one-time state, current VetoLayer authorization, and GitHub installer proof before binding an installation
-- GitHub webhook payloads are signature-verified before processing and duplicate delivery IDs are ignored
-- GitHub installation tokens remain server-side and are not persisted
-- production Developer API without bearer-key configuration → disabled, not public
-- canonical auth redirect and internal continuation-path validation
+- missing/stale critical evidence → `REVIEW`;
+- contradictory evidence → `REVIEW`;
+- malformed/unavailable SERV → fallback + `REVIEW`;
+- deterministic hard `BLOCK` vs contextual allow → hard `BLOCK` wins;
+- prompt-injection-like text inside evidence → treated as untrusted data;
+- API-key create/use/revoke boundaries;
+- GitHub App callback/webhook verification and duplicate-delivery protection;
+- review evidence → full re-evaluation with a new receipt and parent lineage;
+- provider degradation deliberately forced in Chrome E2E → real API returns `REVIEW`, never fail-open `ALLOW`;
+- route-by-route product QA with browser-console errors treated as failures;
+- branded recovery for 404/render failures.
 
-These are application-level regression/safety evaluations, not a formal security proof or compliance certification.
+These are application-level safety and reliability tests, not a formal security proof or compliance certification.
 
-See [`docs/evaluation-report.md`](docs/evaluation-report.md).
+See [`docs/evaluation-report.md`](docs/evaluation-report.md) and [`docs/product-qa-2026-09.md`](docs/product-qa-2026-09.md).
+
+## Release proof
+
+Every PR to `main` runs the production gate:
+
+```text
+frozen install
+→ lint
+→ typecheck
+→ package + web tests
+→ production Next.js build
+→ real headless-Chrome E2E
+→ browser artifact upload
+→ release smoke
+```
+
+A separate **Production Smoke** workflow runs on schedule and on manual dispatch against the deployed public URL. It executes `pnpm release:smoke` with `SMOKE_BASE_URL` and checks the public routes/readiness contract from GitHub-hosted infrastructure.
+
+The final #69 product-QA head passed every repository gate above before merge.
+
+See [`docs/release-checklist.md`](docs/release-checklist.md).
 
 ## Repository architecture
 
 ```text
 VetoLayer/
-├── apps/
-│   └── web/               # Next.js product UI + HTTP/API surface
+├── apps/web/               # Next.js product UI + HTTP/API surface
 ├── packages/
-│   ├── core/              # contracts, orchestration, receipts, review records
-│   ├── policies/          # deterministic policy evaluation
-│   ├── serv/              # SERV Reasoning adapter only
-│   └── sdk/               # evaluate-before-execute client
-├── examples/
-│   └── github-gate/       # flagship coding-agent integration
-├── supabase/
-│   └── migrations/        # durable product schema, including GitHub App state
-├── scripts/
-│   └── release-smoke.mjs  # release/deployment verifier
-├── pnpm-lock.yaml         # deterministic workspace dependency graph
-├── vercel.json            # Vercel deployment configuration
-└── docs/
+│   ├── core/               # contracts, orchestration, receipts, review records
+│   ├── policies/           # deterministic policy evaluation
+│   ├── serv/               # SERV Reasoning adapter
+│   └── sdk/                # evaluate-before-execute TypeScript client
+├── examples/github-gate/   # GitHub evidence adapter + flagship policy pack
+├── supabase/migrations/    # durable product schema
+├── scripts/                # browser E2E + release smoke
+├── docs/                   # product/developer/judge documentation
+├── pnpm-lock.yaml
+└── vercel.json
 ```
-
-See [`docs/architecture.md`](docs/architecture.md), [`docs/orchestrator.md`](docs/orchestrator.md), and [`docs/decision-receipts.md`](docs/decision-receipts.md).
 
 ## Local setup
 
@@ -207,7 +211,7 @@ pnpm dev
 
 Open `http://localhost:3000`.
 
-For the SERV-backed flagship demo, configure at minimum:
+For SERV-backed contextual evaluations configure server-only values such as:
 
 ```text
 SERV_API_KEY=...
@@ -216,53 +220,13 @@ SERV_BASE_URL=https://inference-api.openserv.ai/v1
 SERV_TIMEOUT_MS=20000
 ```
 
-All credentials are server-only. Never expose `SERV_API_KEY`, GitHub App private/client secrets, `GITHUB_APP_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, or `VETOLAYER_API_KEY` through `NEXT_PUBLIC_*` variables.
+Never expose SERV, GitHub App, Supabase service-role, webhook-signing, API-key, or worker secrets through `NEXT_PUBLIC_*` variables.
 
-### GitHub App
+Deployment/auth/integration variables are documented in [`docs/deployment.md`](docs/deployment.md).
 
-GitHub is connected from the authenticated **Integrations** screen. A deployment administrator registers the GitHub App once; end users install it and select repositories without pasting personal tokens or editing deployment variables.
+## Developer API + SDK
 
-The App uses read-only Pull requests, Checks, Commit statuses, and Metadata permissions. Installation and webhook security are documented in [`docs/github-app.md`](docs/github-app.md).
-
-## Vercel deployment
-
-The production Vercel project uses the web application as its project root:
-
-```text
-Root Directory: apps/web
-Framework:      Next.js
-Install:        pnpm install --frozen-lockfile
-Build:          pnpm build
-Output:         .next
-```
-
-The app still imports workspace packages outside `apps/web`, so Vercel must include source files outside the Root Directory during the build. The committed deployment configuration is aligned with this setup.
-
-The public hackathon demo requires `SERV_API_KEY` and `SERV_MODEL`. Authentication, persistence, GitHub App, and API variables are documented in [`docs/deployment.md`](docs/deployment.md). Production `/api/v1/*` routes fail closed if `VETOLAYER_API_KEY` is not configured.
-
-After deployment:
-
-```bash
-SMOKE_BASE_URL=https://vetolayer.vercel.app pnpm release:smoke
-```
-
-The live smoke probe checks public surfaces and `/api/health`, and requires `demoReady: true` before the release can be considered submission-ready.
-
-## Quality gate
-
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm release:smoke
-```
-
-CI runs this sequence on every PR to `main`.
-
-## Developer API and SDK
-
-`POST /api/v1/evaluate` accepts the same `ActionRequest`, `Policy`, and `Evidence` contracts used inside VetoLayer. `GET /api/v1/decisions/:receiptId` retrieves a stored decision status and receipt.
+`POST /api/v1/evaluate` evaluates the caller's action inside the server-owned credential scope. Decision lookup routes return stored receipt state. Hosted workspace/project/environment ownership is derived server-side; callers cannot switch tenants by sending a workspace header.
 
 ```ts
 import { createVetoLayerClient, guardedToolCall } from "@vetolayer/sdk";
@@ -279,14 +243,19 @@ const result = await guardedToolCall({
 });
 ```
 
-Hosted users get a server-derived authenticated workspace/project/environment. Developer API credentials map to a server-configured service scope; callers cannot switch tenants through headers.
+See the in-product `/dashboard/docs` center and [`docs/product-guide.md`](docs/product-guide.md).
 
-## Hackathon submission status
+## SERV Hackathon Edition 01
 
-VetoLayer targets the **SERV Edition 01 Open Track**. The judge kit, capture checklist, copy-ready description, and pre-submit verification live in [`docs/submission.md`](docs/submission.md).
+VetoLayer targets the **Open Track**. The official Edition 01 page was re-verified on **25 September 2026**: submissions close **28 September 2026 at 00:00 UTC**; the official submission requires a public X post containing the project name, concept, images and relevant links, tagging `@openservai`, followed by the official form; judging criteria are **creativity, user-readiness, and revenue potential**.
 
-> **Submission blocker:** Issue #12 remains open until the Product Completion Program (#49) reaches its required P0 bar and the public SERV-backed flow passes live verification.
+Submission materials:
+
+- [`docs/submission.md`](docs/submission.md) — final checklist, judging map, capture plan and release state;
+- [`docs/demo-script.md`](docs/demo-script.md) — 2–3 minute judge presentation;
+- [`docs/x-submission-post.md`](docs/x-submission-post.md) — copy-ready X post structure/copy;
+- [`docs/release-checklist.md`](docs/release-checklist.md) — repository + deployed production verification.
 
 ---
 
-VetoLayer does not claim to replace IAM, deterministic authorization, security review, or compliance tooling. It adds a contextual pre-execution decision layer where autonomous agents need more than permission alone.
+VetoLayer does not replace IAM, deterministic authorization, security review, or compliance tooling. It adds a contextual pre-execution decision layer for autonomous systems that need more than permission alone.
