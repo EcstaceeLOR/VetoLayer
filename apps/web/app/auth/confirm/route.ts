@@ -1,15 +1,18 @@
-import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { resolveAppOrigin, safeAppPath } from "../../../lib/server/app-origin";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 
-const allowedTypes = new Set<EmailOtpType>(["email", "signup", "invite", "magiclink", "recovery", "email_change"]);
+const allowedTypes = ["email", "signup", "invite", "magiclink", "recovery", "email_change"] as const;
+type AllowedEmailOtpType = (typeof allowedTypes)[number];
+
+function parseEmailOtpType(value: string | null): AllowedEmailOtpType | null {
+  return allowedTypes.includes(value as AllowedEmailOtpType) ? (value as AllowedEmailOtpType) : null;
+}
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const tokenHash = url.searchParams.get("token_hash");
-  const requestedType = url.searchParams.get("type") as EmailOtpType | null;
-  const type = requestedType && allowedTypes.has(requestedType) ? requestedType : null;
+  const type = parseEmailOtpType(url.searchParams.get("type"));
   const next = safeAppPath(url.searchParams.get("next"));
   const origin = resolveAppOrigin(url.origin) ?? url.origin;
   const recovery = type === "recovery";
