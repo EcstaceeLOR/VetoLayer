@@ -10,8 +10,6 @@ function environment(overrides: Partial<ServerEnvironment> = {}): ServerEnvironm
     githubTokenConfigured: false,
     githubAppConfigured: true,
     persistenceConfigured: false,
-    demoWorkspaceId: "demo",
-    demoRateLimitPerMinute: 30,
     apiRateLimitPerMinute: 60,
     apiAuthConfigured: true,
     apiKey: "server-secret",
@@ -54,7 +52,7 @@ describe("integration readiness", () => {
     expect(readiness.developerApi.missing).toEqual(["Supabase persistence for project API keys"]);
   });
 
-  it("allows an unauthenticated Developer API only as a local/demo state", () => {
+  it("allows an unauthenticated Developer API only in local development", () => {
     const readiness = getIntegrationReadiness({ environment: environment({ apiAuthConfigured: false, persistenceConfigured: false }), nodeEnv: "development" });
     expect(readiness.developerApi.ready).toBe(true);
     expect(readiness.developerApi.state).toBe("local-only");
