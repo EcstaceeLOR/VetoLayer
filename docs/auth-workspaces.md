@@ -48,7 +48,7 @@ Clients cannot make themselves members of an arbitrary workspace, attach an envi
 | Rename workspace | ✓ | ✓ | — | — |
 | Archive workspace | ✓ | — | — | — |
 
-`*` Admins may assign Reviewer or Member. They cannot create another Admin, change/remove an Admin, or transfer ownership. The Owner cannot be removed or silently demoted through member-management endpoints.
+`*` Admins may assign Reviewer or Member. They cannot create another Admin, change/remove an Admin, or transfer ownership. The Owner cannot be removed or silently downgraded through member-management endpoints.
 
 Permission checks happen in server route handlers as well as the UI. Hiding a button is never the authorization boundary.
 
@@ -170,11 +170,11 @@ Run it once per legacy account after that account has created its real workspace
 Public:
 
 - `/`
-- `/example`
+- `/pricing`
 - `/login`, verification/recovery routes
 - `/invite/[token]`
-- `/api/example/*`
 - `/api/health`
+- `/api/readiness`
 - `/api/v1/*` — separate bearer-key service scope
 
 Authenticated identity:
