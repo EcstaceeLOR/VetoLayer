@@ -102,12 +102,17 @@ export function WorkspaceManagement(props: Props) {
   }
 
   async function changeRole(userId: string, role: WorkspaceRole) {
-    await call("/api/workspaces/members", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, role }) }, `role-${userId}`, "Member role updated.");
+    const target = props.members.find((member) => member.userId === userId);
+    if (!target) return;
+    await call("/api/workspaces/members", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, role, expectedRole: target.role }) }, `role-${userId}`, "Member role updated.");
   }
 
   async function removeMember(userId: string) {
+    const target = props.members.find((member) => member.userId === userId);
+    if (!target) return;
     if (!window.confirm("Remove this member from the workspace? They will immediately lose workspace access.")) return;
-    await call(`/api/workspaces/members?userId=${encodeURIComponent(userId)}`, { method: "DELETE" }, `remove-${userId}`, "Member removed.");
+    const query = new URLSearchParams({ userId, expectedRole: target.role });
+    await call(`/api/workspaces/members?${query}`, { method: "DELETE" }, `remove-${userId}`, "Member removed.");
   }
 
   async function archiveWorkspace() {
@@ -140,7 +145,7 @@ export function WorkspaceManagement(props: Props) {
             <Button type="submit" tone="secondary" disabled={!canManageProjects || Boolean(busy)}>Rename</Button>
           </form>
           <div className="workspaceEntityList">{props.projects.map((project) => <div key={project.id}><span><strong>{project.name}</strong><small>{project.id}</small></span>{project.id === props.project.id ? <Badge tone="accent">Selected</Badge> : <Badge>{project.status}</Badge>}</div>)}</div>
-          {canManageProjects ? <><form action={createProject} className="workspaceInlineForm workspaceCreateForm"><Field label="New project"><Input name="projectName" placeholder="Payments Agent" /></Field><Button type="submit" tone="primary" disabled={Boolean(busy)}>Create project</Button></form>{!props.embedded ? <Button tone="danger" size="sm" onClick={() => void archiveProject()} disabled={Boolean(busy)}>Archive current project</Button> : null}</> : null}
+          {canManageProjects ? <><form action={createProject} className="workspaceInlineForm workspaceCreateForm"><Field label="New project"><Input name="projectName" placeholder="Payments Agent" /></Field><Button type="submit" tone="primary" disabled={Boolean(busy)}>Create project</Button></form><Button tone="danger" size="sm" onClick={() => void archiveProject()} disabled={Boolean(busy)}>Archive current project</Button></> : null}
         </Card>
 
         <Card raised className="workspaceAdminCard workspaceAdminWide">
