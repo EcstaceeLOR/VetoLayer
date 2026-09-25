@@ -171,11 +171,17 @@ export function createSupabaseGitHubAppStore(config: { url: string; serviceRoleK
       await requireSuccess(response, "save install state");
     },
     async consumeInstallState(stateHash) {
-      const rows = await readRows<Record<string, unknown>>(`vetolayer_github_install_states?state_hash=eq.${encodeURIComponent(stateHash)}&select=state_hash,workspace_id,project_id,environment_id,user_id,expires_at,created_at&limit=1`);
+      // Delete-and-return is a single database mutation. Concurrent callback replays
+      // cannot both observe the same one-time state as valid.
+      const response = await fetchImpl(`${baseUrl}/rest/v1/vetolayer_github_install_states?state_hash=eq.${encodeURIComponent(stateHash)}&select=state_hash,workspace_id,project_id,environment_id,user_id,expires_at,created_at`, {
+        method: "DELETE",
+        headers: { ...headers, Prefer: "return=representation" },
+        cache: "no-store",
+      });
+      await requireSuccess(response, "consume install state");
+      const rows = await response.json() as Record<string, unknown>[];
       const row = rows[0];
       if (!row) return null;
-      const response = await fetchImpl(`${baseUrl}/rest/v1/vetolayer_github_install_states?state_hash=eq.${encodeURIComponent(stateHash)}`, { method: "DELETE", headers });
-      await requireSuccess(response, "consume install state");
       return { stateHash: String(row.state_hash), workspaceId: String(row.workspace_id), projectId: String(row.project_id), environmentId: String(row.environment_id), userId: String(row.user_id), expiresAt: String(row.expires_at), createdAt: String(row.created_at) };
     },
     async getInstallation(scope) {
