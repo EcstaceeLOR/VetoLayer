@@ -116,22 +116,32 @@ export async function emitHighSeverityBlockEvent(input: { scope: ProductScope; r
     .filter((finding) => finding.status === "fail" && (finding.severity === "high" || finding.severity === "critical"));
   if (!findings.length) return null;
   const critical = findings.some((finding) => finding.severity === "critical");
-  return emitProductEvent({
-    ...input.scope,
-    idempotencyKey: `decision:${input.receipt.receiptId}:high-severity-block`,
-    type: "decision.blocked_high_severity",
-    severity: critical ? "critical" : "warning",
-    title: critical ? "Critical policy blocked an action" : "High-severity policy blocked an action",
-    message: `${input.receipt.action.operation} was BLOCKED: ${input.receipt.decisionSummary}`,
-    href: `/dashboard/decisions/${encodeURIComponent(input.receipt.receiptId)}`,
-    data: {
+  try {
+    return await emitProductEvent({
+      ...input.scope,
+      idempotencyKey: `decision:${input.receipt.receiptId}:high-severity-block`,
+      type: "decision.blocked_high_severity",
+      severity: critical ? "critical" : "warning",
+      title: critical ? "Critical policy blocked an action" : "High-severity policy blocked an action",
+      message: `${input.receipt.action.operation} was BLOCKED: ${input.receipt.decisionSummary}`,
+      href: `/dashboard/decisions/${encodeURIComponent(input.receipt.receiptId)}`,
+      data: {
+        receiptId: input.receipt.receiptId,
+        decisionId: input.receipt.decisionId,
+        actionRequestId: input.receipt.action.requestId,
+        source: input.source,
+        findings: findings.map((finding) => ({ policyId: finding.policyId, severity: finding.severity, summary: finding.summary })),
+      },
+    });
+  } catch (error) {
+    logServerEvent("warn", "decision.notification.emit_failed", {
       receiptId: input.receipt.receiptId,
-      decisionId: input.receipt.decisionId,
-      actionRequestId: input.receipt.action.requestId,
+      ...input.scope,
       source: input.source,
-      findings: findings.map((finding) => ({ policyId: finding.policyId, severity: finding.severity, summary: finding.summary })),
-    },
-  });
+      message: error instanceof Error ? error.message : "High-severity BLOCK notification could not be queued",
+    });
+    return null;
+  }
 }
 
 async function enqueueDelivery(input: { eventId: string; scope: ProductScope; channel: "email" | "webhook"; destinationKey: string; destination: string; webhookEndpointId?: string }) {
