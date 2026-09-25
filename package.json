@@ -13,7 +13,7 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
-    "e2e:browser": "node scripts/browser-e2e.mjs",
+    "e2e:browser": "node scripts/browser-e2e-bootstrap.mjs",
     "release:smoke": "node scripts/release-smoke.mjs"
   },
   "devDependencies": {
