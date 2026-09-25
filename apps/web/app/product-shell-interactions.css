@@ -1,0 +1,14 @@
+.commandResults button.active { background: var(--vl-surface-2); }
+
+.productMain { --shell-gutter: clamp(22px, 4vw, 62px); padding-inline: var(--shell-gutter) !important; }
+.productTopbar {
+  margin-left: calc(0px - var(--shell-gutter));
+  margin-right: calc(0px - var(--shell-gutter));
+  padding-left: var(--shell-gutter);
+  padding-right: var(--shell-gutter);
+}
+
+@media (max-width: 860px) {
+  .productMain { --shell-gutter: 18px; }
+  .productTopbar { margin-bottom: 28px; }
+}
