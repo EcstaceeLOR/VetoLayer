@@ -14,6 +14,12 @@ source = replaceRequired(
 
 source = replaceRequired(
   source,
+  `  await navigate("/dashboard");\n  assertIncludes(await bodyText(), "Reliability Workspace", "operator reliability workspace is active");`,
+  `  await navigate("/dashboard");\n  assertIncludes(await bodyText(), "Production Gate", "operator reliability project scope is active");`,
+);
+
+source = replaceRequired(
+  source,
   `  await navigate("/dashboard/developers");\n  await waitForText("Browser reliability key", 8_000);\n  assertIncludes(await bodyText(), "Developer Console", "Developer Console renders credential state");`,
   `  await navigate("/dashboard/developers");\n  assertIncludes(await bodyText(), "Developer Console", "Developer Console renders credential management surface");`,
 );
