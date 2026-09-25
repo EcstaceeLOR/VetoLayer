@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 
-export function ReceiptActions({ receiptId, receiptJson, initialVerified }: { receiptId: string; receiptJson: string; initialVerified: boolean | null }) {
+export function ReceiptActions({ receiptId, receiptJson, initialVerified }: { receiptId: string; receiptJson: string; initialVerified: boolean }) {
   const [copied, setCopied] = useState(false);
-  const [verified, setVerified] = useState<boolean | null>(initialVerified);
+  const [verified, setVerified] = useState<boolean>(initialVerified);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,8 +39,8 @@ export function ReceiptActions({ receiptId, receiptJson, initialVerified }: { re
       <a className="secondaryButton" href={`/api/decisions/${encodeURIComponent(receiptId)}/export?format=json`}>Export JSON</a>
       <a className="secondaryButton" href={`/api/decisions/${encodeURIComponent(receiptId)}/export?format=text`}>Incident report</a>
       <button type="button" className="secondaryButton buttonReset" disabled={verifying} onClick={verify}>{verifying ? "Verifying…" : "Verify integrity"}</button>
-      <span className={`integrityState ${verified === true ? "verified" : verified === false ? "invalid" : "sample"}`}>
-        {verified === true ? "Cryptographically verified" : verified === false ? "Integrity mismatch" : "Demo receipt"}
+      <span className={`integrityState ${verified ? "verified" : "invalid"}`}>
+        {verified ? "Cryptographically verified" : "Integrity mismatch"}
       </span>
       {error ? <small className="receiptActionError" role="alert">{error}</small> : null}
     </div>

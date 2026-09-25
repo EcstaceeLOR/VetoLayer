@@ -17,7 +17,7 @@ type ReviewCaseView = {
   revision: number;
   status: ReviewStatus;
   title: string;
-  source: "demo" | "api" | "integration";
+  source: "api" | "integration";
   receipt: DecisionReceipt;
   review?: HumanReviewRecord;
   reviewHistory: HumanReviewRecord[];
@@ -136,7 +136,7 @@ export function ReviewInbox() {
 
   if (loading) return <div className="reviewLoading"><span className="pulse" /> Loading review queue…</div>;
   if (!cases.length) {
-    return <EmptyState icon="✓" eyebrow="Review queue clear" title="No actions need human judgment." copy="When VetoLayer returns REVIEW, the action appears here with ownership, evidence, policy findings, comments, and an auditable resolution timeline." action={<ButtonLink tone="primary" href="/demo">Run the flagship REVIEW scenario →</ButtonLink>} />;
+    return <EmptyState icon="✓" eyebrow="Review queue clear" title="No actions need human judgment." copy="When VetoLayer returns REVIEW, the action appears here with ownership, evidence, policy findings, comments, and an auditable resolution timeline." action={<ButtonLink tone="primary" href="/dashboard/developers">Evaluate an action →</ButtonLink>} />;
   }
 
   return (

@@ -13,7 +13,7 @@ export function FirstRunChecklist({ guide }: { guide: FirstRunGuide }) {
           <h2 id="first-run-title">Finish your first operational VetoLayer gate.</h2>
           <p>Policies, an execution path, and a real Decision Receipt are the minimum operational chain. You are {guide.completedCount}/3 core resources through activation.</p>
         </div>
-        <ButtonLink className="firstRunDemo" tone="primary" href="/onboarding">
+        <ButtonLink className="firstRunAction" tone="primary" href="/onboarding">
           <span>Resume guided setup →</span>
         </ButtonLink>
       </div>

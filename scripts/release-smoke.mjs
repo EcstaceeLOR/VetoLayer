@@ -18,26 +18,37 @@ function requireFile(path) {
 
 const routes = [
   "apps/web/app/page.tsx",
+  "apps/web/app/pricing/page.tsx",
   "apps/web/app/login/page.tsx",
   "apps/web/app/onboarding/page.tsx",
-  "apps/web/app/demo/page.tsx",
   "apps/web/app/error.tsx",
   "apps/web/app/global-error.tsx",
+  "apps/web/app/not-found.tsx",
   "apps/web/app/dashboard/error.tsx",
   "apps/web/app/dashboard/page.tsx",
   "apps/web/app/dashboard/layout.tsx",
+  "apps/web/app/dashboard/analytics/page.tsx",
+  "apps/web/app/dashboard/decisions/page.tsx",
+  "apps/web/app/dashboard/policies/page.tsx",
+  "apps/web/app/dashboard/reviews/page.tsx",
+  "apps/web/app/dashboard/integrations/page.tsx",
+  "apps/web/app/dashboard/developers/page.tsx",
+  "apps/web/app/dashboard/notifications/page.tsx",
+  "apps/web/app/dashboard/settings/page.tsx",
+  "apps/web/app/dashboard/audit/page.tsx",
+  "apps/web/app/dashboard/billing/page.tsx",
+  "apps/web/app/dashboard/data/page.tsx",
   "apps/web/app/dashboard/docs/page.tsx",
   "apps/web/app/dashboard/docs/[slug]/page.tsx",
-  "apps/web/app/api/demo/evaluate/route.ts",
-  "apps/web/app/api/demo/review/route.ts",
-  "apps/web/app/api/demo/reset/route.ts",
   "apps/web/app/api/health/route.ts",
   "apps/web/app/api/readiness/route.ts",
   "apps/web/app/api/internal/client-error/route.ts",
+  "apps/web/app/api/internal/reliability/session/route.ts",
   "apps/web/app/api/integrations/github/install/route.ts",
   "apps/web/app/api/integrations/github/callback/route.ts",
   "apps/web/app/api/integrations/github/webhook/route.ts",
   "apps/web/app/api/integrations/github/evaluate/route.ts",
+  "apps/web/app/api/v1/evaluate/route.ts",
 ];
 
 const deploymentArtifacts = [
@@ -46,6 +57,7 @@ const deploymentArtifacts = [
   "apps/web/.env.example",
   "apps/web/proxy.ts",
   "apps/web/instrumentation.ts",
+  "scripts/production-only-check.mjs",
   "scripts/browser-e2e.mjs",
   ".github/workflows/production-smoke.yml",
   "docs/deployment.md",
@@ -54,6 +66,9 @@ const deploymentArtifacts = [
 ];
 
 const documentationArtifacts = [
+  "README.md",
+  "docs/production-walkthrough.md",
+  "docs/submission.md",
   "apps/web/lib/product-docs.ts",
   "docs/product-guide.md",
   "docs/releases/2026-09.md",
@@ -61,8 +76,7 @@ const documentationArtifacts = [
 ];
 
 const behavioralProof = [
-  "apps/web/app/api/demo/demo-flow.test.ts",
-  "apps/web/lib/flagship-demo.test.ts",
+  "apps/web/lib/flagship-scenario.test.ts",
   "apps/web/lib/policy-studio.test.ts",
   "apps/web/lib/server/app-origin.test.ts",
   "apps/web/lib/server/github-app.test.ts",
@@ -81,7 +95,9 @@ const browserE2e = requireFile("scripts/browser-e2e.mjs");
 if (existsSync(browserE2e)) {
   const source = readFileSync(browserE2e, "utf8");
   check(source.includes("provider degradation returned"), "browser E2E verifies SERV degradation fails closed");
-  check(source.includes("human review creates a new receipt"), "browser E2E verifies review re-evaluation receipt lineage");
+  check(source.includes("real Human Review re-evaluation creates a new immutable receipt"), "browser E2E verifies review re-evaluation receipt lineage");
+  check(source.includes("qaRoutes"), "browser E2E performs the route-by-route product sweep");
+  check(source.includes("actionableConsoleErrors"), "browser E2E treats actionable console errors as failures");
   check(source.includes("assertPerformance"), "browser E2E enforces explicit performance budgets");
   check(source.includes("Page.captureScreenshot"), "browser E2E captures failure/debug screenshots");
 }
@@ -110,20 +126,6 @@ if (existsSync(sdkQuickstart)) {
   const source = readFileSync(sdkQuickstart, "utf8");
   check(source.includes("createVetoLayerClient"), "compile-checked quickstart uses the current SDK client");
   check(source.includes("exampleActionRequests.refund"), "compile-checked quickstart uses a current core ActionRequest example");
-}
-
-const demoClient = requireFile("apps/web/app/demo/demo-client.tsx");
-if (existsSync(demoClient)) {
-  const source = readFileSync(demoClient, "utf8");
-  check(source.includes("/api/demo/evaluate"), "flagship demo calls the initial evaluation API");
-  check(source.includes("/api/demo/review"), "flagship demo reaches the human-review re-evaluation API");
-  check(source.includes("/api/demo/reset"), "flagship demo reset calls the server reset API");
-}
-
-const evaluateRoute = requireFile("apps/web/app/api/demo/evaluate/route.ts");
-if (existsSync(evaluateRoute)) {
-  const source = readFileSync(evaluateRoute, "utf8");
-  check(source.includes("resolved demo state must be reached through the human-review endpoint"), "public demo cannot skip directly to the resolved state");
 }
 
 const githubWebhook = requireFile("apps/web/app/api/integrations/github/webhook/route.ts");
@@ -170,8 +172,8 @@ if (existsSync(staticRoot)) {
 const baseUrl = process.env.SMOKE_BASE_URL?.replace(/\/$/, "");
 if (baseUrl) {
   await probe(baseUrl, "/", [200]);
+  await probe(baseUrl, "/pricing", [200]);
   await probe(baseUrl, "/login", [200]);
-  await probe(baseUrl, "/demo", [200]);
   await probe(baseUrl, "/onboarding", [200, 302, 303, 307, 308]);
   await probe(baseUrl, "/dashboard", [200, 302, 303, 307, 308]);
   await probe(baseUrl, "/dashboard/docs", [200, 302, 303, 307, 308]);
@@ -218,7 +220,7 @@ async function probeHealth(origin) {
     }
     const body = await response.json();
     check(body.status === "ok", "/api/health reports service liveness ok");
-    check(body.demoReady === true, "/api/health confirms SERV-backed public demo readiness");
+    check(body.reasoningReady === true, "/api/health confirms SERV reasoning configuration");
     check(Boolean(response.headers.get("x-vetolayer-request-id")), "/api/health returns a correlation id");
   } catch (error) {
     failures.push(`/api/health could not be verified: ${error instanceof Error ? error.message : String(error)}`);
