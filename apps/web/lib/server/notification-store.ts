@@ -87,12 +87,6 @@ export type NotificationStore = {
   listDeliveries(scope: ProductScope, limit?: number): Promise<StoredNotificationDelivery[]>;
 };
 
-const events = new Map<string, StoredProductEvent>();
-const eventKeys = new Map<string, string>();
-const preferences = new Map<string, NotificationPreference>();
-const notifications = new Map<string, StoredNotification>();
-const deliveries = new Map<string, StoredNotificationDelivery>();
-
 function prefKey(workspaceId: string, userId: string) { return `${workspaceId}:${userId}`; }
 function eventKey(workspaceId: string, idempotencyKey: string) { return `${workspaceId}:${idempotencyKey}`; }
 function notificationKey(eventId: string, userId: string) { return `${eventId}:${userId}`; }
@@ -113,6 +107,12 @@ export function defaultNotificationPreference(workspaceId: string, userId: strin
 }
 
 export function createMemoryNotificationStore(): NotificationStore {
+  const events = new Map<string, StoredProductEvent>();
+  const eventKeys = new Map<string, string>();
+  const preferences = new Map<string, NotificationPreference>();
+  const notifications = new Map<string, StoredNotification>();
+  const deliveries = new Map<string, StoredNotificationDelivery>();
+
   return {
     async createEvent(input) {
       const key = eventKey(input.workspaceId, input.idempotencyKey);
