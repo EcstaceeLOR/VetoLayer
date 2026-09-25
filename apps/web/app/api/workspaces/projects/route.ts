@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       targetType: "project",
       targetId: project.id,
       targetLabel: project.name,
-      href: "/dashboard/workspace",
+      href: "/dashboard/settings#projects",
       request,
       metadata: { defaultEnvironmentId: production.id },
     }),
@@ -46,7 +46,7 @@ export async function PATCH(request: Request) {
   const auth = await requireApiWorkspace("projects.manage");
   if (!auth.ok) return auth.response;
 
-  let payload: { projectId?: unknown; name?: unknown };
+  let payload: { projectId?: unknown; name?: unknown; expectedUpdatedAt?: unknown };
   try { payload = await request.json(); } catch { return NextResponse.json({ error: { code: "INVALID_JSON", message: "Request body must be valid JSON." } }, { status: 400 }); }
   const projectId = typeof payload.projectId === "string" ? payload.projectId : auth.workspace.projectId;
   const name = normalizeEntityName(typeof payload.name === "string" ? payload.name : "");
@@ -56,6 +56,8 @@ export async function PATCH(request: Request) {
   const target = await store.getProject(auth.workspace.workspaceId, projectId);
   if (!target) return NextResponse.json({ error: { code: "PROJECT_NOT_FOUND", message: "Project was not found in this workspace." } }, { status: 404 });
   if (target.status !== "active") return NextResponse.json({ error: { code: "PROJECT_ARCHIVED", message: "Archived projects retain history but cannot be modified." } }, { status: 409 });
+  const conflict = staleSetting(payload.expectedUpdatedAt, target.updatedAt, target);
+  if (conflict) return conflict;
   const project = await store.renameProject(auth.workspace.workspaceId, projectId, name);
   await recordAuditEvent({ ...workspaceAuditInput(auth.workspace, {
     action: "project.rename",
@@ -63,7 +65,7 @@ export async function PATCH(request: Request) {
     targetType: "project",
     targetId: project.id,
     targetLabel: project.name,
-    href: "/dashboard/workspace",
+    href: "/dashboard/settings#projects",
     request,
     metadata: { previousName: target.name, nextName: project.name },
   }), projectId });
@@ -75,10 +77,13 @@ export async function DELETE(request: Request) {
   if (!auth.ok) return auth.response;
   const url = new URL(request.url);
   const projectId = url.searchParams.get("projectId") ?? auth.workspace.projectId;
+  const expectedUpdatedAt = url.searchParams.get("expectedUpdatedAt");
   const { store } = getWorkspaceStore();
   const project = await store.getProject(auth.workspace.workspaceId, projectId);
   if (!project) return NextResponse.json({ error: { code: "PROJECT_NOT_FOUND", message: "Project was not found in this workspace." } }, { status: 404 });
   if (project.status !== "active") return NextResponse.json({ error: { code: "PROJECT_ARCHIVED", message: "This project is already archived." } }, { status: 409 });
+  const conflict = staleSetting(expectedUpdatedAt, project.updatedAt, project);
+  if (conflict) return conflict;
   const activeProjects = await store.listProjects(auth.workspace.workspaceId);
   if (activeProjects.length <= 1) {
     return NextResponse.json({ error: { code: "LAST_PROJECT", message: "A workspace must keep at least one active project. Archive the workspace instead if the organization is no longer in use." } }, { status: 409 });
@@ -90,9 +95,14 @@ export async function DELETE(request: Request) {
     targetType: "project",
     targetId: project.id,
     targetLabel: project.name,
-    href: "/dashboard/workspace",
+    href: "/dashboard/settings#danger-zone",
     request,
     metadata: { previousStatus: project.status, nextStatus: "archived" },
   }), projectId });
   return NextResponse.json({ archived: true, projectId });
+}
+
+function staleSetting(expected: unknown, currentUpdatedAt: string, current: unknown) {
+  if (typeof expected !== "string" || !expected || expected === currentUpdatedAt) return null;
+  return NextResponse.json({ error: { code: "SETTINGS_CONFLICT", message: "This project changed after the page was loaded. Refresh and review its current state before saving again." }, current }, { status: 409 });
 }

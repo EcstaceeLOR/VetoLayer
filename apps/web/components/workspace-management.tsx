@@ -15,9 +15,10 @@ type Props = {
   environments: ProjectEnvironment[];
   members: WorkspaceMember[];
   invitations: Array<Omit<WorkspaceInvitation, "tokenHash">>;
+  embedded?: boolean;
 };
 
-type ApiResponse = { error?: { message?: string }; inviteUrl?: string } & Record<string, unknown>;
+type ApiResponse = { error?: { message?: string; code?: string }; inviteUrl?: string } & Record<string, unknown>;
 
 export function WorkspaceManagement(props: Props) {
   const router = useRouter();
@@ -37,7 +38,8 @@ export function WorkspaceManagement(props: Props) {
       const response = await fetch(path, init);
       const result = await response.json() as ApiResponse;
       if (!response.ok) {
-        setNotice({ tone: "danger", title: "Action failed", message: result.error?.message ?? "VetoLayer could not complete that action." });
+        setNotice({ tone: "danger", title: result.error?.code === "SETTINGS_CONFLICT" ? "Settings changed elsewhere" : "Action failed", message: result.error?.message ?? "VetoLayer could not complete that action." });
+        if (response.status === 409 && result.error?.code === "SETTINGS_CONFLICT") router.refresh();
         return null;
       }
       setNotice({ tone: "success", title: "Saved", message: success });
@@ -53,7 +55,7 @@ export function WorkspaceManagement(props: Props) {
 
   async function renameWorkspace(formData: FormData) {
     const name = String(formData.get("workspaceName") ?? "");
-    await call("/api/workspaces/current", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "rename", name }) }, "workspace-rename", "Workspace name updated.");
+    await call("/api/workspaces/current", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "rename", name, expectedUpdatedAt: props.workspace.updatedAt }) }, "workspace-rename", "Workspace name updated.");
   }
 
   async function createProject(formData: FormData) {
@@ -63,13 +65,14 @@ export function WorkspaceManagement(props: Props) {
 
   async function renameProject(formData: FormData) {
     const name = String(formData.get("projectName") ?? "");
-    await call("/api/workspaces/projects", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: props.project.id, name }) }, "project-rename", "Project name updated.");
+    await call("/api/workspaces/projects", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: props.project.id, name, expectedUpdatedAt: props.project.updatedAt }) }, "project-rename", "Project name updated.");
   }
 
   async function archiveProject() {
     if (!window.confirm(`Archive ${props.project.name}? History stays available, but the project will stop accepting new actions.`)) return;
-    const result = await call(`/api/workspaces/projects?projectId=${encodeURIComponent(props.project.id)}`, { method: "DELETE" }, "project-archive", "Project archived. Select another active project to continue.");
-    if (result) router.push("/dashboard/workspace");
+    const query = new URLSearchParams({ projectId: props.project.id, expectedUpdatedAt: props.project.updatedAt });
+    const result = await call(`/api/workspaces/projects?${query}`, { method: "DELETE" }, "project-archive", "Project archived. Select another active project to continue.");
+    if (result) router.push(props.embedded ? "/dashboard/settings" : "/dashboard/workspace");
   }
 
   async function createEnvironment(formData: FormData) {
@@ -80,11 +83,15 @@ export function WorkspaceManagement(props: Props) {
 
   async function renameEnvironment(formData: FormData) {
     const name = String(formData.get("environmentName") ?? "");
-    await call("/api/workspaces/environments", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: props.project.id, environmentId: props.environment.id, name }) }, "environment-rename", "Environment name updated.");
+    await call("/api/workspaces/environments", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: props.project.id, environmentId: props.environment.id, name, expectedUpdatedAt: props.environment.updatedAt }) }, "environment-rename", "Environment name updated.");
   }
 
   async function archiveEnvironment(environmentId: string) {
-    await call(`/api/workspaces/environments?projectId=${encodeURIComponent(props.project.id)}&environmentId=${encodeURIComponent(environmentId)}`, { method: "DELETE" }, `environment-${environmentId}`, "Environment archived.");
+    const target = props.environments.find((item) => item.id === environmentId);
+    if (!target) return;
+    if (!window.confirm(`Archive ${target.name}? Existing decision history remains available according to workspace retention.`)) return;
+    const query = new URLSearchParams({ projectId: props.project.id, environmentId, expectedUpdatedAt: target.updatedAt });
+    await call(`/api/workspaces/environments?${query}`, { method: "DELETE" }, `environment-${environmentId}`, "Environment archived.");
   }
 
   async function inviteMember(formData: FormData) {
@@ -95,38 +102,40 @@ export function WorkspaceManagement(props: Props) {
   }
 
   async function changeRole(userId: string, role: WorkspaceRole) {
-    await call("/api/workspaces/members", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, role }) }, `role-${userId}`, "Member role updated.");
+    const target = props.members.find((member) => member.userId === userId);
+    if (!target) return;
+    await call("/api/workspaces/members", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, role, expectedRole: target.role }) }, `role-${userId}`, "Member role updated.");
   }
 
   async function removeMember(userId: string) {
-    if (!window.confirm("Remove this member from the workspace?")) return;
-    await call(`/api/workspaces/members?userId=${encodeURIComponent(userId)}`, { method: "DELETE" }, `remove-${userId}`, "Member removed.");
+    const target = props.members.find((member) => member.userId === userId);
+    if (!target) return;
+    if (!window.confirm("Remove this member from the workspace? They will immediately lose workspace access.")) return;
+    const query = new URLSearchParams({ userId, expectedRole: target.role });
+    await call(`/api/workspaces/members?${query}`, { method: "DELETE" }, `remove-${userId}`, "Member removed.");
   }
 
   async function archiveWorkspace() {
-    if (!window.confirm(`Archive ${props.workspace.name}? Existing history remains, but the workspace will no longer be active.`)) return;
-    const result = await call("/api/workspaces/current", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "archive" }) }, "workspace-archive", "Workspace archived.");
+    if (!window.confirm(`Archive ${props.workspace.name}? Existing history remains according to retention, but the workspace will no longer accept new work.`)) return;
+    const result = await call("/api/workspaces/current", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "archive", expectedUpdatedAt: props.workspace.updatedAt }) }, "workspace-archive", "Workspace archived.");
     if (result) router.push("/onboarding");
   }
 
   return (
     <div className="workspaceAdmin">
-      <header className="workspaceAdminHeader">
-        <div><p className="vlEyebrow">Organization control</p><h1>{props.workspace.name}</h1><p>Manage the real team boundary behind every VetoLayer policy, decision, review, and integration.</p></div>
-        <Badge tone={props.role === "owner" ? "accent" : props.role === "admin" ? "info" : "neutral"}>{props.role}</Badge>
-      </header>
+      {!props.embedded ? <header className="workspaceAdminHeader"><div><p className="vlEyebrow">Organization control</p><h1>{props.workspace.name}</h1><p>Manage the real team boundary behind every VetoLayer policy, decision, review, and integration.</p></div><Badge tone={props.role === "owner" ? "accent" : props.role === "admin" ? "info" : "neutral"}>{props.role}</Badge></header> : <div className="workspaceAdminHeader"><div><p className="vlEyebrow">WORKSPACE & TEAM</p><h2>{props.workspace.name}</h2><p>Identity, people, projects, and environments are persisted workspace state. Editable controls are permission-aware and stale writes are rejected.</p></div><Badge tone={props.role === "owner" ? "accent" : props.role === "admin" ? "info" : "neutral"}>{props.role}</Badge></div>}
 
       {notice ? <Notice tone={notice.tone} title={notice.title}>{notice.message}</Notice> : null}
 
       <div className="workspaceAdminGrid">
         <Card raised className="workspaceAdminCard">
-          <div className="workspaceSectionHead"><div><span>Workspace</span><h2>Organization identity</h2></div><Badge tone="success">Active</Badge></div>
+          <div className="workspaceSectionHead"><div><span>Workspace</span><h2>Organization identity</h2></div><Badge tone={props.workspace.status === "active" ? "success" : "warning"}>{props.workspace.status}</Badge></div>
           <form action={renameWorkspace} className="workspaceInlineForm">
             <Field label="Workspace name"><Input name="workspaceName" defaultValue={props.workspace.name} disabled={!canManageWorkspace || Boolean(busy)} /></Field>
             <Button type="submit" tone="secondary" disabled={!canManageWorkspace || Boolean(busy)}>Rename</Button>
           </form>
           <dl className="workspaceFacts"><div><dt>Workspace ID</dt><dd>{props.workspace.id}</dd></div><div><dt>Your role</dt><dd>{props.role}</dd></div><div><dt>Members</dt><dd>{canManageMembers ? props.members.length : "Restricted"}</dd></div><div><dt>Projects</dt><dd>{props.projects.length}</dd></div></dl>
-          {props.role === "owner" ? <Button tone="danger" size="sm" onClick={() => void archiveWorkspace()} disabled={Boolean(busy)}>Archive workspace</Button> : null}
+          {!props.embedded && props.role === "owner" ? <Button tone="danger" size="sm" onClick={() => void archiveWorkspace()} disabled={Boolean(busy)}>Archive workspace</Button> : null}
         </Card>
 
         <Card raised className="workspaceAdminCard">
