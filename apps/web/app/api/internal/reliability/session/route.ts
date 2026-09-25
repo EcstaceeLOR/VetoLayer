@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
+import {
+  FLAGSHIP_INCIDENT,
+  FLAGSHIP_REVIEW_CASE_ID,
+  createFlagshipDemoHumanReview,
+  flagshipSnapshot,
+  runFlagshipDemo,
+} from "../../../../../lib/flagship-demo";
 import { policyStudioTemplates } from "../../../../../lib/policy-lifecycle";
 import { getDeveloperStore } from "../../../../../lib/server/developer-store";
 import { getPolicyLifecycleStore } from "../../../../../lib/server/policy-lifecycle-store";
+import { reevaluateReviewCase } from "../../../../../lib/server/review-workflow";
 import {
   ENVIRONMENT_COOKIE,
   PROJECT_COOKIE,
@@ -98,6 +106,65 @@ export async function POST(request: Request) {
       version: created,
       requestPolicy: { ...created.policy, enabled: true },
     }, { status: 201 });
+  }
+
+  if (action === "review_journey") {
+    const now = new Date();
+    const initial = await runFlagshipDemo("needs-approval", { now });
+    if (initial.receipt.outcome !== "REVIEW") {
+      return NextResponse.json({ error: { code: "RELIABILITY_REVIEW_NOT_REQUIRED", message: "Reliability review fixture did not produce REVIEW." } }, { status: 500 });
+    }
+    const humanReview = createFlagshipDemoHumanReview(new Date(now.getTime() + 1_000));
+    const reviewCase = {
+      id: FLAGSHIP_REVIEW_CASE_ID,
+      workspaceId: scope.workspaceId,
+      projectId: scope.projectId,
+      environmentId: scope.environmentId,
+      revision: 1,
+      status: "pending" as const,
+      title: "Production review reliability check",
+      source: "integration" as const,
+      receipt: initial.receipt,
+      context: {
+        kind: "github" as const,
+        snapshot: flagshipSnapshot("needs-approval"),
+        operation: "deploy-production" as const,
+        restrictedWindow: true,
+        incident: FLAGSHIP_INCIDENT,
+      },
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+      comments: [],
+      evidenceAdditions: [],
+      reviewHistory: [humanReview],
+      timeline: [],
+      receiptLineage: [{
+        receiptId: initial.receipt.receiptId,
+        outcome: initial.receipt.outcome,
+        createdAt: initial.receipt.timestamps.receiptCreatedAt,
+        reason: "initial" as const,
+      }],
+      review: humanReview,
+    };
+    const reevaluated = await reevaluateReviewCase({
+      reviewCase,
+      scope,
+      receiptScope: {
+        ...scope,
+        workspaceName: "Reliability Workspace",
+        projectName: "Production Gate",
+        environmentName: "Production",
+      },
+      humanReview,
+      reason: "approval",
+    });
+    return NextResponse.json({
+      initialReceiptId: initial.receipt.receiptId,
+      initialOutcome: initial.receipt.outcome,
+      resolutionReceiptId: reevaluated.receipt.receiptId,
+      resolutionOutcome: reevaluated.receipt.outcome,
+      parentReceiptId: reevaluated.parentReceiptId,
+    });
   }
 
   return NextResponse.json({ error: { code: "UNKNOWN_ACTION", message: "Unknown reliability fixture action." } }, { status: 400 });

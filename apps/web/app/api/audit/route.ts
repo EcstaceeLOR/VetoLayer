@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiWorkspace } from "../../../lib/server/api-auth";
 import { getAuditStore, type AuditFilter } from "../../../lib/server/audit-store";
+import { isReliabilityTestMode } from "../../../lib/server/reliability-mode";
 import { getWorkspaceStore } from "../../../lib/server/workspace-store";
 
 export const runtime = "nodejs";
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
   const auth = await requireApiWorkspace("audit.read");
   if (!auth.ok) return auth.response;
   const { store, persistence } = getAuditStore();
-  if (process.env.NODE_ENV === "production" && persistence !== "supabase") {
+  if (process.env.NODE_ENV === "production" && persistence !== "supabase" && !isReliabilityTestMode()) {
     return NextResponse.json({ error: { code: "AUDIT_PERSISTENCE_REQUIRED", message: "Apply the audit migration and configure Supabase server persistence before using the production audit log." } }, { status: 503 });
   }
 
