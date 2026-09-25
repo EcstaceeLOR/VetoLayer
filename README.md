@@ -109,12 +109,12 @@ See [`docs/demo-script.md`](docs/demo-script.md).
 | Surface | What it proves |
 | --- | --- |
 | Landing + onboarding | A new user can understand the product and reach a useful action quickly. |
-| Authenticated workspaces | Supabase login and server-derived ownership isolate product data. |
+| Authenticated workspaces | Supabase login plus real workspace/project/environment roles isolate product data. |
 | Control Center | Decision stream, receipt drill-down, filters, and decision-health analytics. |
 | Policy Studio | Author deterministic and SERV-contextual policy, then simulate it. |
 | Human Review Inbox | Human decisions become evidence and trigger re-evaluation. |
-| Integrations | GitHub and Developer API readiness without exposing secrets. |
-| GitHub Gate | Real PR metadata, changed files, reviews, and check-run evidence. |
+| Integrations | GitHub App installations/repositories and Developer API readiness without exposing secrets. |
+| GitHub Gate | Real PR metadata, changed files, reviews, and check-run evidence authenticated with short-lived App installation tokens. |
 | Developer API + SDK | Framework-agnostic evaluate-before-execute boundary. |
 | Decision Receipts | Canonical SHA-256 tamper-evident audit artifacts. |
 | First-run / Demo UX | Live, Demo, and Empty states stay visibly distinct. |
@@ -160,6 +160,9 @@ Automated coverage includes:
 - prompt-injection-like text inside evidence → treated as untrusted data
 - public flagship HTTP flow → same action `REVIEW → human-review evidence → ALLOW`
 - direct attempt to skip to the demo's resolved state → rejected
+- GitHub App callback requires one-time state, current VetoLayer authorization, and GitHub installer proof before binding an installation
+- GitHub webhook payloads are signature-verified before processing and duplicate delivery IDs are ignored
+- GitHub installation tokens remain server-side and are not persisted
 - production Developer API without bearer-key configuration → disabled, not public
 - canonical auth redirect and internal continuation-path validation
 
@@ -180,6 +183,8 @@ VetoLayer/
 │   └── sdk/               # evaluate-before-execute client
 ├── examples/
 │   └── github-gate/       # flagship coding-agent integration
+├── supabase/
+│   └── migrations/        # durable product schema, including GitHub App state
 ├── scripts/
 │   └── release-smoke.mjs  # release/deployment verifier
 ├── pnpm-lock.yaml         # deterministic workspace dependency graph
@@ -211,7 +216,13 @@ SERV_BASE_URL=https://inference-api.openserv.ai/v1
 SERV_TIMEOUT_MS=20000
 ```
 
-All credentials are server-only. Never expose `SERV_API_KEY`, `GITHUB_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`, or `VETOLAYER_API_KEY` through `NEXT_PUBLIC_*` variables.
+All credentials are server-only. Never expose `SERV_API_KEY`, GitHub App private/client secrets, `GITHUB_APP_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, or `VETOLAYER_API_KEY` through `NEXT_PUBLIC_*` variables.
+
+### GitHub App
+
+GitHub is connected from the authenticated **Integrations** screen. A deployment administrator registers the GitHub App once; end users install it and select repositories without pasting personal tokens or editing deployment variables.
+
+The App uses read-only Pull requests, Checks, Commit statuses, and Metadata permissions. Installation and webhook security are documented in [`docs/github-app.md`](docs/github-app.md).
 
 ## Vercel deployment
 
@@ -227,7 +238,7 @@ Output:         .next
 
 The app still imports workspace packages outside `apps/web`, so Vercel must include source files outside the Root Directory during the build. The committed deployment configuration is aligned with this setup.
 
-The public hackathon demo requires `SERV_API_KEY` and `SERV_MODEL`. Authentication/persistence/GitHub/API variables are documented in [`docs/deployment.md`](docs/deployment.md). Production `/api/v1/*` routes fail closed if `VETOLAYER_API_KEY` is not configured.
+The public hackathon demo requires `SERV_API_KEY` and `SERV_MODEL`. Authentication, persistence, GitHub App, and API variables are documented in [`docs/deployment.md`](docs/deployment.md). Production `/api/v1/*` routes fail closed if `VETOLAYER_API_KEY` is not configured.
 
 After deployment:
 
@@ -268,7 +279,7 @@ const result = await guardedToolCall({
 });
 ```
 
-Hosted users get a server-derived authenticated workspace. Developer API credentials map to a server-configured service workspace; callers cannot switch tenants through headers.
+Hosted users get a server-derived authenticated workspace/project/environment. Developer API credentials map to a server-configured service scope; callers cannot switch tenants through headers.
 
 ## Hackathon submission status
 
