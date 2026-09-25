@@ -1,135 +1,161 @@
 # VetoLayer release checklist
 
-Use this before every public deployment or hackathon demo refresh. The goal is to verify the critical product path without adding heavyweight deployment infrastructure.
+Use this before every public deployment or hackathon submission refresh.
 
-## Automated gate
+## Repository gate
 
 Run from the repository root:
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm e2e:browser
 pnpm release:smoke
 ```
 
-CI runs this sequence for every pull request to `main`.
+CI runs the equivalent sequence for every pull request to `main`, including browser artifact upload after Chrome E2E.
 
-`pnpm release:smoke` verifies that:
+The final gate proves:
 
-- landing, sign-in, onboarding, demo, dashboard, health, demo-review, and demo-reset surfaces exist;
-- `vercel.json`, the production Next.js configuration, and the complete web environment template are present;
-- the behavioral proof tests for Policy Studio, orchestration, SERV failure handling, Decision Receipts, canonical auth redirects, and the flagship HTTP flow remain part of `pnpm test`;
-- the public demo calls the initial evaluation, human-review re-evaluation, and server reset endpoints;
-- `/api/demo/evaluate` cannot be asked to jump directly to the resolved stage;
-- the Next.js production build exists;
-- actual server-secret values are absent from generated client bundles when those values are present in the release environment.
+- frozen dependency installation;
+- lint and TypeScript correctness across workspace packages;
+- package + web regression/safety tests;
+- production Next.js build;
+- real headless-Chrome navigation against the compiled `next start` app;
+- onboarding, integration readiness, policy state, API-key create/use/revoke, provider degradation, Human Review re-evaluation, Decision Explorer and primary dashboard surfaces;
+- SERV network failure fails closed to `REVIEW` with fallback provider status;
+- browser performance budgets;
+- zero unhandled runtime exceptions across the core journey;
+- zero unexpected browser-console errors across primary dashboard routes;
+- branded global 404/recovery behavior;
+- release-critical source/artifact/docs contracts;
+- secret scanning of generated client assets when release secrets are available.
 
-To probe a deployed release over HTTP:
+## Deployed-production gate
+
+The repository includes `.github/workflows/production-smoke.yml`.
+
+It runs every six hours and supports manual dispatch. The workflow sets `SMOKE_BASE_URL` from the dispatch input or repository variable and executes:
+
+```bash
+pnpm release:smoke
+```
+
+against the deployed production URL from GitHub-hosted infrastructure.
+
+For a manual local-equivalent probe:
 
 ```bash
 SMOKE_BASE_URL=https://your-vetolayer-domain.example pnpm release:smoke
 ```
 
-The live probe checks the public landing/login/demo surfaces, authentication redirects, and `/api/health`. It requires `demoReady: true`, so a deployment without working SERV configuration cannot be marked submission-ready.
+Do not call a release submission-ready until the latest `main` commit is actually deployed and this deployed smoke succeeds.
 
-## Behavioral proof already automated
+## Health vs readiness
 
-The normal test suite covers the release-critical decision behavior:
+- `/api/health` is liveness/secret-free service health.
+- `/api/readiness` is the stricter production-readiness contract for required persistence/auth/provider configuration.
 
-- deterministic policy evaluation;
-- SERV structured contextual reasoning;
-- safe REVIEW fallback when SERV is unavailable or malformed;
-- orchestrator precedence rules;
-- Decision Receipt generation and integrity verification;
-- same flagship action moving from REVIEW to ALLOW only after a `HumanReviewRecord` adds the required approval evidence;
-- public demo HTTP flow and direct-resolved-stage bypass rejection;
-- production Developer API failing closed when bearer auth is not configured;
-- canonical app-origin and safe internal redirect handling.
+A process being alive is not proof that the product is safe to serve.
 
-## Manual release checks
+## Manual final-release checks
 
-These remain manual because they depend on the deployed browser experience or live external credentials.
+These still require the deployed browser or external credentials.
 
-### 1. Public flagship demo — no login required
+### 1. Public product and account flow
 
-- Open `/demo` in a logged-out/private browser.
-- Confirm the page visibly labels PR/incident/CI/reviewer data as seeded demo inputs.
-- Run **1. Evaluate current action** and confirm the action reaches `REVIEW` when security approval is missing.
-- Confirm provider status is real SERV success, not a fallback disguised as success.
-- Run **2. Add demo security-lead approval & re-evaluate**.
-- Confirm the same action is evaluated again and can become `ALLOW` only if SERV + policy evidence support it.
-- Confirm the Decision Receipt hash changes between evaluations.
-- Use **Reset demo** and verify the server reset succeeds and the page returns to the initial state.
+- Open `/` logged out.
+- Confirm public navigation and pricing render correctly.
+- Sign in with a presentation/test account.
+- Confirm onboarding and dashboard stay within the authenticated workspace/project/environment scope.
+- Confirm canonical auth redirects return to the production host.
 
-### 2. Health/readiness
+### 2. Flagship product workflow
 
-Open `/api/health` and verify:
+Use real product state rather than relying on `/demo`:
 
-- `status` is `ok`;
-- `demoReady` is `true`;
-- `serv` is `configured`;
-- any product integrations you intend to demonstrate report the expected readiness state.
+- open a prepared action/receipt that is in `REVIEW` because required evidence is missing;
+- confirm deterministic and SERV/contextual findings are visible;
+- open the exact Human Review case;
+- add the required approval/evidence;
+- re-evaluate through the normal workflow;
+- confirm a new Decision Receipt is created with parent lineage;
+- confirm any `ALLOW` occurs only after all policy/evidence requirements are satisfied.
 
-No secret values should appear in this response.
+If provider trace reports fallback, do not present the contextual evaluation as successful SERV reasoning.
 
-### 3. Authentication and product shell
-
-If Supabase Auth is configured:
-
-- create/sign in with a test account;
-- confirm `/dashboard` loads the authenticated workspace rather than another user's data;
-- confirm `/onboarding` stays in the same workspace;
-- confirm confirmation links return to the canonical production host, not a preview/spoofed Origin.
-
-### 4. Policy path
+### 3. Policy path
 
 - Open Policy Studio.
-- Run a deterministic policy simulation and confirm an outcome is returned.
-- With SERV configured, run a contextual policy simulation and confirm provider trace metadata is visible.
+- Confirm active policy/version state is real persisted data.
+- Run one deterministic simulation.
+- Run one contextual simulation with SERV configured.
+- Confirm failures do not fail open.
 
-### 5. Failure safety
+### 4. Decision Explorer / Receipt Center
 
-In a non-production test environment, temporarily make SERV unavailable or invalid. Re-run a contextual evaluation and confirm VetoLayer returns REVIEW/fallback behavior rather than silently ALLOWing the action.
+- search/filter real decisions;
+- open a stable receipt deep link;
+- verify receipt integrity;
+- inspect lineage and review state;
+- optionally compare two receipts / export the incident summary.
 
-### 6. GitHub Gate
+### 5. Integrations + Developer Console
 
-If `GITHUB_TOKEN` is configured:
+- confirm GitHub App or Developer API readiness used in the presentation;
+- create/use/revoke a scoped test API key if demonstrating the API path;
+- verify webhook/API/GitHub secret values never appear in UI/network output;
+- do not reveal one-time keys in screenshots after capture.
 
-- confirm Integrations reports the expected GitHub account/configuration state;
-- exercise a real PR evidence collection path;
-- verify GitHub token values never appear in browser responses or logs.
+### 6. Notifications / Audit / Analytics
 
-### 7. Developer API
+- open notification center and confirm review alerts deep-link to the correct case if available;
+- open append-only Audit and confirm filters/deep links render without raw secrets;
+- open Analytics and confirm metrics are based on real persisted data rather than demo fixtures.
 
-On the public production deployment:
+### 7. Data / settings / plans
 
-- if `VETOLAYER_API_KEY` is omitted, confirm `/api/v1/evaluate` returns `503 API_AUTH_NOT_CONFIGURED`;
-- if a key is configured, confirm requests without/with a wrong bearer token return `401`;
-- confirm an authorized request is scoped to the server-owned `VETOLAYER_API_WORKSPACE_ID`.
+- confirm settings reflect persisted workspace/project/integration/security state;
+- confirm retention/data export/offboarding controls explain destructive effects;
+- confirm plan/usage numbers are real data and no fake checkout is shown.
 
-### 8. Receipt and audit trail
+### 8. Browser console and errors
 
-- inspect a resulting Decision Receipt;
-- confirm action, policies, evidence/requirements, decision trace, outcome, timestamp, and integrity hash are present;
-- if persistence is configured, confirm dashboard drill-down resolves the stored decision/review state.
+- keep browser devtools open during the presentation route sweep;
+- no unexpected console errors or raw provider/server messages;
+- 404/permission/error states should be branded and actionable.
 
 ### 9. Secret hygiene
 
-- inspect browser devtools/network responses; raw server credentials must never be returned;
-- search deployment logs for accidental values of `SERV_API_KEY`, `GITHUB_TOKEN`, `VETOLAYER_API_KEY`, or the Supabase service-role secret;
-- confirm `.env*` files containing secrets are not committed or served.
+- inspect browser network responses; raw server credentials must never be returned;
+- inspect deployment logs for accidental values of SERV/GitHub/Supabase/webhook/API/worker secrets;
+- confirm secret-bearing `.env*` files are not committed or served.
 
-## Release decision
+## Optional public sandbox
 
-Ship only when:
+`/demo` remains useful as a no-account supporting proof surface, but it is not part of the primary product-completeness requirement.
 
-- CI is green;
-- `pnpm release:smoke` passes;
-- the deployed HTTP smoke probe passes for the public URL;
-- `/api/health` reports `demoReady: true`;
-- the logged-out `/demo` flow completes without developer intervention;
-- all manual checks above that apply to the configured environment are complete;
+If shown:
+
+- seeded scenario inputs must remain visibly labelled;
+- the initial result should be safe `REVIEW` when approval evidence is missing;
+- adding sandbox reviewer evidence must trigger re-evaluation rather than directly toggling the outcome;
+- provider fallback must remain visible and safe;
+- use Reset between repeated presentations.
+
+## SERV Hackathon release decision
+
+Ship/submit only when:
+
+- repository CI is green;
+- latest `main` is deployed to the final public URL;
+- deployed Production Smoke passes against that exact release;
+- the real flagship workflow can be demonstrated without developer intervention;
+- intended integrations report expected readiness;
+- browser console is clean through presentation routes;
+- no secret values appear in client assets, browser output, screenshots, or public logs;
+- final screenshots/GIFs were captured from the verified deployment;
 - there is no known path that turns uncertainty, missing evidence, provider failure, malformed reasoning, or missing API authentication into accidental authority.
