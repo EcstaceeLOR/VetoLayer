@@ -120,17 +120,17 @@ export function NotificationCenter() {
   }, [events]);
 
   if (loading) return <section className="notificationLoading"><span className="pulse" /> Loading notification center…</section>;
-  if (error && !notifications.length && !events.length) return <EmptyState title="Notification center is unavailable" description={error} action={<Button onClick={() => void load()}>Retry</Button>} />;
+  if (error && !notifications.length && !events.length) return <EmptyState title="Notification center is unavailable" copy={error} action={<Button onClick={() => void load()}>Retry</Button>} />;
 
   return (
     <div className="notificationLayout">
       <section className="notificationFeedPanel">
         <div className="notificationPanelHeader">
           <div><span className="vlEyebrow">INBOX</span><h2>{unreadCount ? `${unreadCount} unread alert${unreadCount === 1 ? "" : "s"}` : "You’re caught up"}</h2><p>{persistence === "supabase" ? "Durable workspace notification history" : "Development memory mode"}</p></div>
-          {unreadCount ? <Button variant="secondary" disabled={busy !== null} onClick={() => void markAllRead()}>Mark all read</Button> : null}
+          {unreadCount ? <Button tone="secondary" disabled={busy !== null} onClick={() => void markAllRead()}>Mark all read</Button> : null}
         </div>
-        {error ? <Notice tone="danger">{error}</Notice> : null}
-        {message ? <Notice tone="success">{message}</Notice> : null}
+        {error ? <Notice tone="danger" title="Notification action failed">{error}</Notice> : null}
+        {message ? <Notice tone="success" title="Notification center updated">{message}</Notice> : null}
         {notifications.length ? (
           <div className="notificationFeed">
             {notifications.map((item) => (
@@ -145,7 +145,7 @@ export function NotificationCenter() {
               </article>
             ))}
           </div>
-        ) : <EmptyState title="No notifications yet" description="Review alerts, critical blocks, policy changes, and integration failures will appear here when they happen." />}
+        ) : <EmptyState title="No notifications yet" copy="Review alerts, critical blocks, policy changes, and integration failures will appear here when they happen." />}
       </section>
 
       <aside className="notificationPreferencesPanel">
