@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useState } from "react";
 import { productCommands } from "../lib/product-navigation";
 import { SearchIcon } from "./ui/icons";
 
@@ -9,6 +9,7 @@ export function ProductCommandMenu() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -30,15 +31,37 @@ export function ProductCommandMenu() {
     );
   }, [query]);
 
+  useEffect(() => {
+    setActiveIndex((current) => Math.min(current, Math.max(results.length - 1, 0)));
+  }, [results.length]);
+
   function navigate(href: string) {
     setOpen(false);
     setQuery("");
+    setActiveIndex(0);
     router.push(href);
+  }
+
+  function onSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (!results.length) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((current) => (current + 1) % results.length);
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((current) => (current - 1 + results.length) % results.length);
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const target = results[activeIndex];
+      if (target) navigate(target.href);
+    }
   }
 
   return (
     <>
-      <button className="shellCommandTrigger" type="button" onClick={() => setOpen(true)} aria-haspopup="dialog">
+      <button className="shellCommandTrigger" type="button" onClick={() => { setOpen(true); setActiveIndex(0); }} aria-haspopup="dialog">
         <SearchIcon size={15} />
         <span>Search or jump to…</span>
         <kbd>⌘K</kbd>
@@ -54,15 +77,22 @@ export function ProductCommandMenu() {
               <input
                 autoFocus
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => { setQuery(event.target.value); setActiveIndex(0); }}
+                onKeyDown={onSearchKeyDown}
                 placeholder="Search decisions, policies, reviews, integrations…"
                 aria-label="Search product navigation"
               />
               <kbd>Esc</kbd>
             </div>
-            <div className="commandResults" role="listbox" aria-label="Navigation results">
-              {results.length ? results.map((item) => (
-                <button key={`${item.section}-${item.href}`} type="button" onClick={() => navigate(item.href)} role="option" aria-selected="false">
+            <div className="commandResults" aria-label="Navigation results">
+              {results.length ? results.map((item, index) => (
+                <button
+                  key={`${item.section}-${item.href}`}
+                  type="button"
+                  onClick={() => navigate(item.href)}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  className={index === activeIndex ? "active" : undefined}
+                >
                   <span><strong>{item.label}</strong><small>{item.description}</small></span>
                   <em>{item.section}</em>
                 </button>
