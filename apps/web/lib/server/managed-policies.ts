@@ -9,16 +9,36 @@ export async function loadManagedActivePolicyVersions(scope: ManagedPolicyScope)
   return store.listActiveForEnvironment(scope);
 }
 
-export async function mergeManagedPolicies(scope: ManagedPolicyScope, fallbackPolicies: Policy[]) {
-  const versions = await loadManagedActivePolicyVersions(scope).catch(() => [] as PolicyVersionRecord[]);
+/**
+ * Once a project/environment has active managed policies they are authoritative.
+ * Untrusted API callers cannot add policy meaning to that governed scope.
+ * Trusted adapters such as the GitHub gate may explicitly preserve built-in
+ * safety policies, which are product code rather than caller-controlled input.
+ */
+export function composeManagedPolicySet(
+  versions: PolicyVersionRecord[],
+  fallbackPolicies: Policy[],
+  options: { preserveTrustedFallback?: boolean } = {},
+) {
   if (!versions.length) return { policies: fallbackPolicies, managedVersions: versions, source: "request" as const };
 
   const managedStableIds = new Set(versions.map((version) => version.policy.id));
   const managed = versions.map(materializePolicyVersion);
-  const callerPolicies = fallbackPolicies.filter((policy) => !managedStableIds.has(policy.id));
+  const trustedFallback = options.preserveTrustedFallback
+    ? fallbackPolicies.filter((policy) => !managedStableIds.has(policy.id))
+    : [];
   return {
-    policies: [...managed, ...callerPolicies],
+    policies: [...managed, ...trustedFallback],
     managedVersions: versions,
-    source: callerPolicies.length ? "managed+request" as const : "managed" as const,
+    source: options.preserveTrustedFallback ? "managed+trusted" as const : "managed" as const,
   };
+}
+
+export async function mergeManagedPolicies(
+  scope: ManagedPolicyScope,
+  fallbackPolicies: Policy[],
+  options: { preserveTrustedFallback?: boolean } = {},
+) {
+  const versions = await loadManagedActivePolicyVersions(scope).catch(() => [] as PolicyVersionRecord[]);
+  return composeManagedPolicySet(versions, fallbackPolicies, options);
 }

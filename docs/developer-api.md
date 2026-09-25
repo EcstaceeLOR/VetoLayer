@@ -26,19 +26,37 @@ Authorization: Bearer vl_live_...
 
 `POST /api/v1/evaluate`
 
+When the API key's project/environment has one or more **Active** Policy Studio versions, those managed versions are authoritative and the caller does not send policy definitions:
+
 ```json
 {
   "action": { "...": "ActionRequest" },
-  "policies": [{ "...": "Policy" }],
   "evidence": [{ "...": "Evidence" }],
   "facts": { "amount": 750 },
   "environment": { "region": "us-east" }
 }
 ```
 
-The endpoint runtime-validates all core objects, runs `evaluateAction(...)`, executes deterministic rules first, calls SERV only when contextual policy is applicable, creates a tamper-evident Decision Receipt, and stores that receipt inside the API key's product scope.
+For backwards compatibility, `policies` may still be supplied while the scope has no active managed Policy Studio version:
 
-A successful response includes `requestId`, the normalized `decision`, `receipt`, reasoning `trace`, optional SERV `providerTrace`, `scope`, `latencyMs`, and the current persistence mode. `REVIEW` and `BLOCK` are never approvals. Provider failure cannot turn into `ALLOW`.
+```json
+{
+  "action": { "...": "ActionRequest" },
+  "policies": [{ "...": "Policy" }],
+  "evidence": [],
+  "facts": {}
+}
+```
+
+Once managed policies are active, request-supplied policy definitions are not merged into the governed scope. This prevents an API caller from injecting a permissive rule that changes project governance. Trusted product adapters such as the GitHub gate may preserve their built-in safety policies alongside managed project versions.
+
+If there is no active managed version and no request policy fallback, the API fails closed with `POLICIES_REQUIRED`.
+
+The endpoint runtime-validates core objects, resolves authoritative policy versions, runs `evaluateAction(...)`, executes deterministic rules first, calls SERV only when contextual policy is applicable, creates a tamper-evident Decision Receipt, and stores that receipt inside the API key's product scope.
+
+Managed policy IDs in live evaluation are materialized as immutable references such as `policy_abc@v4`. That version reference is written into the signed Decision Receipt. Editing or publishing a later version therefore cannot rewrite the meaning of an older receipt.
+
+A successful response includes `requestId`, the normalized `decision`, `receipt`, reasoning `trace`, optional SERV `providerTrace`, `scope`, `policySource`, `managedPolicyVersions`, `latencyMs`, and the current persistence mode. `REVIEW` and `BLOCK` are never approvals. Provider failure cannot turn into `ALLOW`.
 
 The Developer Console's Request Tester calls this exact endpoint with the project key entered in the tester. A successful test therefore produces a real Decision Receipt and appears in recent API usage.
 
@@ -54,6 +72,8 @@ Also requires `read:decisions`. If the receipt belongs to another project/enviro
 
 ## SDK
 
+With active Policy Studio versions:
+
 ```ts
 import { createVetoLayerClient } from "@vetolayer/sdk";
 
@@ -62,13 +82,13 @@ const veto = createVetoLayerClient({
   apiKey: process.env.VETOLAYER_PROJECT_API_KEY!,
 });
 
-const result = await veto.evaluate({ action, policies, evidence, facts });
+const result = await veto.evaluate({ action, evidence, facts });
 if (result.decision.outcome !== "ALLOW") return result;
 
 // Execute the governed action only after ALLOW.
 ```
 
-The SDK also exposes `getDecision(receiptId)`, `listDecisions(limit)`, and `guardedToolCall(...)`. The server remains the source of truth for authorization, policy evaluation, receipt creation, and scope.
+The SDK keeps `policies?: Policy[]` as an optional migration fallback for scopes that have not activated managed Policy Studio versions yet. The SDK also exposes `getDecision(receiptId)`, `listDecisions(limit)`, and `guardedToolCall(...)`. The server remains the source of truth for authorization, policy resolution, receipt creation, and scope.
 
 ## Signed webhooks
 
@@ -114,4 +134,4 @@ Common codes include `API_KEY_REQUIRED`, `INVALID_API_KEY`, `API_KEY_SCOPE_FORBI
 
 ## Production persistence
 
-Production key/webhook management requires the Supabase server store and migration `202609250950_developer_console.sql`. Browser roles receive no direct table grants and RLS is enabled. API key secrets are never persisted; only their hashes are stored. Webhook signing secrets must remain recoverable by the server for outbound HMAC signing, so they are persisted only as encrypted ciphertext.
+Production Developer Console management requires the Supabase server store and migration `202609250950_developer_console.sql`. Managed Policy Studio lifecycle/version history additionally requires `202609251100_policy_lifecycle.sql`. Browser roles receive no direct grants to either server-owned credential or policy lifecycle tables, and RLS is enabled.

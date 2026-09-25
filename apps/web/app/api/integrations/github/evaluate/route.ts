@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 
   try {
     const githubToken = await getGitHubInstallationToken({ config, installationId: installation.installationId });
-    const policySet = await mergeManagedPolicies(scope, githubGatePolicies);
+    const policySet = await mergeManagedPolicies(scope, githubGatePolicies, { preserveTrustedFallback: true });
     const result = await evaluateGitHubPullRequest({
       owner: repository.owner,
       repo: repository.name,

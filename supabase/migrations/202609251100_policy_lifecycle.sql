@@ -10,7 +10,8 @@ create table if not exists public.vetolayer_policy_versions (
   version integer not null check (version > 0),
   state text not null check (state in ('draft', 'active', 'archived')),
   policy jsonb not null,
-  target_environment_ids jsonb not null default '[]'::jsonb check (jsonb_typeof(target_environment_ids) = 'array'),
+  target_environment_ids jsonb not null default '[]'::jsonb
+    check (jsonb_typeof(target_environment_ids) = 'array' and jsonb_array_length(target_environment_ids) > 0),
   source_template_id text,
   based_on_version_id text references public.vetolayer_policy_versions(id) on delete set null,
   change_note text,
@@ -35,6 +36,7 @@ create unique index if not exists vetolayer_policy_versions_one_draft_idx
 
 alter table public.vetolayer_policy_versions enable row level security;
 revoke all on table public.vetolayer_policy_versions from anon, authenticated;
+grant select, insert, update, delete on table public.vetolayer_policy_versions to service_role;
 
 -- Existing scoped policies become immutable v1 records. Rows that predate the
 -- real project/environment model remain in the legacy table instead of being
@@ -189,3 +191,5 @@ $$;
 
 revoke all on function public.vetolayer_fork_policy_version(text, text, uuid, text) from public;
 revoke all on function public.vetolayer_activate_policy_version(text) from public;
+grant execute on function public.vetolayer_fork_policy_version(text, text, uuid, text) to service_role;
+grant execute on function public.vetolayer_activate_policy_version(text) to service_role;

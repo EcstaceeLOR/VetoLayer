@@ -17,6 +17,11 @@ export async function executeDeveloperEvaluation(input: {
   const startedAt = Date.now();
   const requestId = `req_${input.payload.action.id}_${now.getTime()}`;
   const policySet = await mergeManagedPolicies(input.scope, input.payload.policies);
+  if (!policySet.policies.length) {
+    const error = new Error("No active managed Policy Studio version or request policy is available for this project environment.");
+    error.name = "PoliciesRequiredError";
+    throw error;
+  }
 
   const orchestration = await evaluateAction({
     action: input.payload.action,
