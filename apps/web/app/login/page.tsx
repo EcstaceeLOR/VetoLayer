@@ -1,30 +1,24 @@
 import Link from "next/link";
-import { Badge, Button, Card, Field, Input, Notice } from "../../components/ui/primitives";
+import { AuthSubmitButton } from "../../components/auth-submit-button";
+import { Badge, Card, Field, Input, Notice } from "../../components/ui/primitives";
 import { VetoLayerLogo } from "../../components/vetolayer-logo";
+import { authErrorMessage, authSuccessMessage, MIN_PASSWORD_LENGTH } from "../../lib/auth/ux";
 import { safeAppPath } from "../../lib/server/app-origin";
 import { isSupabaseAuthConfigured } from "../../lib/supabase/server";
 import { signIn, signUp } from "./actions";
 import "./login.css";
 
-const errorMessages: Record<string, string> = {
-  auth_not_configured: "Authentication is not configured on this deployment yet.",
-  invalid_credentials: "Enter a valid email and a password with at least 6 characters.",
-  signup_requirements: "Use a valid email and a password with at least 8 characters.",
-  sign_in_failed: "We could not sign you in with those credentials.",
-  sign_up_failed: "We could not create that account. Try signing in if it already exists.",
-  callback_failed: "The authentication link could not be verified. Request a new one and try again.",
-};
-
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; message?: string; next?: string }>;
+  searchParams: Promise<{ error?: string; message?: string; next?: string; mode?: string }>;
 }) {
   const params = await searchParams;
   const next = safeAppPath(params.next);
   const configured = isSupabaseAuthConfigured();
-  const error = params.error ? errorMessages[params.error] ?? "Authentication could not be completed." : null;
-  const message = params.message === "check_email" ? "Check your inbox to confirm your account, then return to VetoLayer." : null;
+  const signupMode = params.mode === "signup";
+  const error = authErrorMessage(params.error);
+  const message = authSuccessMessage(params.message);
 
   return (
     <main className="authShell" id="main-content" tabIndex={-1}>
@@ -32,34 +26,62 @@ export default async function LoginPage({
         <Link href="/" className="brand authBrand" aria-label="VetoLayer home"><VetoLayerLogo size="md" /></Link>
         <section className="authIntro" aria-labelledby="auth-heading">
           <p className="vlEyebrow">Workspace access</p>
-          <h1 id="auth-heading">Own the decisions your agents make.</h1>
-          <p>Sign in to a private VetoLayer workspace. Policies, decisions, review cases, and integration state stay scoped to the authenticated owner.</p>
+          <h1 id="auth-heading">{signupMode ? "Create the account behind your control plane." : "Return to your agent control plane."}</h1>
+          <p>{signupMode
+            ? "Create a verified VetoLayer identity before policies, decisions, reviews, and integrations are attached to your workspace."
+            : "Sign in to the VetoLayer workspace that owns your policies, decisions, review cases, and integration state."}</p>
         </section>
 
-        <Card className="authCard" raised aria-label="Sign in or create an account">
+        <Card className="authCard" raised aria-label={signupMode ? "Create a VetoLayer account" : "Sign in to VetoLayer"}>
           <div className="authCardHeader">
-            <div><span className="authStatusDot" aria-hidden="true" /> Supabase Auth</div>
-            <Badge tone={configured ? "success" : "warning"}>{configured ? "Configured" : "Needs setup"}</Badge>
+            <div><span className="authStatusDot" aria-hidden="true" /> Account security</div>
+            <Badge tone={configured ? "success" : "warning"}>{configured ? "Available" : "Needs setup"}</Badge>
           </div>
 
-          {error ? <Notice tone="danger" title="Authentication unavailable" role="alert">{error}</Notice> : null}
-          {message ? <Notice tone="success" title="Check your email" role="status">{message}</Notice> : null}
+          <div className="authModeSwitch" aria-label="Authentication mode">
+            <Link className={!signupMode ? "active" : ""} href={`/login?mode=signin&next=${encodeURIComponent(next)}`}>Sign in</Link>
+            <Link className={signupMode ? "active" : ""} href={`/login?mode=signup&next=${encodeURIComponent(next)}`}>Create account</Link>
+          </div>
 
-          <form className="authForm">
-            <input type="hidden" name="next" value={next} />
-            <Field label="Email">
-              <Input id="email" name="email" type="email" autoComplete="email" required placeholder="you@company.com" disabled={!configured} />
-            </Field>
-            <Field label="Password" hint="Use the password associated with your VetoLayer account.">
-              <Input id="password" name="password" type="password" autoComplete="current-password" minLength={6} required placeholder="••••••••" disabled={!configured} />
-            </Field>
-            <div className="authActions">
-              <Button tone="primary" size="lg" formAction={signIn} disabled={!configured}>Sign in</Button>
-              <Button tone="secondary" size="lg" formAction={signUp} disabled={!configured}>Create account</Button>
-            </div>
-          </form>
+          {error ? <Notice tone="danger" title="Authentication could not be completed" role="alert">{error}</Notice> : null}
+          {message ? <Notice tone="success" title="Account update" role="status">{message}</Notice> : null}
 
-          <p className="authFinePrint">VetoLayer uses Supabase-hosted authentication. Workspace identity is verified server-side before protected data is read or written.</p>
+          {signupMode ? (
+            <form className="authForm" action={signUp}>
+              <input type="hidden" name="next" value={next} />
+              <Field label="Display name" hint="Shown to you inside VetoLayer; you can change it later.">
+                <Input name="displayName" autoComplete="name" required maxLength={80} placeholder="Ada Lovelace" disabled={!configured} />
+              </Field>
+              <Field label="Email">
+                <Input name="email" type="email" autoComplete="email" required placeholder="you@company.com" disabled={!configured} />
+              </Field>
+              <Field label="Password" hint={`Use at least ${MIN_PASSWORD_LENGTH} characters.`}>
+                <Input name="password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} required disabled={!configured} />
+              </Field>
+              <Field label="Confirm password">
+                <Input name="passwordConfirmation" type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} required disabled={!configured} />
+              </Field>
+              <AuthSubmitButton pendingLabel="Creating account…">Create account</AuthSubmitButton>
+              <p className="authFinePrint">Email verification may be required before the first sign-in, depending on the production Supabase policy.</p>
+            </form>
+          ) : (
+            <form className="authForm" action={signIn}>
+              <input type="hidden" name="next" value={next} />
+              <Field label="Email">
+                <Input name="email" type="email" autoComplete="email" required placeholder="you@company.com" disabled={!configured} />
+              </Field>
+              <Field label="Password">
+                <Input name="password" type="password" autoComplete="current-password" required disabled={!configured} />
+              </Field>
+              <div className="authInlineLinks">
+                <Link href="/forgot-password">Forgot password?</Link>
+                <Link href={`/verify-email?next=${encodeURIComponent(next)}`}>Need a new verification email?</Link>
+              </div>
+              <AuthSubmitButton pendingLabel="Signing in…">Sign in</AuthSubmitButton>
+            </form>
+          )}
+
+          {!configured ? <p className="authFinePrint">This deployment still needs its Supabase Auth environment variables before account actions can run.</p> : null}
         </Card>
       </div>
     </main>
