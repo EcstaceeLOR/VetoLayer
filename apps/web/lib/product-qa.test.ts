@@ -11,7 +11,7 @@ describe("final production QA contracts", () => {
     expect(source).toContain('process.env.NODE_ENV === "production" ? []');
   });
 
-  it("runs the browser review journey through the production review orchestrator instead of the demo API", () => {
+  it("runs the browser review journey through the production review orchestrator", () => {
     const bootstrap = read("scripts/browser-e2e-bootstrap.mjs");
     const reliabilityRoute = read("apps/web/app/api/internal/reliability/session/route.ts");
     expect(bootstrap).toContain('action: "review_journey"');
