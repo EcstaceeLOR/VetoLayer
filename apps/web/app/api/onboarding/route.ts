@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import type { OnboardingIntegrationChoice, OnboardingState, OnboardingUseCase } from "../../../lib/onboarding-model";
 import { loadOnboardingSnapshot } from "../../../lib/server/onboarding-progress";
 import { getOnboardingStore } from "../../../lib/server/onboarding-store";
+import { isReliabilityTestMode } from "../../../lib/server/reliability-mode";
 import { getAuthenticatedIdentity } from "../../../lib/server/workspace";
 import { getWorkspaceStore } from "../../../lib/server/workspace-store";
 
 export const runtime = "nodejs";
 
 function requiresDurablePersistence(persistence: "supabase" | "memory") {
-  return process.env.NODE_ENV === "production" && persistence !== "supabase";
+  return process.env.NODE_ENV === "production" && persistence !== "supabase" && !isReliabilityTestMode();
 }
 
 export async function GET() {
