@@ -1,14 +1,10 @@
-import { createDecisionReceipt, evaluateAction } from "@vetolayer/core";
-import { evaluateDeterministicPolicies } from "@vetolayer/policies";
-import { evaluateWithServ, readServEnvironment } from "@vetolayer/serv";
 import { NextResponse } from "next/server";
-import { developerApiScope } from "../../../../lib/server/api-workspace";
-import { getDecisionStore } from "../../../../lib/server/decision-store";
 import {
-  authorizeDeveloperRequest,
   parseDeveloperEvaluationPayload,
   type ApiErrorBody,
 } from "../../../../lib/server/developer-api";
+import { executeDeveloperEvaluation } from "../../../../lib/server/developer-evaluation-service";
+import { authenticateDeveloperRequest } from "../../../../lib/server/developer-key-auth";
 import { readServerEnvironment } from "../../../../lib/server/env";
 import { logServerEvent } from "../../../../lib/server/observability";
 import { consumeRateLimit, requestClientKey } from "../../../../lib/server/rate-limit";
@@ -16,15 +12,19 @@ import { consumeRateLimit, requestClientKey } from "../../../../lib/server/rate-
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const auth = await authenticateDeveloperRequest(request, "evaluate");
+  if (!auth.ok) return NextResponse.json(auth.body, { status: auth.status });
+
   let environment;
   try { environment = readServerEnvironment(); } catch { return apiError("SERVER_CONFIGURATION_INVALID", "VetoLayer server configuration is invalid.", 500); }
 
-  const authFailure = authorizeDeveloperRequest(request, environment);
-  if (authFailure) return NextResponse.json(authFailure.body, { status: authFailure.status });
-
-  const rate = consumeRateLimit({ key: `api:${requestClientKey(request)}`, limit: environment.apiRateLimitPerMinute });
+  const rateKey = auth.credential.keyId ? `api-key:${auth.credential.keyId}` : `api:${requestClientKey(request)}`;
+  const rate = consumeRateLimit({ key: rateKey, limit: environment.apiRateLimitPerMinute });
   if (!rate.allowed) {
-    return NextResponse.json<ApiErrorBody>({ error: { code: "RATE_LIMITED", message: "VetoLayer API rate limit exceeded." } }, { status: 429, headers: { "Retry-After": String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))) } });
+    return NextResponse.json<ApiErrorBody>(
+      { error: { code: "RATE_LIMITED", message: "VetoLayer API rate limit exceeded." } },
+      { status: 429, headers: { "Retry-After": String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))) } },
+    );
   }
 
   let raw: unknown;
@@ -32,69 +32,20 @@ export async function POST(request: Request) {
   const parsed = parseDeveloperEvaluationPayload(raw);
   if (!parsed.ok) return NextResponse.json(parsed.error, { status: 400 });
 
-  const now = new Date();
-  const requestId = `req_${parsed.data.action.id}_${now.getTime()}`;
-  const scope = developerApiScope(environment);
-
   try {
-    const orchestration = await evaluateAction({
-      action: parsed.data.action,
-      policies: parsed.data.policies,
-      evidence: parsed.data.evidence,
-      facts: parsed.data.facts,
-      environment: { ...parsed.data.environment, workspaceId: scope.workspaceId, projectId: scope.projectId, environmentId: scope.environmentId },
-      now,
-      decisionId: `decision_${parsed.data.action.id}_${now.getTime()}`,
-    }, {
-      evaluateDeterministic: (input) => evaluateDeterministicPolicies(input),
-      evaluateContextual: (input) => evaluateWithServ(input, readServEnvironment()),
+    const result = await executeDeveloperEvaluation({
+      payload: parsed.data,
+      scope: auth.credential.scope,
+      ...(auth.credential.keyId ? { keyId: auth.credential.keyId } : {}),
     });
-
-    const receipt = await createDecisionReceipt({
-      orchestration,
-      action: parsed.data.action,
-      policies: parsed.data.policies,
-      evidence: parsed.data.evidence,
-      createdAt: now,
-      receiptId: `receipt_${parsed.data.action.id}_${now.getTime()}`,
-      scope,
-    });
-
-    const { store, persistence } = getDecisionStore();
-    try {
-      await store.save({
-        id: receipt.receiptId,
-        workspaceId: scope.workspaceId,
-        projectId: scope.projectId,
-        environmentId: scope.environmentId,
-        source: "api",
-        receipt,
-        createdAt: receipt.timestamps.receiptCreatedAt,
-      });
-    } catch (error) {
-      logServerEvent("warn", "api.decision.persistence.failed", { requestId, receiptId: receipt.receiptId, ...scope, message: error instanceof Error ? error.message : "Decision persistence failed" });
-    }
-
-    logServerEvent("info", "api.evaluation.completed", {
-      requestId,
-      ...scope,
-      actionRequestId: parsed.data.action.id,
-      outcome: orchestration.decision.outcome,
-      receiptId: receipt.receiptId,
-      providerStatus: orchestration.contextualTrace?.providerStatus,
-    });
-
-    return NextResponse.json({
-      requestId,
-      decision: orchestration.decision,
-      receipt,
-      trace: orchestration.trace,
-      providerTrace: orchestration.contextualTrace,
-      persistence,
-      scope,
-    }, { status: 200, headers: { "X-VetoLayer-Request-Id": requestId } });
+    return NextResponse.json(result, { status: 200, headers: { "X-VetoLayer-Request-Id": result.requestId } });
   } catch (error) {
-    logServerEvent("error", "api.evaluation.failed", { requestId, ...scope, message: error instanceof Error ? error.message : "Evaluation failed" });
+    const requestId = `failed_${parsed.data.action.id}_${Date.now()}`;
+    logServerEvent("error", "api.evaluation.failed", {
+      requestId,
+      ...auth.credential.scope,
+      message: error instanceof Error ? error.message : "Evaluation failed",
+    });
     return apiError("EVALUATION_FAILED", "VetoLayer could not complete the evaluation. No action was approved.", 503);
   }
 }
