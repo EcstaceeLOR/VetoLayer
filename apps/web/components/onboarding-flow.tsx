@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type {
   OnboardingIntegrationChoice,
@@ -11,7 +11,7 @@ import type {
 import { onboardingStepLabels, onboardingUseCases } from "../lib/onboarding-model";
 import { onboardingPolicyPackNames } from "../lib/onboarding-policies";
 import { ArrowRightIcon } from "./ui/icons";
-import { Badge, Button, Card, Field, Input, Notice, Select } from "./ui/primitives";
+import { Badge, Button, ButtonLink, Card, Field, Input, Notice, Select } from "./ui/primitives";
 
 type ApiError = { code?: string; message?: string };
 type ApiEnvelope = {
@@ -43,13 +43,17 @@ type NoticeState = {
   nextSteps?: string[];
 };
 
+function noticeBody(notice: NoticeState) {
+  if (!notice.nextSteps?.length) return notice.message;
+  return `${notice.message} Next: ${notice.nextSteps.join(" ")}`;
+}
+
 export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: OnboardingSnapshot }) {
   const router = useRouter();
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [step, setStep] = useState(initialSnapshot.complete ? 8 : initialSnapshot.resumeStep);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<NoticeState | null>(null);
-
   const [workspaceName, setWorkspaceName] = useState("");
   const [projectName, setProjectName] = useState("");
   const [newProjectName, setNewProjectName] = useState("");
@@ -83,8 +87,7 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
   }
 
   function applySnapshot(next?: OnboardingSnapshot) {
-    if (!next) return;
-    setSnapshot(next);
+    if (next) setSnapshot(next);
   }
 
   async function saveState(payload: Record<string, unknown>) {
@@ -102,12 +105,11 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
     try {
       await saveState({ lastStep: nextStep });
     } catch {
-      // Step navigation remains usable if the resume marker cannot be updated;
-      // resource completion is still derived server-side and never faked here.
+      // The visible wizard may continue, but completion is always revalidated server-side.
     }
   }
 
-  async function createWorkspace(event: React.FormEvent<HTMLFormElement>) {
+  async function createWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (workspaceName.trim().length < 2 || projectName.trim().length < 2) return;
     setBusy("workspace-create");
@@ -181,7 +183,7 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
     }
   }
 
-  async function createProject(event: React.FormEvent<HTMLFormElement>) {
+  async function createProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (newProjectName.trim().length < 2) return;
     setBusy("project-create");
@@ -316,7 +318,7 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
     }
   }
 
-  async function runTestAction(event: React.FormEvent<HTMLFormElement>) {
+  async function runTestAction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (target.trim().length < 2 || reason.trim().length < 8) return;
     setBusy("test-action");
@@ -399,12 +401,7 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
         <ol className="onboardingStepList">
           {snapshot.steps.map((item) => (
             <li key={item.id}>
-              <button
-                type="button"
-                className={step === item.id ? "active" : ""}
-                onClick={() => setStep(item.id)}
-                aria-current={step === item.id ? "step" : undefined}
-              >
+              <button type="button" className={step === item.id ? "active" : ""} onClick={() => setStep(item.id)} aria-current={step === item.id ? "step" : undefined}>
                 <span className={item.complete ? "complete" : "pending"}>{item.complete ? "✓" : String(item.id).padStart(2, "0")}</span>
                 <span><strong>{item.label}</strong><small>{item.detail}</small></span>
               </button>
@@ -420,32 +417,23 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
 
       <section className="onboardingWorkArea">
         <div className="onboardingWorkHeader">
-          <div>
-            <span>Step {step} of 8</span>
-            <strong>{onboardingStepLabels[step - 1]}</strong>
-          </div>
+          <div><span>Step {step} of 8</span><strong>{onboardingStepLabels[step - 1]}</strong></div>
           {snapshot.selected ? (
             <div className="onboardingScopeChip">
-              <span>{snapshot.selected.workspace.name}</span>
-              <b>/</b><span>{snapshot.selected.project.name}</span>
-              <b>/</b><span>{snapshot.selected.environment.name}</span>
+              <span>{snapshot.selected.workspace.name}</span><b>/</b>
+              <span>{snapshot.selected.project.name}</span><b>/</b>
+              <span>{snapshot.selected.environment.name}</span>
             </div>
           ) : null}
         </div>
 
-        {notice ? (
-          <Notice tone={notice.tone} title={notice.title} role={notice.tone === "danger" ? "alert" : "status"}>
-            {notice.message}
-            {notice.nextSteps?.length ? <ul className="onboardingNextSteps">{notice.nextSteps.map((item) => <li key={item}>{item}</li>)}</ul> : null}
-          </Notice>
-        ) : null}
+        {notice ? <Notice tone={notice.tone} title={notice.title} role={notice.tone === "danger" ? "alert" : "status"}>{noticeBody(notice)}</Notice> : null}
 
         {step === 1 ? (
           <Card raised className="onboardingOperationalCard">
             <p className="vlEyebrow">Organization boundary</p>
             <h2>Create or select the team that owns these decisions.</h2>
             <p className="muted">Workspace membership is the authorization boundary for every policy, review, integration, and receipt. Existing workspaces are reused; nothing is copied into a demo namespace.</p>
-
             {snapshot.workspaces.length ? (
               <div className="onboardingResourceList">
                 {snapshot.workspaces.map(({ workspace, role }) => (
@@ -456,18 +444,11 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
                 ))}
               </div>
             ) : <Notice tone="info" title="No workspace yet">Create your first workspace below. You become its Owner automatically.</Notice>}
-
             <div className="onboardingDivider"><span>or create a workspace</span></div>
             <form className="onboardingFormGrid" onSubmit={(event) => void createWorkspace(event)}>
-              <Field label="Workspace name" hint="Your organization or team boundary.">
-                <Input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} placeholder="Platform Engineering" required minLength={2} />
-              </Field>
-              <Field label="Initial project" hint="Workspace creation includes one real project so the organization is immediately usable. You can select or create another in Step 2.">
-                <Input value={projectName} onChange={(event) => setProjectName(event.target.value)} placeholder="Agent Control Plane" required minLength={2} />
-              </Field>
-              <Button type="submit" tone="primary" size="lg" disabled={Boolean(busy) || workspaceName.trim().length < 2 || projectName.trim().length < 2}>
-                {busy === "workspace-create" ? "Creating…" : "Create workspace"} {busy !== "workspace-create" ? <ArrowRightIcon /> : null}
-              </Button>
+              <Field label="Workspace name" hint="Your organization or team boundary."><Input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} placeholder="Platform Engineering" required minLength={2} /></Field>
+              <Field label="Initial project" hint="Workspace creation includes one real project so the organization is immediately usable. You can select or create another in Step 2."><Input value={projectName} onChange={(event) => setProjectName(event.target.value)} placeholder="Agent Control Plane" required minLength={2} /></Field>
+              <Button type="submit" tone="primary" size="lg" disabled={Boolean(busy) || workspaceName.trim().length < 2 || projectName.trim().length < 2}>{busy === "workspace-create" ? "Creating…" : "Create workspace"} {busy !== "workspace-create" ? <ArrowRightIcon /> : null}</Button>
             </form>
           </Card>
         ) : null}
@@ -478,24 +459,10 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
             <h2>Choose the product or agent system VetoLayer will govern.</h2>
             {!snapshot.selected ? <Notice tone="warning" title="Workspace required">Complete Step 1 before configuring a project.</Notice> : (
               <>
-                <Field label="Active project">
-                  <Select value={projectId || snapshot.selected.project.id} onChange={(event) => setProjectId(event.target.value)}>
-                    {snapshot.selected.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-                  </Select>
-                </Field>
-                <div className="onboardingActions">
-                  <Button tone="primary" onClick={() => void chooseProject(projectId || snapshot.selected!.project.id)} disabled={Boolean(busy)}>Use selected project <ArrowRightIcon /></Button>
-                  <Link href="/dashboard/workspace">Manage projects</Link>
-                </div>
-
+                <Field label="Active project"><Select value={projectId || snapshot.selected.project.id} onChange={(event) => setProjectId(event.target.value)}>{snapshot.selected.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</Select></Field>
+                <div className="onboardingActions"><Button tone="primary" onClick={() => void chooseProject(projectId || snapshot.selected!.project.id)} disabled={Boolean(busy)}>Use selected project <ArrowRightIcon /></Button><Link href="/dashboard/workspace">Manage projects</Link></div>
                 {canManageProjects ? (
-                  <>
-                    <div className="onboardingDivider"><span>or create another project</span></div>
-                    <form className="onboardingInlineForm" onSubmit={(event) => void createProject(event)}>
-                      <Field label="Project name"><Input value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} placeholder="Payments Agent" required minLength={2} /></Field>
-                      <Button type="submit" tone="secondary" disabled={Boolean(busy) || newProjectName.trim().length < 2}>{busy === "project-create" ? "Creating…" : "Create project"}</Button>
-                    </form>
-                  </>
+                  <><div className="onboardingDivider"><span>or create another project</span></div><form className="onboardingInlineForm" onSubmit={(event) => void createProject(event)}><Field label="Project name"><Input value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} placeholder="Payments Agent" required minLength={2} /></Field><Button type="submit" tone="secondary" disabled={Boolean(busy) || newProjectName.trim().length < 2}>{busy === "project-create" ? "Creating…" : "Create project"}</Button></form></>
                 ) : <Notice tone="info" title="Project creation is admin-managed">Your {snapshot.selected.role} role can use existing projects but cannot create new ones.</Notice>}
               </>
             )}
@@ -508,24 +475,9 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
             <h2>Choose where the gate runs and what kind of action it protects.</h2>
             {!snapshot.selected ? <Notice tone="warning" title="Project required">Choose a workspace and project first.</Notice> : (
               <>
-                <Field label="Target environment" hint="Policies, integrations, decisions, and receipts stay scoped to this environment.">
-                  <Select value={environmentId || snapshot.selected.environment.id} onChange={(event) => setEnvironmentId(event.target.value)}>
-                    {snapshot.selected.environments.map((environment) => <option key={environment.id} value={environment.id}>{environment.name} · {environment.kind}</option>)}
-                  </Select>
-                </Field>
-                <div className="onboardingUseCaseGrid">
-                  {onboardingUseCases.map((item) => (
-                    <button key={item.id} type="button" className={useCase === item.id ? "selected" : ""} onClick={() => setUseCase(item.id)}>
-                      <span>{item.recommended ? "Recommended" : "Use case"}</span>
-                      <strong>{item.title}</strong>
-                      <p>{item.description}</p>
-                    </button>
-                  ))}
-                </div>
-                <div className="onboardingActions">
-                  <Button tone="ghost" onClick={() => setStep(2)}>← Back</Button>
-                  <Button tone="primary" size="lg" onClick={() => void confirmEnvironment()} disabled={Boolean(busy) || !environmentId}>Save operating context <ArrowRightIcon /></Button>
-                </div>
+                <Field label="Target environment" hint="Policies, integrations, decisions, and receipts stay scoped to this environment."><Select value={environmentId || snapshot.selected.environment.id} onChange={(event) => setEnvironmentId(event.target.value)}>{snapshot.selected.environments.map((environment) => <option key={environment.id} value={environment.id}>{environment.name} · {environment.kind}</option>)}</Select></Field>
+                <div className="onboardingUseCaseGrid">{onboardingUseCases.map((item) => <button key={item.id} type="button" className={useCase === item.id ? "selected" : ""} onClick={() => setUseCase(item.id)}><span>{item.recommended ? "Recommended" : "Use case"}</span><strong>{item.title}</strong><p>{item.description}</p></button>)}</div>
+                <div className="onboardingActions"><Button tone="ghost" onClick={() => setStep(2)}>← Back</Button><Button tone="primary" size="lg" onClick={() => void confirmEnvironment()} disabled={Boolean(busy) || !environmentId}>Save operating context <ArrowRightIcon /></Button></div>
               </>
             )}
           </Card>
@@ -536,20 +488,11 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
             <p className="vlEyebrow">Execution path</p>
             <h2>Connect the path your agents will use to ask VetoLayer for a decision.</h2>
             <div className="onboardingIntegrationGrid">
-              <button type="button" className={integration === "developer-api" ? "selected" : ""} onClick={() => setIntegration("developer-api")}>
-                <span>Developer API</span><strong>Provider-agnostic gate</strong><p>Call VetoLayer before any high-impact tool invocation. Production requires bearer authentication.</p>
-                {snapshot.connections.find((item) => item.integration === "developer-api") ? <Badge tone="success">Previously tested</Badge> : null}
-              </button>
-              <button type="button" className={integration === "github" ? "selected" : ""} onClick={() => setIntegration("github")}>
-                <span>GitHub</span><strong>Coding-agent gate</strong><p>Verify the currently configured GitHub server connection for repository evidence and action gating.</p>
-                {snapshot.connections.find((item) => item.integration === "github") ? <Badge tone="success">Previously tested</Badge> : null}
-              </button>
+              <button type="button" className={integration === "developer-api" ? "selected" : ""} onClick={() => setIntegration("developer-api")}><span>Developer API</span><strong>Provider-agnostic gate</strong><p>Call VetoLayer before any high-impact tool invocation. Production requires bearer authentication.</p>{snapshot.connections.find((item) => item.integration === "developer-api") ? <Badge tone="success">Previously tested</Badge> : null}</button>
+              <button type="button" className={integration === "github" ? "selected" : ""} onClick={() => setIntegration("github")}><span>GitHub</span><strong>Coding-agent gate</strong><p>Verify the currently configured GitHub server connection for repository evidence and action gating.</p>{snapshot.connections.find((item) => item.integration === "github") ? <Badge tone="success">Previously tested</Badge> : null}</button>
             </div>
             {currentConnection ? <Notice tone={currentConnection.state === "ready" ? "success" : currentConnection.state === "warning" ? "warning" : "danger"} title="Stored connection status">{integration} is currently {currentConnection.state}{currentConnection.account ? ` as ${currentConnection.account}` : ""}.</Notice> : null}
-            <div className="onboardingActions onboardingActionsSpread">
-              <Button tone="ghost" onClick={() => skipForNow(5, "Integration verification")}>Skip for now</Button>
-              <div><Link href="/dashboard/integrations">Advanced integration setup</Link><Button tone="primary" size="lg" onClick={() => void verifyIntegration(integration)} disabled={Boolean(busy)}>{busy?.startsWith("integration-") ? "Testing…" : `Verify ${integration === "github" ? "GitHub" : "Developer API"}`} <ArrowRightIcon /></Button></div>
-            </div>
+            <div className="onboardingActions onboardingActionsSpread"><Button tone="ghost" onClick={() => skipForNow(5, "Integration verification")}>Skip for now</Button><div><Link href="/dashboard/integrations">Advanced integration setup</Link><Button tone="primary" size="lg" onClick={() => void verifyIntegration(integration)} disabled={Boolean(busy)}>{busy?.startsWith("integration-") ? "Testing…" : `Verify ${integration === "github" ? "GitHub" : "Developer API"}`} <ArrowRightIcon /></Button></div></div>
           </Card>
         ) : null}
 
@@ -558,29 +501,9 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
             <p className="vlEyebrow">Policy pack</p>
             <h2>Persist the rules that will govern your first action.</h2>
             <p className="muted">The recommended pack includes deterministic enforcement plus a contextual policy so the setup test proves the live SERV reasoning path.</p>
-            <div className="onboardingPolicyStarter">
-              <div><span>Recommended for {selectedUseCase.title}</span><strong>{onboardingPolicyPackNames[useCase]}</strong><p>Creates real scoped policies in Policy Studio. They remain editable after onboarding.</p></div>
-              <Button tone="primary" onClick={() => void installStarterPolicies()} disabled={Boolean(busy)}>{busy === "policy-starter" ? "Installing…" : "Install recommended pack"}</Button>
-            </div>
-
-            {snapshot.policies.length ? (
-              <>
-                <div className="onboardingDivider"><span>or use existing persisted policies</span></div>
-                <div className="onboardingPolicyList">
-                  {snapshot.policies.map((policy) => (
-                    <label key={policy.id}>
-                      <input type="checkbox" checked={selectedPolicyIds.includes(policy.id)} onChange={() => togglePolicy(policy.id)} />
-                      <span><strong>{policy.name}</strong><small>{policy.mode} · {policy.severity}</small></span>
-                    </label>
-                  ))}
-                </div>
-                <Button tone="secondary" onClick={() => void useExistingPolicies()} disabled={Boolean(busy) || !selectedPolicyIds.length}>Use selected policies</Button>
-              </>
-            ) : null}
-            <div className="onboardingActions onboardingActionsSpread">
-              <Button tone="ghost" onClick={() => skipForNow(6, "A persisted policy pack")}>Skip for now</Button>
-              <Link href="/dashboard/policies">Open Policy Studio</Link>
-            </div>
+            <div className="onboardingPolicyStarter"><div><span>Recommended for {selectedUseCase.title}</span><strong>{onboardingPolicyPackNames[useCase]}</strong><p>Creates real scoped policies in Policy Studio. They remain editable after onboarding.</p></div><Button tone="primary" onClick={() => void installStarterPolicies()} disabled={Boolean(busy)}>{busy === "policy-starter" ? "Installing…" : "Install recommended pack"}</Button></div>
+            {snapshot.policies.length ? <><div className="onboardingDivider"><span>or use existing persisted policies</span></div><div className="onboardingPolicyList">{snapshot.policies.map((policy) => <label key={policy.id}><input type="checkbox" checked={selectedPolicyIds.includes(policy.id)} onChange={() => togglePolicy(policy.id)} /><span><strong>{policy.name}</strong><small>{policy.mode} · {policy.severity}</small></span></label>)}</div><Button tone="secondary" onClick={() => void useExistingPolicies()} disabled={Boolean(busy) || !selectedPolicyIds.length}>Use selected policies</Button></> : null}
+            <div className="onboardingActions onboardingActionsSpread"><Button tone="ghost" onClick={() => skipForNow(6, "A persisted policy pack")}>Skip for now</Button><Link href="/dashboard/policies">Open Policy Studio</Link></div>
           </Card>
         ) : null}
 
@@ -588,16 +511,9 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
           <Card raised className="onboardingOperationalCard">
             <p className="vlEyebrow">Contextual reasoning</p>
             <h2>Verify that SERV is available before the first live gate.</h2>
-            <div className={`onboardingReadiness ${snapshot.serv.configured ? "ready" : "blocked"}`}>
-              <div><span className="onboardingReadinessDot" /><strong>{snapshot.serv.configured ? "SERV configuration detected" : "SERV configuration missing"}</strong></div>
-              <p>{snapshot.serv.message}</p>
-              <dl><div><dt>API key</dt><dd>{snapshot.serv.configured ? "Configured" : "Required"}</dd></div><div><dt>Model</dt><dd>{snapshot.serv.modelConfigured ? "Configured" : "Required"}</dd></div></dl>
-            </div>
-            {!snapshot.serv.configured ? <Notice tone="warning" title="Action required">Set <code>SERV_API_KEY</code> and <code>SERV_MODEL</code> in the deployment environment, redeploy VetoLayer, then use Recheck. Secret values are never returned to this page.</Notice> : <Notice tone="info" title="Two-stage verification">This step verifies configuration presence. The test action in Step 7 only completes if SERV also returns a validated live reasoning response.</Notice>}
-            <div className="onboardingActions onboardingActionsSpread">
-              <Button tone="ghost" onClick={() => skipForNow(7, "SERV readiness")}>Skip for now</Button>
-              <Button tone="primary" size="lg" onClick={() => void recheckServ()} disabled={Boolean(busy)}>{busy === "serv-check" ? "Checking…" : "Recheck SERV"} <ArrowRightIcon /></Button>
-            </div>
+            <div className={`onboardingReadiness ${snapshot.serv.configured ? "ready" : "blocked"}`}><div><span className="onboardingReadinessDot" /><strong>{snapshot.serv.configured ? "SERV configuration detected" : "SERV configuration missing"}</strong></div><p>{snapshot.serv.message}</p><dl><div><dt>API key</dt><dd>{snapshot.serv.configured ? "Configured" : "Required"}</dd></div><div><dt>Model</dt><dd>{snapshot.serv.modelConfigured ? "Configured" : "Required"}</dd></div></dl></div>
+            {!snapshot.serv.configured ? <Notice tone="warning" title="Action required">Set SERV_API_KEY and SERV_MODEL in the deployment environment, redeploy VetoLayer, then use Recheck. Secret values are never returned to this page.</Notice> : <Notice tone="info" title="Two-stage verification">This step verifies configuration presence. The test action in Step 7 only completes if SERV also returns a validated live reasoning response.</Notice>}
+            <div className="onboardingActions onboardingActionsSpread"><Button tone="ghost" onClick={() => skipForNow(7, "SERV readiness")}>Skip for now</Button><Button tone="primary" size="lg" onClick={() => void recheckServ()} disabled={Boolean(busy)}>{busy === "serv-check" ? "Checking…" : "Recheck SERV"} <ArrowRightIcon /></Button></div>
           </Card>
         ) : null}
 
@@ -606,14 +522,10 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
             <p className="vlEyebrow">Real evaluation</p>
             <h2>Send one action through the actual VetoLayer decision pipeline.</h2>
             <p className="muted">This does not execute an external tool action. It does run the real deterministic evaluator, live SERV contextual reasoning, receipt hashing, and decision persistence in your selected scope.</p>
-            {blockers.length ? <Notice tone="warning" title="Resolve setup blockers first"><ul className="onboardingNextSteps">{blockers.map((item) => <li key={item.id}>{item.label}: {item.detail}</li>)}</ul></Notice> : null}
+            {blockers.length ? <Notice tone="warning" title="Resolve setup blockers first">{blockers.map((item) => `${item.label}: ${item.detail}`).join(" ")}</Notice> : null}
             <form className="onboardingFormGrid" onSubmit={(event) => void runTestAction(event)}>
-              <Field label={useCase === "coding" ? "Target repository/service" : useCase === "support" ? "Customer/account target" : "Vendor/payment target"}>
-                <Input value={target} onChange={(event) => setTarget(event.target.value)} placeholder={useCase === "coding" ? "identity-api" : useCase === "support" ? "customer-1042" : "vendor-northstar"} required minLength={2} />
-              </Field>
-              <Field label="Why should the agent take this action?" hint="This context is sent to the bounded policy evaluation as untrusted action data.">
-                <Input value={reason} onChange={(event) => setReason(event.target.value)} placeholder={useCase === "coding" ? "Deploy the reviewed session-handling fix." : useCase === "support" ? "Issue a service credit after the documented outage." : "Pay the approved invoice for completed work."} required minLength={8} />
-              </Field>
+              <Field label={useCase === "coding" ? "Target repository/service" : useCase === "support" ? "Customer/account target" : "Vendor/payment target"}><Input value={target} onChange={(event) => setTarget(event.target.value)} placeholder={useCase === "coding" ? "identity-api" : useCase === "support" ? "customer-1042" : "vendor-northstar"} required minLength={2} /></Field>
+              <Field label="Why should the agent take this action?" hint="This context is sent to the bounded policy evaluation as untrusted action data."><Input value={reason} onChange={(event) => setReason(event.target.value)} placeholder={useCase === "coding" ? "Deploy the reviewed session-handling fix." : useCase === "support" ? "Issue a service credit after the documented outage." : "Pay the approved invoice for completed work."} required minLength={8} /></Field>
               <Button type="submit" tone="primary" size="lg" disabled={Boolean(busy) || blockers.length > 0 || target.trim().length < 2 || reason.trim().length < 8}>{busy === "test-action" ? "Evaluating through VetoLayer…" : "Run real test action"} {busy !== "test-action" ? <ArrowRightIcon /> : null}</Button>
             </form>
           </Card>
@@ -624,27 +536,17 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
             <p className="vlEyebrow">Working gate created</p>
             {snapshot.receipt ? (
               <>
-                <div className="onboardingReceiptHero">
-                  <div><Badge tone={snapshot.receipt.outcome === "ALLOW" ? "success" : snapshot.receipt.outcome === "BLOCK" ? "danger" : "warning"}>{snapshot.receipt.outcome}</Badge><h2>Your first Decision Receipt is real and persisted.</h2><p>{snapshot.receipt.summary}</p></div>
-                  <span className="onboardingReceiptHash">{snapshot.receipt.receiptId}</span>
-                </div>
+                <div className="onboardingReceiptHero"><div><Badge tone={snapshot.receipt.outcome === "ALLOW" ? "success" : snapshot.receipt.outcome === "BLOCK" ? "danger" : "warning"}>{snapshot.receipt.outcome}</Badge><h2>Your first Decision Receipt is real and persisted.</h2><p>{snapshot.receipt.summary}</p></div><span className="onboardingReceiptHash">{snapshot.receipt.receiptId}</span></div>
                 <div className="onboardingCompletionLinks">
                   <Link href={snapshot.receipt.href}><strong>Inspect Decision Receipt</strong><span>Full findings, SERV trace, evidence, scope, and integrity hash →</span></Link>
                   <Link href={`/dashboard/policies${snapshot.state.policyIds?.[0] ? `?focus=${encodeURIComponent(snapshot.state.policyIds[0])}` : ""}`}><strong>Open policy pack</strong><span>Edit the policies that governed this action →</span></Link>
                   <Link href="/dashboard/integrations"><strong>Open integration</strong><span>Review connection status and developer setup →</span></Link>
                   <Link href="/dashboard/decisions"><strong>Decision stream</strong><span>See this receipt in its real project/environment history →</span></Link>
                 </div>
-                <div className="onboardingActions onboardingActionsSpread">
-                  <Button tone="ghost" onClick={() => setStep(7)}>Run another test</Button>
-                  <Link className="vlButton vlButtonPrimary vlButtonLg" href="/dashboard">Enter Control Center <ArrowRightIcon /></Link>
-                </div>
+                <div className="onboardingActions onboardingActionsSpread"><Button tone="ghost" onClick={() => setStep(7)}>Run another test</Button><ButtonLink tone="primary" size="lg" href="/dashboard">Enter Control Center <ArrowRightIcon /></ButtonLink></div>
               </>
             ) : (
-              <>
-                <h2>No validated receipt yet.</h2>
-                <p className="muted">A seeded demo receipt cannot complete onboarding. Run Step 7 successfully through live SERV reasoning to create a receipt in this workspace, project, and environment.</p>
-                <Button tone="primary" onClick={() => setStep(7)}>Return to test action</Button>
-              </>
+              <><h2>No validated receipt yet.</h2><p className="muted">A seeded demo receipt cannot complete onboarding. Run Step 7 successfully through live SERV reasoning to create a receipt in this workspace, project, and environment.</p><Button tone="primary" onClick={() => setStep(7)}>Return to test action</Button></>
             )}
           </Card>
         ) : null}
