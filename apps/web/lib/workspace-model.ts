@@ -19,6 +19,7 @@ export type Workspace = {
   name: string;
   slug: string;
   status: "active" | "archived";
+  legacyWorkspaceId?: string;
   createdAt: string;
   updatedAt: string;
 };
