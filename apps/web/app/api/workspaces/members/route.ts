@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import type { WorkspaceRole } from "../../../../lib/workspace-model";
+import type { WorkspaceMember, WorkspaceRole } from "../../../../lib/workspace-model";
 import { canAssignWorkspaceRole } from "../../../../lib/workspace-model";
 import { resolveAppOrigin } from "../../../../lib/server/app-origin";
 import { requireApiWorkspace } from "../../../../lib/server/api-auth";
