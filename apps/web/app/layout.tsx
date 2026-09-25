@@ -8,6 +8,7 @@ import "./review-demo.css";
 import "./accessibility.css";
 import "./design-system.css";
 import "./design-system-compat.css";
+import "./product-journey.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://vetolayer.vercel.app"),
