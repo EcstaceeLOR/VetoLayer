@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { EvidenceSchema, HumanReviewRecordSchema } from "@vetolayer/core";
+import { EvidenceSchema, HumanReviewRecordSchema, type HumanReviewRecord } from "@vetolayer/core";
 import { NextResponse } from "next/server";
 import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../../lib/server/api-auth";
 import { getOptionalDecisionStore } from "../../../../../lib/server/decision-store";
@@ -189,7 +189,7 @@ async function reevaluateAndSave(
   scope: { workspaceId: string; projectId: string; environmentId: string },
   workspace: { workspace: { name: string }; project: { name: string }; environment: { name: string } },
   persistence: string,
-  humanReview: ReturnType<typeof buildReviewRecord> extends { success: true; data: infer T } ? T : never,
+  humanReview: HumanReviewRecord | undefined,
   reason: "evidence-change" | "approval" | "rejection",
   actor: ReturnType<typeof reviewActor>,
 ) {
