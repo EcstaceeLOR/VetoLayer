@@ -54,6 +54,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       ...(reviewCase.context.incident ? { incident: reviewCase.context.incident } : {}),
       humanReview: parsedReview.data,
       now,
+      receiptScope: {
+        workspaceId: auth.workspace.workspaceId,
+        projectId: auth.workspace.projectId,
+        environmentId: auth.workspace.environmentId,
+        workspaceName: auth.workspace.workspace.name,
+        projectName: auth.workspace.project.name,
+        environmentName: auth.workspace.environment.name,
+      },
     });
 
     const updated = {
