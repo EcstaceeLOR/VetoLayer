@@ -13,7 +13,11 @@ function requestHadAuthCookie(request: NextRequest) {
   return request.cookies.getAll().some(({ name }) => name.startsWith("sb-") && name.includes("-auth-token"));
 }
 
-export async function updateSession(request: NextRequest) {
+function nextResponse(request: NextRequest, forwardedHeaders?: Headers) {
+  return NextResponse.next({ request: forwardedHeaders ? { headers: forwardedHeaders } : request });
+}
+
+export async function updateSession(request: NextRequest, forwardedHeaders?: Headers) {
   const config = authConfig();
   const pathname = request.nextUrl.pathname;
   const protectedPage = protectedPagePrefixes.some(
@@ -29,10 +33,10 @@ export async function updateSession(request: NextRequest) {
       login.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
       return NextResponse.redirect(login);
     }
-    return NextResponse.next({ request });
+    return nextResponse(request, forwardedHeaders);
   }
 
-  let response = NextResponse.next({ request });
+  let response = nextResponse(request, forwardedHeaders);
   const supabase = createServerClient(config.url, config.publishableKey, {
     cookies: {
       getAll() {
@@ -40,7 +44,7 @@ export async function updateSession(request: NextRequest) {
       },
       setAll(cookiesToSet, headersToSet) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
+        response = nextResponse(request, forwardedHeaders);
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options),
         );
