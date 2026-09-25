@@ -1,30 +1,35 @@
 import { NextResponse } from "next/server";
 import { requireApiWorkspace } from "../../../lib/server/api-auth";
 import { getReviewStore } from "../../../lib/server/review-store";
+import { getWorkspaceStore } from "../../../lib/server/workspace-store";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: Request) {
   const auth = await requireApiWorkspace("reviews.read");
   if (!auth.ok) return auth.response;
   const { store, persistence } = getReviewStore();
+  const url = new URL(request.url);
+  const status = url.searchParams.get("status");
+  const owner = url.searchParams.get("owner");
 
   try {
     const cases = await store.list(auth.workspace.workspaceId, { projectId: auth.workspace.projectId, environmentId: auth.workspace.environmentId });
+    const filtered = cases.filter((item) => {
+      if (status && status !== "all" && item.status !== status) return false;
+      if (owner === "mine" && item.assignment?.userId !== auth.workspace.userId) return false;
+      if (owner === "unassigned" && item.assignment) return false;
+      return true;
+    });
+    const { store: workspaceStore } = getWorkspaceStore();
+    const members = (await workspaceStore.listMembers(auth.workspace.workspaceId))
+      .filter((member) => member.status === "active" && ["owner", "admin", "reviewer"].includes(member.role))
+      .map((member) => ({ userId: member.userId, displayName: member.displayName, email: member.email, role: member.role }));
+
     return NextResponse.json({
-      cases: cases.map((item) => ({
-        id: item.id,
-        status: item.status,
-        title: item.title,
-        source: item.source,
-        projectId: item.projectId,
-        environmentId: item.environmentId,
-        receipt: item.receipt,
-        review: item.review,
-        resolutionReceipt: item.resolutionReceipt,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-      })),
+      cases: filtered,
+      members,
+      currentUserId: auth.workspace.userId,
       persistence,
       scope: { workspaceId: auth.workspace.workspaceId, projectId: auth.workspace.projectId, environmentId: auth.workspace.environmentId },
     });
