@@ -12,17 +12,18 @@ describe("final production QA contracts", () => {
   });
 
   it("runs the browser review journey through the production review orchestrator", () => {
-    const bootstrap = read("scripts/browser-e2e-bootstrap.mjs");
+    const runner = read("scripts/browser-e2e.mjs");
     const reliabilityRoute = read("apps/web/app/api/internal/reliability/session/route.ts");
-    expect(bootstrap).toContain('action: "review_journey"');
-    expect(bootstrap).toContain("real Human Review re-evaluation creates a new immutable receipt");
+    expect(runner).toContain('action: "review_journey"');
+    expect(runner).toContain("real Human Review re-evaluation creates a new immutable receipt");
     expect(reliabilityRoute).toContain("reevaluateReviewCase");
     expect(reliabilityRoute).toContain('action === "review_journey"');
   });
 
-  it("fails browser QA on console errors and checks all primary dashboard surfaces", () => {
-    const bootstrap = read("scripts/browser-e2e-bootstrap.mjs");
-    expect(bootstrap).toContain('line.startsWith("console-error:")');
+  it("fails browser QA on console/runtime errors and checks all primary dashboard surfaces", () => {
+    const runner = read("scripts/browser-e2e.mjs");
+    expect(runner).toContain("actionableConsoleErrors()");
+    expect(runner).toContain('line.startsWith("exception:")');
     for (const route of [
       "/dashboard/analytics",
       "/dashboard/decisions",
@@ -36,7 +37,7 @@ describe("final production QA contracts", () => {
       "/dashboard/billing",
       "/dashboard/data",
       "/dashboard/docs",
-    ]) expect(bootstrap).toContain(route);
+    ]) expect(runner).toContain(route);
   });
 
   it("keeps the production audit log fail-closed while allowing the isolated browser reliability environment", () => {
