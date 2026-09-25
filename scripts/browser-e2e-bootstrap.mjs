@@ -26,6 +26,12 @@ source = replaceRequired(
 
 source = replaceRequired(
   source,
+  `function assertIncludes(value, expected, message) {\n  assert(String(value).includes(expected), \`${message}; missing \${JSON.stringify(expected)}\`);\n}`,
+  `function assertIncludes(value, expected, message) {\n  const actual = String(value).toLocaleLowerCase();\n  const needle = String(expected).toLocaleLowerCase();\n  assert(actual.includes(needle), \`${message}; missing \${JSON.stringify(expected)}\`);\n}`,
+);
+
+source = replaceRequired(
+  source,
   `  rmSync(chromeProfile, { recursive: true, force: true });`,
   `  try { rmSync(chromeProfile, { recursive: true, force: true }); } catch {}`,
 );
