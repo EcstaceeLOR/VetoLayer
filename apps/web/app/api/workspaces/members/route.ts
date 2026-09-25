@@ -5,6 +5,7 @@ import type { WorkspaceRole } from "../../../../lib/workspace-model";
 import { canAssignWorkspaceRole } from "../../../../lib/workspace-model";
 import { resolveAppOrigin } from "../../../../lib/server/app-origin";
 import { requireApiWorkspace } from "../../../../lib/server/api-auth";
+import { recordAuditEvent, workspaceAuditInput } from "../../../../lib/server/audit";
 import { getWorkspaceStore } from "../../../../lib/server/workspace-store";
 
 const inviteRoles = new Set<Exclude<WorkspaceRole, "owner">>(["admin", "reviewer", "member"]);
@@ -56,6 +57,16 @@ export async function POST(request: Request) {
     createdAt: createdAt.toISOString(),
   };
   await store.saveInvitation(invitation);
+  await recordAuditEvent(workspaceAuditInput(auth.workspace, {
+    action: "member.invite",
+    category: "member",
+    targetType: "workspace_invitation",
+    targetId: invitation.id,
+    targetLabel: email,
+    href: "/dashboard/workspace",
+    request,
+    metadata: { email, role, expiresAt: invitation.expiresAt },
+  }));
   const requestHeaders = await headers();
   const origin = resolveAppOrigin(requestHeaders.get("origin"));
   const invitePath = `/invite/${encodeURIComponent(token)}`;
@@ -77,7 +88,18 @@ export async function PATCH(request: Request) {
   if (!target) return NextResponse.json({ error: { code: "MEMBER_NOT_FOUND", message: "Member not found." } }, { status: 404 });
   if (target.role === "owner") return NextResponse.json({ error: { code: "OWNER_IMMUTABLE", message: "Workspace ownership cannot be changed through a role edit." } }, { status: 409 });
   if (auth.workspace.role === "admin" && target.role === "admin") return NextResponse.json({ error: { code: "ADMIN_FORBIDDEN", message: "Admins cannot change another admin's role." } }, { status: 403 });
+  const previousRole = target.role;
   await store.updateMemberRole(auth.workspace.workspaceId, userId, role);
+  await recordAuditEvent(workspaceAuditInput(auth.workspace, {
+    action: "member.role.update",
+    category: "member",
+    targetType: "workspace_member",
+    targetId: userId,
+    targetLabel: target.displayName ?? target.email ?? userId,
+    href: "/dashboard/workspace",
+    request,
+    metadata: { previousRole, nextRole: role },
+  }));
   return NextResponse.json({ updated: true, userId, role });
 }
 
@@ -91,5 +113,15 @@ export async function DELETE(request: Request) {
   if (target.role === "owner") return NextResponse.json({ error: { code: "OWNER_IMMUTABLE", message: "The workspace owner cannot be removed." } }, { status: 409 });
   if (auth.workspace.role === "admin" && target.role === "admin") return NextResponse.json({ error: { code: "ADMIN_FORBIDDEN", message: "Admins cannot remove another admin." } }, { status: 403 });
   await store.removeMember(auth.workspace.workspaceId, userId);
+  await recordAuditEvent(workspaceAuditInput(auth.workspace, {
+    action: "member.remove",
+    category: "member",
+    targetType: "workspace_member",
+    targetId: userId,
+    targetLabel: target.displayName ?? target.email ?? userId,
+    href: "/dashboard/workspace",
+    request,
+    metadata: { previousRole: target.role },
+  }));
   return NextResponse.json({ removed: true, userId });
 }
