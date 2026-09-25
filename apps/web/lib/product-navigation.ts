@@ -44,7 +44,6 @@ export const productNavigation: ProductNavigationSection[] = [
 export const productCommands = [
   ...productNavigation.flatMap((section) => section.items.map((item) => ({ ...item, section: section.label }))),
   { label: "Create another workspace", href: "/onboarding", description: "Create a new workspace and first governed project", icon: "overview" as const, section: "Workspace" },
-  { label: "Open product example", href: "/demo", description: "See a seeded REVIEW → re-evaluation example", icon: "decision" as const, section: "Learn" },
 ];
 
 export function isProductRouteActive(pathname: string, href: string) {
