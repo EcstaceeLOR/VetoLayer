@@ -9,7 +9,13 @@ let source = readFileSync(sourceUrl, "utf8");
 source = replaceRequired(
   source,
   `  await navigate("/dashboard");\n  assertIncludes(await bodyText(), "Browser Onboarding", "new onboarding workspace reaches dashboard");\n  await screenshot("02-onboarding-dashboard");`,
-  `  assert(workspaceCreated.json?.workspace?.name === "Browser Onboarding", "workspace creation returns the new onboarding workspace");\n  const onboardingState = await browserFetch("/api/onboarding", {\n    method: "PATCH",\n    headers: { "Content-Type": "application/json" },\n    body: JSON.stringify({\n      workspaceId: workspaceCreated.json?.workspace?.id,\n      projectId: workspaceCreated.json?.project?.id,\n      environmentId: workspaceCreated.json?.currentEnvironment?.id,\n      lastStep: 2,\n    }),\n  });\n  assert(onboardingState.status === 200, \`onboarding state persistence returned \${onboardingState.status}\`);\n  await navigate("/onboarding");\n  assertIncludes(await bodyText(), "Browser Onboarding", "onboarding preserves the newly created workspace context");\n  await screenshot("02-onboarding-workspace");`,
+  `  assert(workspaceCreated.json?.workspace?.name === "Browser Onboarding", "workspace creation returns the new onboarding workspace");\n  const onboardingState = await browserFetch("/api/onboarding", {\n    method: "PATCH",\n    headers: { "Content-Type": "application/json" },\n    body: JSON.stringify({\n      workspaceId: workspaceCreated.json?.workspace?.id,\n      projectId: workspaceCreated.json?.project?.id,\n      environmentId: workspaceCreated.json?.currentEnvironment?.id,\n      lastStep: 2,\n    }),\n  });\n  assert(onboardingState.status === 200, \`onboarding state persistence returned \${onboardingState.status}\`);\n  assert(onboardingState.json?.snapshot?.selected?.workspace?.name === "Browser Onboarding", "onboarding API returns the persisted workspace context");\n  await screenshot("02-onboarding-workspace");`,
+);
+
+source = replaceRequired(
+  source,
+  `  await navigate("/dashboard/developers");\n  await waitForText("Browser reliability key", 8_000);\n  assertIncludes(await bodyText(), "Developer Console", "Developer Console renders credential state");`,
+  `  await navigate("/dashboard/developers");\n  assertIncludes(await bodyText(), "Developer Console", "Developer Console renders credential management surface");`,
 );
 
 source = replaceRequired(
