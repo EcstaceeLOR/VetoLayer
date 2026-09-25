@@ -10,8 +10,8 @@ describe("SERV Edition 01 submission package", () => {
     const readme = read("README.md");
     const submission = read("docs/submission.md");
 
-    expect(readme).toContain("## Finished product surface");
-    expect(readme).toContain("real headless-Chrome E2E");
+    expect(readme).toContain("## Product surfaces");
+    expect(readme).toContain("real headless Chrome");
     expect(readme).toContain("https://vetolayer.vercel.app");
     expect(submission).toContain("Decision Explorer / Receipt Center");
     expect(submission).toContain("append-only security audit");
@@ -23,7 +23,8 @@ describe("SERV Edition 01 submission package", () => {
     const readme = read("README.md");
     const walkthrough = read("docs/production-walkthrough.md");
 
-    expect(readme).toContain("Production workflow");
+    expect(readme).toContain("## Decision model");
+    expect(readme).toContain("## Human Review safety model");
     expect(walkthrough).toContain("The presentation uses the **real product**");
     expect(walkthrough).toContain("Human Review becomes evidence");
     expect(walkthrough).toContain("new Decision Receipt");
