@@ -81,7 +81,7 @@ export async function GET(request: Request) {
     const data = await loadOperationalAnalytics(auth.workspace.workspaceId, filters);
     const filename = `vetolayer-operational-analytics-${data.report.filters.from.slice(0, 10)}-${data.report.filters.to.slice(0, 10)}`;
     if (format === "json") {
-      return new NextResponse(JSON.stringify({ generatedAt: new Date().toISOString(), report: data.report }, null, 2), {
+      return new NextResponse(JSON.stringify({ generatedAt: new Date().toISOString(), sources: { auditAvailable: data.auditAvailable }, report: data.report }, null, 2), {
         headers: {
           "Content-Type": "application/json; charset=utf-8",
           "Content-Disposition": `attachment; filename="${filename}.json"`,
@@ -89,7 +89,11 @@ export async function GET(request: Request) {
         },
       });
     }
-    const csv = ["section,metric,dimension,value", ...rowsFor(data.report).map((row) => [row.section, row.metric, row.dimension, row.value].map(escapeCsv).join(","))].join("\n");
+    const exportRows = [
+      { section: "sources", metric: "audit_available", dimension: "integration_reliability", value: data.auditAvailable ? "true" : "false" },
+      ...rowsFor(data.report),
+    ];
+    const csv = ["section,metric,dimension,value", ...exportRows.map((row) => [row.section, row.metric, row.dimension, row.value].map(escapeCsv).join(","))].join("\n");
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
