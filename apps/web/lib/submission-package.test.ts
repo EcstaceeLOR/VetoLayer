@@ -25,7 +25,7 @@ describe("SERV Edition 01 submission package", () => {
 
     expect(readme).toContain("## Decision model");
     expect(readme).toContain("## Human Review safety model");
-    expect(walkthrough).toContain("The presentation uses the **real product**");
+    expect(walkthrough).toContain("The presentation uses the **real product workflow** from start to finish.");
     expect(walkthrough).toContain("Human Review becomes evidence");
     expect(walkthrough).toContain("new Decision Receipt");
   });
