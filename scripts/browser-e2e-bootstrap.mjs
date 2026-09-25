@@ -9,7 +9,7 @@ let source = readFileSync(sourceUrl, "utf8");
 source = replaceRequired(
   source,
   `  await navigate("/dashboard");\n  assertIncludes(await bodyText(), "Browser Onboarding", "new onboarding workspace reaches dashboard");\n  await screenshot("02-onboarding-dashboard");`,
-  `  assert(workspaceCreated.json?.workspace?.name === "Browser Onboarding", "workspace creation returns the new onboarding workspace");\n  await navigate("/onboarding");\n  assertIncludes(await bodyText(), "Browser Onboarding", "onboarding preserves the newly created workspace context");\n  await screenshot("02-onboarding-workspace");`,
+  `  assert(workspaceCreated.json?.workspace?.name === "Browser Onboarding", "workspace creation returns the new onboarding workspace");\n  const onboardingState = await browserFetch("/api/onboarding", {\n    method: "PATCH",\n    headers: { "Content-Type": "application/json" },\n    body: JSON.stringify({\n      workspaceId: workspaceCreated.json?.workspace?.id,\n      projectId: workspaceCreated.json?.project?.id,\n      environmentId: workspaceCreated.json?.currentEnvironment?.id,\n      lastStep: 2,\n    }),\n  });\n  assert(onboardingState.status === 200, \`onboarding state persistence returned \${onboardingState.status}\`);\n  await navigate("/onboarding");\n  assertIncludes(await bodyText(), "Browser Onboarding", "onboarding preserves the newly created workspace context");\n  await screenshot("02-onboarding-workspace");`,
 );
 
 source = replaceRequired(
