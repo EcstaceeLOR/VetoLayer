@@ -32,10 +32,9 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
         <section className="dashboardEmptyState compactEmptyState firstRunSurfaceNote">
           <p className="eyebrow">NO EXECUTION PATH CONNECTED</p>
           <h2>Choose one path to your first real decision.</h2>
-          <p>Install the GitHub App for pull-request and deployment evidence, or use the Developer API for another agent or tool. A real connection—not a demo flag—unlocks operational onboarding.</p>
+          <p>Install the GitHub App for pull-request and deployment evidence, or use the Developer API for another agent or tool. A real connection unlocks operational onboarding.</p>
           <div className="emptyActions">
             <a className="primaryLink" href="#integration-options">Configure below →</a>
-            <Link className="rowLink" href="/demo">Preview the product example →</Link>
           </div>
         </section>
       ) : null}

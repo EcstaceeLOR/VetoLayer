@@ -19,7 +19,7 @@ This evaluation suite exercises the composed VetoLayer decision path under condi
 
 `examples/github-gate/src/eval-fixtures.ts` contains reusable GitHub snapshots and SERV response factories. New policy packs can use the same corpus so regressions are tested against consistent scenarios rather than bespoke happy-path examples.
 
-## Safety invariants demonstrated
+## Safety invariants shown
 
 - deterministic hard blocks cannot be overridden by SERV
 - provider errors fail toward human review, never toward execution

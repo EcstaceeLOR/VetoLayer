@@ -4,7 +4,6 @@ import "./brand.css";
 import "./product-shell.css";
 import "./policy-studio.css";
 import "./human-review.css";
-import "./review-demo.css";
 import "./accessibility.css";
 import "./design-system.css";
 import "./design-system-compat.css";

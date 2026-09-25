@@ -8,7 +8,7 @@ function env(values: Record<string, string> = {}): NodeJS.ProcessEnv {
   return { NODE_ENV: "test", ...values };
 }
 
-describe("public MVP hardening", () => {
+describe("public product hardening", () => {
   beforeEach(() => resetRateLimitsForTests());
 
   it("rejects partial persistence configuration", () => {
@@ -24,9 +24,9 @@ describe("public MVP hardening", () => {
   });
 
   it("enforces the configured request limit", () => {
-    expect(consumeRateLimit({ key: "demo:test", limit: 2, now: 1 }).allowed).toBe(true);
-    expect(consumeRateLimit({ key: "demo:test", limit: 2, now: 2 }).allowed).toBe(true);
-    expect(consumeRateLimit({ key: "demo:test", limit: 2, now: 3 }).allowed).toBe(false);
+    expect(consumeRateLimit({ key: "api:test", limit: 2, now: 1 }).allowed).toBe(true);
+    expect(consumeRateLimit({ key: "api:test", limit: 2, now: 2 }).allowed).toBe(true);
+    expect(consumeRateLimit({ key: "api:test", limit: 2, now: 3 }).allowed).toBe(false);
   });
 
   it("persists workspace-namespaced Decision Receipts through the Supabase REST boundary", async () => {
@@ -38,17 +38,16 @@ describe("public MVP hardening", () => {
         new Response(
           JSON.stringify([
             {
-              id: `demo:${receipt.receiptId}`,
-              workspace_id: "demo",
-              source: "demo",
+              id: `ws_prod:${receipt.receiptId}`,
+              workspace_id: "ws_prod",
+              source: "api",
               receipt,
               created_at: receipt.timestamps.receiptCreatedAt,
             },
           ]),
           { status: 200 },
         ),
-      )
-      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+      );
 
     const store = createSupabaseDecisionStore(
       { url: "https://example.supabase.co", serviceRoleKey: "server-secret" },
@@ -57,20 +56,19 @@ describe("public MVP hardening", () => {
 
     await store.save({
       id: receipt.receiptId,
-      workspaceId: "demo",
-      source: "demo",
+      workspaceId: "ws_prod",
+      source: "api",
       receipt,
       createdAt: receipt.timestamps.receiptCreatedAt,
     });
-    const history = await store.list("demo", 10);
-    await store.clearDemo("demo");
+    const history = await store.list("ws_prod", 10);
 
     expect(history).toHaveLength(1);
     expect(history[0]?.id).toBe(receipt.receiptId);
     expect(history[0]?.receipt.decisionId).toBe(receipt.decisionId);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/rest/v1/vetolayer_decisions");
     const saveInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    expect(JSON.parse(String(saveInit.body)).id).toBe(`demo:${receipt.receiptId}`);
+    expect(JSON.parse(String(saveInit.body)).id).toBe(`ws_prod:${receipt.receiptId}`);
   });
 });

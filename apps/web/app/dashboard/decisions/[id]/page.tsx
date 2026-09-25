@@ -46,7 +46,7 @@ export default async function DecisionDetailPage({ params, searchParams }: { par
         <article><span>Decision</span><strong className="mono">{decision.decisionId}</strong><small>{decision.action.requestId}</small></article>
         <article><span>Actor</span><strong>{decision.actor.name ?? decision.actor.id}</strong><small>{decision.actor.framework ?? decision.actor.kind}</small></article>
         <article><span>Scope</span><strong>{center.projectName ?? decision.scope?.projectName ?? center.record.projectId ?? "Legacy"}</strong><small>{center.environmentName ?? decision.scope?.environmentName ?? center.record.environmentId ?? "Unscoped"}</small></article>
-        <article><span>Integrity</span><strong>{center.integrityVerified === null ? "Demo fixture" : center.integrityVerified ? "Verified" : "Mismatch"}</strong><small className="mono hashText">{decision.integrity.hash.slice(0, 18)}…</small></article>
+        <article><span>Integrity</span><strong>{center.integrityVerified ? "Verified" : "Mismatch"}</strong><small className="mono hashText">{decision.integrity.hash.slice(0, 18)}…</small></article>
       </section>
 
       <section className="receiptSection">
@@ -143,7 +143,7 @@ export default async function DecisionDetailPage({ params, searchParams }: { par
 
 function single(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] : value; }
 function safeReturnPath(value: string | undefined) { return value?.startsWith("/dashboard/decisions") ? value : "/dashboard/decisions"; }
-function sourceLabel(source: string, tool: string) { return source === "api" ? "Developer API" : source === "integration" ? `${tool} integration` : "Demo"; }
+function sourceLabel(source: string, tool: string) { return source === "api" ? "Developer API" : source === "integration" ? `${tool} integration` : "Integration"; }
 function formatDate(value: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "medium", timeZone: "UTC" }).format(date) + " UTC"; }
 function safeJson(value: unknown) { try { return JSON.stringify(value); } catch { return "[unserializable data]"; } }
 function displayProviderValue(key: string, value: unknown) {

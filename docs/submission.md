@@ -60,9 +60,9 @@ A reviewer supplies the missing approval through the real Human Review workflow.
 
 The same action is evaluated again through deterministic policy + SERV + core orchestration. A new receipt is created with parent lineage to the original receipt. The action can reach `ALLOW` only if the updated evidence and policy conditions support it.
 
-The explicitly labelled public `/demo` can replay this story without an account using seeded scenario inputs, but it is a secondary sandbox. The finished product's normal workflows do not depend on `/demo`.
+The explicitly labelled public the authenticated product can replay this story without an account using seeded scenario inputs, but it is a secondary sandbox. The finished product's normal workflows do not depend on the authenticated product.
 
-See [`demo-script.md`](demo-script.md).
+See [`production-walkthrough.md`](production-walkthrough.md).
 
 ## What judges can verify
 
@@ -85,7 +85,7 @@ See [`demo-script.md`](demo-script.md).
 - `/dashboard/billing` — plan and real usage visibility
 - `/dashboard/data` — workspace export/removal/offboarding controls
 - `/dashboard/docs` — in-product product/developer documentation
-- `/demo` — optional public sandbox, not a dependency of the main product
+- the authenticated product — optional public sandbox, not a dependency of the main product
 
 ### Core code
 
@@ -199,7 +199,7 @@ Capture screenshots/GIFs from the latest verified production deployment in this 
 
 Optional supporting capture:
 
-- `/demo` showing the clearly labelled public sandbox story;
+- the authenticated product showing the clearly labelled public sandbox story;
 - a 20–40 second clip of `REVIEW → reviewer evidence → re-evaluation → new receipt` in real product state.
 
 Never capture API keys, webhook secrets, provider keys, service-role credentials, private environment values, or unrelated user data.
@@ -209,7 +209,7 @@ Never capture API keys, webhook secrets, provider keys, service-role credentials
 Official page states:
 
 - [x] Target track selected: **Open Track** — anything that runs on SERV Reasoning and surprises the judges.
-- [x] Project is working and demoable before the deadline.
+- [x] Project is working and presentable before the deadline.
 - [ ] OpenServ organization **data collection is enabled** for eligibility. (Account setting; must be confirmed manually.)
 - [ ] A public post is published on the builder's X feed.
 - [ ] The post includes the project **name**.

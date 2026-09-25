@@ -99,7 +99,7 @@ Every successful or fallback evaluation records:
 - provider status
 - prompt/completion/total token counts when returned
 
-This metadata exists so VetoLayer can visibly demonstrate that SERV performed the contextual judgment and later preserve the trace inside Decision Receipts.
+This metadata exists so VetoLayer can visibly show that SERV performed the contextual judgment and later preserve the trace inside Decision Receipts.
 
 ## Architectural boundary
 

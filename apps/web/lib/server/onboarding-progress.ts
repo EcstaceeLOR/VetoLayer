@@ -29,7 +29,7 @@ export function buildOnboardingSteps(validation: OnboardingValidation): Onboardi
     { id: 5, key: "policy", label: "Policy", complete: validation.policy, detail: details.policy ?? (validation.policy ? "Starter policy pack is persisted." : "Create or select a persisted policy pack.") },
     { id: 6, key: "serv", label: "SERV", complete: validation.serv, detail: details.serv ?? (validation.serv ? "SERV contextual reasoning is configured." : "Configure SERV_API_KEY and SERV_MODEL.") },
     { id: 7, key: "test", label: "Test action", complete: validation.test, detail: details.test ?? (validation.test ? "A real scoped evaluation has completed." : "Run an evaluated test action through the real pipeline.") },
-    { id: 8, key: "receipt", label: "Receipt", complete: validation.receipt, detail: details.receipt ?? (validation.receipt ? "A non-demo Decision Receipt is available." : "Complete a test action to inspect its Decision Receipt.") },
+    { id: 8, key: "receipt", label: "Receipt", complete: validation.receipt, detail: details.receipt ?? (validation.receipt ? "A persisted Decision Receipt is available." : "Complete a test action to inspect its Decision Receipt.") },
   ];
 }
 
@@ -125,7 +125,6 @@ export async function loadOnboardingSnapshot(): Promise<OnboardingSnapshot | nul
       const record = await decisionStore.get(scope.workspaceId, state.receiptId);
       if (
         record
-        && record.source !== "demo"
         && record.projectId === scope.projectId
         && record.environmentId === scope.environmentId
       ) {

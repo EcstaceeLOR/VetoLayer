@@ -73,7 +73,7 @@ export type ReviewCase = {
   revision: number;
   status: ReviewStatus;
   title: string;
-  source: "demo" | "api" | "integration";
+  source: "api" | "integration";
   receipt: DecisionReceipt;
   context: GitHubReviewContext;
   createdAt: string;
@@ -102,7 +102,6 @@ export type ReviewStore = {
   list(workspaceId: string, scope?: ReviewScope): Promise<ReviewCase[]>;
   get(workspaceId: string, id: string): Promise<ReviewCase | null>;
   save(reviewCase: ReviewCase, options?: { expectedRevision?: number }): Promise<ReviewCase>;
-  clearDemo(workspaceId: string): Promise<void>;
 };
 
 const memoryCases = new Map<string, ReviewCase>();
@@ -185,9 +184,6 @@ export function createMemoryReviewStore(): ReviewStore {
       memoryCases.set(key, next);
       return next;
     },
-    async clearDemo(workspaceId) {
-      for (const [key, item] of memoryCases.entries()) if (item.workspaceId === workspaceId && item.source === "demo") memoryCases.delete(key);
-    },
   };
 }
 
@@ -269,11 +265,6 @@ export function createSupabaseReviewStore(config: { url: string; serviceRoleKey:
       await requireSuccess(response, "save");
       const rows = await response.json() as Array<{ payload: ReviewCase; project_id?: string | null; environment_id?: string | null; revision?: number | null }>;
       return rows[0] ? fromRow(rows[0]) : normalized;
-    },
-    async clearDemo(workspaceId) {
-      const query = new URLSearchParams({ workspace_id: `eq.${workspaceId}`, "payload->>source": "eq.demo" });
-      const response = await fetchImpl(`${baseUrl}/rest/v1/vetolayer_review_cases?${query}`, { method: "DELETE", headers });
-      await requireSuccess(response, "clear-demo");
     },
   };
 }

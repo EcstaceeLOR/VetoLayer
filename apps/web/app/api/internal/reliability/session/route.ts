@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import {
   FLAGSHIP_INCIDENT,
   FLAGSHIP_REVIEW_CASE_ID,
-  createFlagshipDemoHumanReview,
+  createFlagshipHumanReview,
   flagshipSnapshot,
-  runFlagshipDemo,
-} from "../../../../../lib/flagship-demo";
+  runFlagshipScenario,
+} from "../../../../../lib/flagship-scenario";
 import { policyStudioTemplates } from "../../../../../lib/policy-lifecycle";
 import { getDeveloperStore } from "../../../../../lib/server/developer-store";
 import { getPolicyLifecycleStore } from "../../../../../lib/server/policy-lifecycle-store";
@@ -110,11 +110,11 @@ export async function POST(request: Request) {
 
   if (action === "review_journey") {
     const now = new Date();
-    const initial = await runFlagshipDemo("needs-approval", { now });
+    const initial = await runFlagshipScenario("needs-approval", { now });
     if (initial.receipt.outcome !== "REVIEW") {
       return NextResponse.json({ error: { code: "RELIABILITY_REVIEW_NOT_REQUIRED", message: "Reliability review fixture did not produce REVIEW." } }, { status: 500 });
     }
-    const humanReview = createFlagshipDemoHumanReview(new Date(now.getTime() + 1_000));
+    const humanReview = createFlagshipHumanReview(new Date(now.getTime() + 1_000));
     const reviewCase = {
       id: FLAGSHIP_REVIEW_CASE_ID,
       workspaceId: scope.workspaceId,

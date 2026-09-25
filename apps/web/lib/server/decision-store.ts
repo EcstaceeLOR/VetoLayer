@@ -27,7 +27,7 @@ export type StoredDecision = {
   workspaceId: string;
   projectId?: string;
   environmentId?: string;
-  source: "demo" | "api" | "integration";
+  source: "api" | "integration";
   receipt: DecisionReceipt;
   createdAt: string;
   reviewState?: DecisionReviewState;
@@ -52,7 +52,6 @@ export type DecisionStore = {
   query(workspaceId: string, query: DecisionQuery): Promise<DecisionPage>;
   lineage(workspaceId: string, requestId: string): Promise<StoredDecision[]>;
   annotateReview(workspaceId: string, receiptIds: string[], input: { state: DecisionReviewState; reviewCaseId?: string }): Promise<void>;
-  clearDemo(workspaceId: string): Promise<void>;
 };
 
 const memoryDecisions = new Map<string, StoredDecision>();
@@ -149,9 +148,6 @@ export function createMemoryDecisionStore(): DecisionStore {
         if (record.workspaceId !== workspaceId || !ids.has(record.receipt.receiptId)) continue;
         memoryDecisions.set(key, { ...record, reviewState: input.state, ...(input.reviewCaseId ? { reviewCaseId: input.reviewCaseId } : {}) });
       }
-    },
-    async clearDemo(workspaceId) {
-      for (const [key, record] of memoryDecisions.entries()) if (record.workspaceId === workspaceId && record.source === "demo") memoryDecisions.delete(key);
     },
   };
 }
@@ -278,11 +274,6 @@ export function createSupabaseDecisionStore(config: { url: string; serviceRoleKe
         body: JSON.stringify({ review_state: input.state, ...(input.reviewCaseId ? { review_case_id: input.reviewCaseId } : {}) }),
       });
       await requireSuccess(response, "annotate-review");
-    },
-    async clearDemo(workspaceId) {
-      const query = new URLSearchParams({ workspace_id: `eq.${workspaceId}`, source: "eq.demo" });
-      const response = await fetchImpl(`${baseUrl}/rest/v1/vetolayer_decisions?${query}`, { method: "DELETE", headers });
-      await requireSuccess(response, "clear-demo");
     },
   };
 }

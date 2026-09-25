@@ -23,8 +23,8 @@ export default async function DashboardPage() {
         <div>
           <div className="headerModeRow">
             <p className="vlEyebrow">Control center</p>
-            <Badge tone={feed.mode === "live" ? "success" : feed.mode === "demo" ? "info" : "neutral"}>
-              {feed.mode === "demo" ? "Demo data" : feed.mode === "live" ? "Live receipts" : "No data yet"}
+            <Badge tone={feed.mode === "live" ? "success" : "neutral"}>
+              {feed.mode === "live" ? "Live receipts" : "No data yet"}
             </Badge>
           </div>
           <h1 className="dashboardTitle">Every action has to earn execution.</h1>
@@ -39,24 +39,17 @@ export default async function DashboardPage() {
         <EmptyState
           eyebrow="No receipts yet"
           title="Your operational picture starts with the first evaluated action."
-          copy="Production analytics never substitute seeded data. Create a policy, connect an execution path, and evaluate an action to generate your first real Decision Receipt. Or use the flagship scenario to see the complete experience immediately."
+          copy="Create a policy, connect an execution path, and evaluate an action to generate your first Decision Receipt."
           action={
             <div className="vlCluster">
               <ButtonLink tone="primary" href="/dashboard/policies">Create a policy →</ButtonLink>
               <ButtonLink tone="secondary" href="/dashboard/integrations">Connect an integration →</ButtonLink>
-              <ButtonLink tone="ghost" href="/demo">Run flagship demo →</ButtonLink>
+              <ButtonLink tone="ghost" href="/dashboard/developers">Open Developer Console →</ButtonLink>
             </div>
           }
         />
       ) : (
         <>
-          {feed.mode === "demo" ? (
-            <section className="demoDataNotice vlCard">
-              <div><Badge tone="info">Demo mode</Badge><strong>These receipts are seeded examples, not workspace activity.</strong><p>They are here to preview the control center. Evaluations in the flagship demo still run through the real deterministic + SERV decision pipeline.</p></div>
-              <Link href="/demo">Run the real demo evaluation →</Link>
-            </section>
-          ) : null}
-
           <section className="metricGrid" aria-label="Decision summary">
             <Link href="/dashboard/decisions?outcome=ALLOW" className="metricCard metricLink vlCard vlCardInteractive"><span>Allowed</span><strong>{health.outcomes.ALLOW}</strong><small>safe to execute</small></Link>
             <Link href="/dashboard/decisions?outcome=REVIEW" className="metricCard metricLink vlCard vlCardInteractive"><span>Needs review</span><strong>{health.outcomes.REVIEW}</strong><small>{health.unresolvedReviews} unresolved latest action{health.unresolvedReviews === 1 ? "" : "s"}</small></Link>
@@ -97,7 +90,7 @@ export default async function DashboardPage() {
           <section className="dashboardSection" id="decisions">
             <div className="sectionHeading">
               <div><p className="vlEyebrow">Decision stream</p><h2>Recent agent actions</h2></div>
-              <span className="sectionMeta">{feed.mode === "demo" ? "Clearly labeled seeded demo receipts" : `Source: ${feed.persistence} Decision Receipts`}</span>
+              <span className="sectionMeta">Source: {feed.persistence} Decision Receipts</span>
             </div>
             <div className="decisionTable vlCard" role="table" aria-label="Recent VetoLayer decisions">
               <div className="decisionTableHead" role="row">

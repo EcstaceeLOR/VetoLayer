@@ -11,7 +11,7 @@ create extension if not exists pg_trgm;
 create table if not exists public.vetolayer_decisions (
   id text primary key,
   workspace_id text not null,
-  source text not null check (source in ('demo', 'api', 'integration')),
+  source text not null check (source in ('api', 'integration')),
   receipt jsonb not null,
   created_at timestamptz not null default now()
 );

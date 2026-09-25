@@ -11,7 +11,6 @@ Operational analytics are derived from persisted product records only:
 - append-only integration-category audit events for connection failures, revocations and disconnects
 - workspace/project/environment persistence for report dimensions
 
-Seeded `demo` decisions are always excluded from operational metrics. The report surfaces how many matching demo receipts were excluded instead of silently blending examples into production trends.
 
 ## Shared filters
 

@@ -35,7 +35,7 @@ Do not attach screenshots containing API keys, webhook secrets, provider keys, s
 
 ## Optional reply/thread — user-readiness
 
-> This is the full product, not a single demo screen: workspaces/RBAC, GitHub App + Developer API, Policy Studio, Human Review, Decision Explorer, notifications/webhooks, audit, analytics, settings/retention, usage entitlements, data export/offboarding, docs, and browser E2E.
+> This is the full product, not a single example screen: workspaces/RBAC, GitHub App + Developer API, Policy Studio, Human Review, Decision Explorer, notifications/webhooks, audit, analytics, settings/retention, usage entitlements, data export/offboarding, docs, and browser E2E.
 
 ## Optional reply/thread — market
 

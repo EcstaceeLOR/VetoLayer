@@ -78,7 +78,7 @@ create index if not exists vetolayer_workspace_invitations_email_idx
 alter table public.vetolayer_workspace_invitations enable row level security;
 
 -- Scope existing product records. These remain nullable so historical pre-#54
--- records, the public demo, and server-owned service scopes stay readable.
+-- records, the public example, and server-owned service scopes stay readable.
 alter table if exists public.vetolayer_decisions
   add column if not exists project_id text,
   add column if not exists environment_id text;

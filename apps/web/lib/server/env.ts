@@ -6,8 +6,6 @@ export type ServerEnvironment = {
   persistenceConfigured: boolean;
   supabaseUrl?: string;
   supabaseServiceRoleKey?: string;
-  demoWorkspaceId: string;
-  demoRateLimitPerMinute: number;
   apiRateLimitPerMinute: number;
   apiAuthConfigured: boolean;
   apiKey?: string;
@@ -29,9 +27,7 @@ export function readServerEnvironment(
   ].every((value) => Boolean(value?.trim()));
   const supabaseUrl = env.SUPABASE_URL?.trim();
   const supabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  const demoRateLimitValue = env.VETOLAYER_DEMO_RATE_LIMIT_PER_MINUTE?.trim();
   const apiRateLimitValue = env.VETOLAYER_API_RATE_LIMIT_PER_MINUTE?.trim();
-  const demoRateLimitPerMinute = demoRateLimitValue ? Number(demoRateLimitValue) : 30;
   const apiRateLimitPerMinute = apiRateLimitValue ? Number(apiRateLimitValue) : 60;
   const apiKey = env.VETOLAYER_API_KEY?.trim();
 
@@ -41,13 +37,8 @@ export function readServerEnvironment(
     );
   }
 
-  for (const [name, value] of [
-    ["VETOLAYER_DEMO_RATE_LIMIT_PER_MINUTE", demoRateLimitPerMinute],
-    ["VETOLAYER_API_RATE_LIMIT_PER_MINUTE", apiRateLimitPerMinute],
-  ] as const) {
-    if (!Number.isInteger(value) || value < 1 || value > 1_000) {
-      throw new Error(`${name} must be an integer between 1 and 1000.`);
-    }
+  if (!Number.isInteger(apiRateLimitPerMinute) || apiRateLimitPerMinute < 1 || apiRateLimitPerMinute > 1_000) {
+    throw new Error("VETOLAYER_API_RATE_LIMIT_PER_MINUTE must be an integer between 1 and 1000.");
   }
 
   return {
@@ -57,8 +48,6 @@ export function readServerEnvironment(
     persistenceConfigured: Boolean(supabaseUrl && supabaseServiceRoleKey),
     ...(supabaseUrl ? { supabaseUrl } : {}),
     ...(supabaseServiceRoleKey ? { supabaseServiceRoleKey } : {}),
-    demoWorkspaceId: env.VETOLAYER_DEMO_WORKSPACE_ID?.trim() || "demo",
-    demoRateLimitPerMinute,
     apiRateLimitPerMinute,
     apiAuthConfigured: Boolean(apiKey),
     ...(apiKey ? { apiKey } : {}),

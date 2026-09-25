@@ -11,9 +11,8 @@ VetoLayer onboarding is a product activation flow, not a tour. It ends only when
 5. **Policy pack** — persist the recommended deterministic + contextual starter pack, or select existing persisted policies that include contextual judgment.
 6. **SERV** — verify that `SERV_API_KEY` and `SERV_MODEL` are configured without returning either secret to the browser.
 7. **Test action** — evaluate operator-supplied action context through `evaluateDeterministicPolicies`, `evaluateWithServ`, and `evaluateAction`.
-8. **Decision Receipt** — persist and inspect the resulting non-demo receipt in the selected workspace/project/environment.
+8. **Decision Receipt** — persist and inspect the resulting persisted receipt in the selected workspace/project/environment.
 
-The public `/demo` is deliberately excluded from this completion path.
 
 ## Completion is revalidated, never trusted
 
@@ -28,7 +27,7 @@ Every load revalidates the underlying product state:
 - a GitHub choice therefore requires a verified App installation with at least one repository selected for the exact scope;
 - every selected policy still exists in the scoped durable policy store;
 - SERV is still configured;
-- final receipt exists, is not a `demo` receipt, and belongs to the exact selected project/environment.
+- final receipt exists, is not a persisted receipt, and belongs to the exact selected project/environment.
 
 Changing workspace, project, environment, use case, or integration invalidates downstream onboarding state so stale setup cannot remain marked complete. GitHub uninstall/suspend events also update the scoped integration record back to `needs-config`, so onboarding will no longer treat a revoked installation as complete.
 

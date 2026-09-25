@@ -42,7 +42,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <div className="sidebarResources">
           <span className="sideNavLabel">Resources</span>
           <Link href="/dashboard/developers">Developer Console</Link>
-          <Link href="/demo">Product example</Link>
+          <Link href="/dashboard/docs">Documentation</Link>
         </div>
 
         <div className="sideFoot" role="status">
@@ -57,7 +57,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <ProductCommandMenu />
           <div className="topbarActions productTopbarActions">
             <Link className="shellIconAction" href="/dashboard/reviews" aria-label="Open human review inbox" title="Human review inbox"><ReviewIcon size={16} /></Link>
-            <Link className="shellTextAction" href="/#developers">Help</Link>
+            <Link className="shellTextAction" href="/dashboard/docs">Help</Link>
             <details className="accountMenu">
               <summary aria-label={`Account menu for ${identityLabel}`}>
                 <span className="avatar" aria-hidden="true">{avatar}</span>

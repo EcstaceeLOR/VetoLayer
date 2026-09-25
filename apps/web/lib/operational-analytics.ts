@@ -26,7 +26,6 @@ export type OperationalAnalyticsReport = {
   filters: AnalyticsFilters;
   truncated: boolean;
   auditTruncated: boolean;
-  excludedDemoDecisions: number;
   summary: {
     total: number;
     outcomes: { ALLOW: number; REVIEW: number; BLOCK: number };
@@ -124,9 +123,7 @@ function median(values: number[]) {
 
 function logicalPolicyId(value: string) { return value.replace(/@v\d+$/i, ""); }
 function integrationLabel(decision: StoredDecision) {
-  if (decision.source === "api") return "Developer API";
-  if (decision.source === "integration") return decision.receipt.action.tool || "Integration";
-  return "Demo";
+  return decision.source === "api" ? "Developer API" : decision.receipt.action.tool || "Integration";
 }
 
 function safeTraceNumber(trace: Record<string, unknown> | undefined, key: string) {
@@ -176,9 +173,7 @@ function trendLabel(key: string, filters: AnalyticsFilters) {
 }
 
 export function buildOperationalAnalytics(input: AnalyticsInput): OperationalAnalyticsReport {
-  const allInScope = input.decisions.filter((decision) => inScope(decision, input.filters) && inWindow(decision.createdAt, input.filters));
-  const excludedDemoDecisions = allInScope.filter((decision) => decision.source === "demo").length;
-  const decisions = allInScope.filter((decision) => decision.source !== "demo");
+  const decisions = input.decisions.filter((decision) => inScope(decision, input.filters) && inWindow(decision.createdAt, input.filters));
   const reviews = input.reviews.filter((review) => inScope(review, input.filters) && inWindow(review.createdAt, input.filters));
   const auditEvents = input.auditEvents.filter((event) => event.category === "integration" && inScope(event, input.filters) && inWindow(event.createdAt, input.filters));
 
@@ -322,7 +317,6 @@ export function buildOperationalAnalytics(input: AnalyticsInput): OperationalAna
     filters: input.filters,
     truncated: Boolean(input.truncated),
     auditTruncated: Boolean(input.auditTruncated),
-    excludedDemoDecisions,
     summary: { total: decisions.length, outcomes, frictionRate, frictionRateDelta },
     trend: [...trend.entries()].map(([key, point]) => ({
       key,

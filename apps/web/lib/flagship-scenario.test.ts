@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  createFlagshipDemoHumanReview,
-  runFlagshipDemo,
-} from "./flagship-demo";
+  createFlagshipHumanReview,
+  runFlagshipScenario,
+} from "./flagship-scenario";
 
 const servConfig = {
   apiKey: "test-key",
@@ -79,23 +79,23 @@ function evidenceAwareServFetch() {
 
     return new Response(
       JSON.stringify({ choices: [{ message: { content: JSON.stringify(decision) } }] }),
-      { status: 200, headers: { "x-request-id": `serv-demo-${outcome.toLowerCase()}` } },
+      { status: 200, headers: { "x-request-id": `serv-review-${outcome.toLowerCase()}` } },
     );
   });
 }
 
-describe("flagship deployment demo", () => {
+describe("flagship production review journey", () => {
   it("re-evaluates the same action from REVIEW to ALLOW while preserving separate receipts", async () => {
     const fetchMock = evidenceAwareServFetch();
     const fixedNow = new Date("2026-09-24T15:00:00.000Z");
 
-    const initial = await runFlagshipDemo("needs-approval", {
+    const initial = await runFlagshipScenario("needs-approval", {
       servConfig,
       servFetch: fetchMock as typeof fetch,
       now: fixedNow,
     });
-    const humanReview = createFlagshipDemoHumanReview(fixedNow);
-    const resolved = await runFlagshipDemo("needs-approval", {
+    const humanReview = createFlagshipHumanReview(fixedNow);
+    const resolved = await runFlagshipScenario("needs-approval", {
       servConfig,
       servFetch: fetchMock as typeof fetch,
       now: fixedNow,

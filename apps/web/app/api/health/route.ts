@@ -11,17 +11,17 @@ export function GET() {
     return NextResponse.json({
       status: "ok",
       service: "vetolayer-web",
-      demoReady: environment.servConfigured,
+      reasoningReady: environment.servConfigured,
       serv: environment.servConfigured ? "configured" : "not-configured",
       auth: authConfigured ? "configured" : "not-configured",
       persistence: environment.persistenceConfigured ? "configured" : "not-configured",
-      github: environment.githubTokenConfigured ? "configured" : "not-configured",
+      github: environment.githubAppConfigured ? "configured" : environment.githubTokenConfigured ? "legacy-token" : "not-configured",
       developerApi: environment.apiAuthConfigured ? "configured" : "disabled",
       timestamp: new Date().toISOString(),
     });
   } catch {
     return NextResponse.json(
-      { status: "degraded", service: "vetolayer-web", demoReady: false, timestamp: new Date().toISOString() },
+      { status: "degraded", service: "vetolayer-web", reasoningReady: false, timestamp: new Date().toISOString() },
       { status: 503 },
     );
   }

@@ -136,7 +136,7 @@ export function buildGitHubGateBundle(input: {
       source: { kind: "incident-context", label: "Active security incident" },
       data: input.incident,
       observedAt: requestedAt.toISOString(),
-      verification: { status: "verified", verifier: "demo-incident-feed" },
+      verification: { status: "verified", verifier: "incident-feed" },
     });
   }
 

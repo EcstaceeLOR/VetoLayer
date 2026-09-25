@@ -10,8 +10,8 @@ describe("SERV Edition 01 submission package", () => {
     const readme = read("README.md");
     const submission = read("docs/submission.md");
 
-    expect(readme).toContain("## Finished product surface");
-    expect(readme).toContain("real headless-Chrome E2E");
+    expect(readme).toContain("## Product surfaces");
+    expect(readme).toContain("real headless Chrome");
     expect(readme).toContain("https://vetolayer.vercel.app");
     expect(submission).toContain("Decision Explorer / Receipt Center");
     expect(submission).toContain("append-only security audit");
@@ -19,14 +19,15 @@ describe("SERV Edition 01 submission package", () => {
     expect(submission).not.toContain("PENDING_PUBLIC_DEPLOYMENT");
   });
 
-  it("keeps the real product primary and the public sandbox secondary", () => {
+  it("keeps the real product and production walkthrough primary", () => {
     const readme = read("README.md");
-    const demo = read("docs/demo-script.md");
+    const walkthrough = read("docs/production-walkthrough.md");
 
-    expect(readme).toContain("The product itself does not depend on `/demo`");
-    expect(demo).toContain("The primary presentation uses the **real product**");
-    expect(demo).toContain("Optional public sandbox — supporting proof only");
-    expect(demo).not.toContain("Run the core story entirely on `/demo`");
+    expect(readme).toContain("## Decision model");
+    expect(readme).toContain("## Human Review safety model");
+    expect(walkthrough).toContain("The presentation uses the **real product workflow** from start to finish.");
+    expect(walkthrough).toContain("Human Review becomes evidence");
+    expect(walkthrough).toContain("new Decision Receipt");
   });
 
   it("pins the current official Edition 01 rules and judging criteria", () => {

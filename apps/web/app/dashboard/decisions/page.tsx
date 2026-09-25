@@ -30,15 +30,11 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
     <>
       <header className="dashboardHeader compactHeader decisionExplorerHeader">
         <div>
-          <div className="headerModeRow"><p className="eyebrow">DECISION EXPLORER</p><span className={`dataModeBadge ${explorer.mode}`}>{explorer.mode === "demo" ? "DEMO DATA" : explorer.mode === "live" ? "LIVE RECEIPTS" : "NO DATA YET"}</span></div>
+          <div className="headerModeRow"><p className="eyebrow">DECISION EXPLORER</p><span className={`dataModeBadge ${explorer.mode}`}>{explorer.mode === "live" ? "LIVE RECEIPTS" : "NO DATA YET"}</span></div>
           <h1 className="dashboardTitle">Investigate every decision, not just the latest ones.</h1>
           <p className="dashboardIntro">Search signed receipts across actions, actors, resources, policies, projects, environments, integrations, review state, and SERV usage. Query state is encoded in the URL so investigations survive navigation and can be saved.</p>
         </div>
       </header>
-
-      {explorer.mode === "demo" ? (
-        <section className="demoDataNotice"><div><span>DEMO MODE</span><strong>Seeded receipts are separated from production history.</strong><p>Integrity verification is intentionally disabled for seeded examples because they are interface fixtures, not signed production records.</p></div><Link href="/demo">Run flagship scenario →</Link></section>
-      ) : null}
 
       <section className="decisionExplorerControls">
         <form method="get" className="decisionFilterGrid">
@@ -46,7 +42,7 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
           <label><span>Outcome</span><select name="outcome" defaultValue={query.outcome ?? ""}><option value="">All outcomes</option><option value="ALLOW">ALLOW</option><option value="REVIEW">REVIEW</option><option value="BLOCK">BLOCK</option></select></label>
           <label><span>Project</span><select name="project" defaultValue={query.projectId ?? ""}><option value="">All projects</option>{explorer.projects.map((project) => <option value={project.id} key={project.id}>{project.name}{project.status === "archived" ? " · archived" : ""}</option>)}</select></label>
           <label><span>Environment</span><select name="environment" defaultValue={query.environmentId ?? ""}><option value="">All environments</option>{explorer.environments.filter((environment) => !query.projectId || environment.projectId === query.projectId).map((environment) => <option value={environment.id} key={environment.id}>{projectNames.get(environment.projectId) ?? "Project"} · {environment.name}{environment.status === "archived" ? " · archived" : ""}</option>)}</select></label>
-          <label><span>Source</span><select name="source" defaultValue={query.source ?? ""}><option value="">All sources</option><option value="integration">Connected integrations</option><option value="api">Developer API</option><option value="demo">Demo</option></select></label>
+          <label><span>Source</span><select name="source" defaultValue={query.source ?? ""}><option value="">All sources</option><option value="integration">Connected integrations</option><option value="api">Developer API</option></select></label>
           <label><span>Integration / tool</span><input name="tool" defaultValue={query.tool ?? ""} placeholder="github, slack, custom…" /></label>
           <label><span>SERV</span><select name="serv" defaultValue={query.serv === true ? "yes" : query.serv === false ? "no" : ""}><option value="">Any reasoning path</option><option value="yes">SERV used</option><option value="no">Deterministic only</option></select></label>
           <label><span>Review state</span><select name="review" defaultValue={query.reviewState ?? ""}><option value="">Any review state</option><option value="pending">Pending</option><option value="awaiting_evidence">Awaiting evidence</option><option value="resolved">Resolved</option><option value="none">No review workflow</option></select></label>
@@ -73,7 +69,7 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
               const returnParam = new URLSearchParams({ returnTo: currentHref }).toString();
               return (
                 <div className="decisionExplorerRow" role="row" key={record.id}>
-                  <div className="decisionIdentity"><strong>{decision.display.title}</strong><small className="mono">{decision.receiptId}</small><small>{decision.actor.name ?? decision.actor.id} · {record.source === "api" ? "Developer API" : record.source === "integration" ? `${decision.action.tool} integration` : "Demo"}</small></div>
+                  <div className="decisionIdentity"><strong>{decision.display.title}</strong><small className="mono">{decision.receiptId}</small><small>{decision.actor.name ?? decision.actor.id} · {record.source === "api" ? "Developer API" : `${decision.action.tool} integration`}</small></div>
                   <span className={`outcomeBadge ${decision.outcome.toLowerCase()}`}>{decision.outcome}</span>
                   <div><strong>{projectName ?? record.projectId ?? "Legacy"}</strong><small>{environmentName ?? record.environmentId ?? "Unscoped"}</small></div>
                   <div className="reasoningMode"><span>{decision.contextualFindings.length || decision.providerTrace ? "Deterministic + SERV" : "Deterministic"}</span><small>{decision.policiesEvaluated.length} policy version{decision.policiesEvaluated.length === 1 ? "" : "s"}</small></div>

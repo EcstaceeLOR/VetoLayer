@@ -67,11 +67,6 @@
 
 /* Stable product navigation */
 .sideNav a.active { background: var(--panel-2); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
-.sideDemoCard { margin: 18px 0; padding: 14px; border: 1px solid var(--line); border-radius: 13px; background: radial-gradient(circle at 100% 0%, rgba(216,255,97,.07), transparent 45%), #0c1017; }
-.sideDemoCard > span { color: #667184; font: 800 8px/1 ui-monospace, monospace; letter-spacing: .11em; }
-.sideDemoCard strong { display: block; margin-top: 10px; font-size: 12px; }
-.sideDemoCard p { color: #657083; line-height: 1.45; font-size: 10px; }
-.sideDemoCard a { color: var(--accent); font-size: 10px; font-weight: 800; }
 .sideFoot { display: block !important; }
 .sideFoot > span { display: flex; align-items: center; gap: 7px; }
 .sideFoot .pulse { display: inline-block; }

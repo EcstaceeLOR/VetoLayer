@@ -75,13 +75,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
       {report.truncated ? <Notice tone="warning" title="Decision scan bounded">This online report loaded the newest 5,000 matching persisted decisions. Narrow the date/project/environment scope for exact totals.</Notice> : null}
       {report.auditTruncated ? <Notice tone="warning" title="Integration event scan bounded">Integration reliability is based on the first 5,000 matching audit events. Narrow the report scope for exact event rates.</Notice> : null}
       {!data.auditAvailable ? <Notice tone="warning" title="Integration event analytics unavailable">Decision and review analytics are available, but the audit source could not be read for integration failure rates.</Notice> : null}
-      {report.excludedDemoDecisions ? <Notice tone="info" title="Seeded examples excluded">{report.excludedDemoDecisions} demo receipt{report.excludedDemoDecisions === 1 ? " was" : "s were"} excluded from every operational metric in this report.</Notice> : null}
 
       {report.summary.total === 0 && report.reviews.created === 0 ? (
         <EmptyState
           eyebrow="No production activity in scope"
           title="There is nothing to report for this window yet."
-          copy="Operational analytics never substitute seeded demo receipts. Expand the date range or generate real governed decisions to populate this report."
+          copy="Expand the date range or generate governed decisions to populate this report."
           action={<Link className="vlButton vlButtonPrimary" href="/dashboard/decisions">Open Decision Explorer</Link>}
         />
       ) : (
@@ -169,7 +168,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
             </div>
           </section>
 
-          <footer className="analyticsFootnote">Sources: {data.persistence.decisions} decisions · {data.persistence.reviews} reviews · {data.persistence.audit} audit events. All production analytics exclude seeded demo receipts.</footer>
+          <footer className="analyticsFootnote">Sources: {data.persistence.decisions} decisions · {data.persistence.reviews} reviews · {data.persistence.audit} audit events. All production analytics exclude seeded example receipts.</footer>
         </>
       )}
     </>
