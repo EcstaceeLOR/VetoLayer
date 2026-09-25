@@ -6,7 +6,7 @@ import { isValidEmail, sanitizeDisplayName, validateNewPassword } from "../../li
 import { resolveAppOrigin } from "../../lib/server/app-origin";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 
-function accountRedirect(params: Record<string, string>) {
+function accountRedirect(params: Record<string, string>): never {
   const query = new URLSearchParams(params);
   redirect(`/account?${query.toString()}`);
 }
@@ -18,11 +18,12 @@ async function requireUser() {
   return { supabase, user };
 }
 
-async function verifyCurrentPassword(email: string | undefined, password: string) {
-  if (!email || !password) return null;
+async function requireCurrentPassword(email: string | undefined, password: string) {
+  if (!email || !password) accountRedirect({ error: "reauthentication_failed" });
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  return error ? null : supabase;
+  if (error) accountRedirect({ error: "reauthentication_failed" });
+  return supabase;
 }
 
 export async function updateProfile(formData: FormData) {
@@ -43,9 +44,7 @@ export async function changeEmail(formData: FormData) {
   const { user } = await requireUser();
   if (user.email?.toLowerCase() === nextEmail) accountRedirect({ message: "profile_saved" });
 
-  const supabase = await verifyCurrentPassword(user.email, currentPassword);
-  if (!supabase) accountRedirect({ error: "reauthentication_failed" });
-
+  const supabase = await requireCurrentPassword(user.email, currentPassword);
   const requestHeaders = await headers();
   const origin = resolveAppOrigin(requestHeaders.get("origin"));
   const { error } = await supabase.auth.updateUser(
@@ -65,9 +64,7 @@ export async function changePassword(formData: FormData) {
   if (validationError) accountRedirect({ error: validationError });
 
   const { user } = await requireUser();
-  const supabase = await verifyCurrentPassword(user.email, currentPassword);
-  if (!supabase) accountRedirect({ error: "reauthentication_failed" });
-
+  const supabase = await requireCurrentPassword(user.email, currentPassword);
   const { error } = await supabase.auth.updateUser({ password: nextPassword });
   if (error) accountRedirect({ error: "password_change_failed" });
 
