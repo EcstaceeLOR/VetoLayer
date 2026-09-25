@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { evaluateGitHubPullRequest, type GitHubGateOperation } from "@vetolayer/github-gate";
+import { evaluateGitHubPullRequest, githubGatePolicies, type GitHubGateOperation } from "@vetolayer/github-gate";
 import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../../lib/server/api-auth";
 import { getDecisionStore } from "../../../../../lib/server/decision-store";
 import { getGitHubInstallationToken, readGitHubAppConfig } from "../../../../../lib/server/github-app";
 import { getGitHubAppStore } from "../../../../../lib/server/github-app-store";
+import { mergeManagedPolicies } from "../../../../../lib/server/managed-policies";
 import { consumeRateLimit, requestClientKey } from "../../../../../lib/server/rate-limit";
 import { getReviewStore } from "../../../../../lib/server/review-store";
 
@@ -52,12 +53,14 @@ export async function POST(request: Request) {
 
   try {
     const githubToken = await getGitHubInstallationToken({ config, installationId: installation.installationId });
+    const policySet = await mergeManagedPolicies(scope, githubGatePolicies);
     const result = await evaluateGitHubPullRequest({
       owner: repository.owner,
       repo: repository.name,
       pullRequest,
       githubToken,
       operation,
+      policies: policySet.policies,
       receiptScope: {
         workspaceId: auth.workspace.workspaceId,
         projectId: auth.workspace.projectId,
@@ -89,7 +92,14 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({ outcome: result.receipt.outcome, summary: result.receipt.decisionSummary, receipt: result.receipt, reviewCaseId, repository: { repositoryId: repository.repositoryId, fullName: repository.fullName } });
+    return NextResponse.json({
+      outcome: result.receipt.outcome,
+      summary: result.receipt.decisionSummary,
+      receipt: result.receipt,
+      reviewCaseId,
+      managedPolicyVersions: policySet.managedVersions.map((version) => ({ policyId: version.policyId, version: version.version, versionId: version.id })),
+      repository: { repositoryId: repository.repositoryId, fullName: repository.fullName },
+    });
   } catch {
     return NextResponse.json({ error: { code: "GITHUB_EVALUATION_FAILED", message: "VetoLayer could not collect the required GitHub evidence. No action was approved." } }, { status: 503 });
   }
