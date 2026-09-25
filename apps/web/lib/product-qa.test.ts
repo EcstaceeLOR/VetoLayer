@@ -39,6 +39,15 @@ describe("final production QA contracts", () => {
     ]) expect(bootstrap).toContain(route);
   });
 
+  it("keeps the production audit log fail-closed while allowing the isolated browser reliability environment", () => {
+    const auditRoute = read("apps/web/app/api/audit/route.ts");
+    const reliabilityMode = read("apps/web/lib/server/reliability-mode.ts");
+    expect(auditRoute).toContain('persistence !== "supabase" && !isReliabilityTestMode()');
+    expect(reliabilityMode).toContain('env.CI === "true"');
+    expect(reliabilityMode).toContain('env.VETOLAYER_E2E_MODE === "1"');
+    expect(reliabilityMode).toContain('env.VERCEL_ENV !== "production"');
+  });
+
   it("ships a global branded 404 and a completed QA checklist", () => {
     const notFound = read("apps/web/app/not-found.tsx");
     const checklist = read("docs/product-qa-2026-09.md");
