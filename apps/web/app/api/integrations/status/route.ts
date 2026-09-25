@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import type { IntegrationKey, IntegrationTestResult } from "../../../../lib/integration-contracts";
+import type { IntegrationTestResult } from "../../../../lib/integration-contracts";
 import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../lib/server/api-auth";
-import { getIntegrationReadiness, testDeveloperApiIntegration, testGitHubIntegration } from "../../../../lib/server/integration-health";
+import { getIntegrationReadiness, testDeveloperApiIntegration } from "../../../../lib/server/integration-health";
 import { getIntegrationStore } from "../../../../lib/server/integration-store";
 import { consumeRateLimit, requestClientKey } from "../../../../lib/server/rate-limit";
 
@@ -35,10 +35,15 @@ export async function POST(request: Request) {
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: { code: "INVALID_REQUEST", message: "Request body must be valid JSON." } }, { status: 400 }); }
   const integration = body && typeof body === "object" && !Array.isArray(body) ? (body as { integration?: unknown }).integration : undefined;
-  if (integration !== "github" && integration !== "developer-api") return NextResponse.json({ error: { code: "INVALID_INTEGRATION", message: "integration must be github or developer-api." } }, { status: 400 });
+  if (integration === "github") {
+    return NextResponse.json({ error: { code: "USE_GITHUB_APP_CONNECTION", message: "GitHub connection health is scoped to a verified GitHub App installation. Use /api/integrations/github instead." } }, { status: 400 });
+  }
+  if (integration !== "developer-api") {
+    return NextResponse.json({ error: { code: "INVALID_INTEGRATION", message: "integration must be developer-api." } }, { status: 400 });
+  }
 
   try {
-    const result = await testIntegration(integration);
+    const result = testDeveloperApiIntegration();
     const { store, persistence } = getIntegrationStore();
     await store.save({
       workspaceId: auth.workspace.workspaceId,
@@ -46,7 +51,6 @@ export async function POST(request: Request) {
       environmentId: auth.workspace.environmentId,
       integration,
       state: stateFromResult(result),
-      ...(readAccount(result) ? { account: readAccount(result) } : {}),
       lastCode: result.code,
       updatedAt: new Date().toISOString(),
     });
@@ -57,6 +61,7 @@ export async function POST(request: Request) {
   }
 }
 
-async function testIntegration(integration: IntegrationKey) { return integration === "github" ? testGitHubIntegration() : testDeveloperApiIntegration(); }
-function stateFromResult(result: IntegrationTestResult) { if (!result.ok) return "needs-config" as const; return result.level === "warning" ? "warning" as const : "ready" as const; }
-function readAccount(result: IntegrationTestResult) { const account = result.details?.account; return typeof account === "string" ? account : undefined; }
+function stateFromResult(result: IntegrationTestResult) {
+  if (!result.ok) return "needs-config" as const;
+  return result.level === "warning" ? "warning" as const : "ready" as const;
+}
