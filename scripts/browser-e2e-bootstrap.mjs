@@ -4,7 +4,20 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const sourceUrl = new URL("./browser-e2e.mjs", import.meta.url);
-const source = readFileSync(sourceUrl, "utf8");
+let source = readFileSync(sourceUrl, "utf8");
+
+source = replaceRequired(
+  source,
+  `  await navigate("/dashboard");\n  assertIncludes(await bodyText(), "Browser Onboarding", "new onboarding workspace reaches dashboard");\n  await screenshot("02-onboarding-dashboard");`,
+  `  assert(workspaceCreated.json?.workspace?.name === "Browser Onboarding", "workspace creation returns the new onboarding workspace");\n  await navigate("/onboarding");\n  assertIncludes(await bodyText(), "Browser Onboarding", "onboarding preserves the newly created workspace context");\n  await screenshot("02-onboarding-workspace");`,
+);
+
+source = replaceRequired(
+  source,
+  `  rmSync(chromeProfile, { recursive: true, force: true });`,
+  `  try { rmSync(chromeProfile, { recursive: true, force: true }); } catch {}`,
+);
+
 const classMarker = "\nclass CdpClient {";
 const classIndex = source.indexOf(classMarker);
 const executionMarker = "\ntry {";
@@ -30,4 +43,9 @@ try {
   await import(pathToFileURL(tempFile).href);
 } finally {
   rmSync(tempDir, { recursive: true, force: true });
+}
+
+function replaceRequired(input, before, after) {
+  if (!input.includes(before)) throw new Error(`Browser E2E bootstrap could not find required source fragment: ${before.slice(0, 80)}`);
+  return input.replace(before, after);
 }
