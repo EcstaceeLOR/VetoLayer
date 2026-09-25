@@ -59,17 +59,20 @@ export async function loadOnboardingSnapshot(): Promise<OnboardingSnapshot | nul
   const memberships = (await workspaceStore.listWorkspacesForUser(identity.userId))
     .filter(({ workspace }) => workspace.status === "active");
   const current = await getAuthenticatedWorkspace();
+  const currentWorkspaceId = current?.workspaceId;
+  const currentProjectId = current?.projectId;
+  const currentEnvironmentId = current?.environmentId;
 
   const selectedWorkspaceEntry =
     memberships.find(({ workspace }) => workspace.id === state.workspaceId)
-    ?? (current ? memberships.find(({ workspace }) => workspace.id === current.workspaceId) : undefined);
+    ?? (currentWorkspaceId ? memberships.find(({ workspace }) => workspace.id === currentWorkspaceId) : undefined);
 
   const selectedWorkspace = selectedWorkspaceEntry?.workspace;
   const projects = selectedWorkspace ? await workspaceStore.listProjects(selectedWorkspace.id) : [];
   const selectedProject =
     projects.find((project) => project.id === state.projectId)
-    ?? (current?.workspaceId === selectedWorkspace?.id
-      ? projects.find((project) => project.id === current.projectId)
+    ?? (currentWorkspaceId === selectedWorkspace?.id && currentProjectId
+      ? projects.find((project) => project.id === currentProjectId)
       : undefined);
 
   const environments = selectedWorkspace && selectedProject
@@ -77,8 +80,8 @@ export async function loadOnboardingSnapshot(): Promise<OnboardingSnapshot | nul
     : [];
   const selectedEnvironment =
     environments.find((environment) => environment.id === state.environmentId)
-    ?? (current?.workspaceId === selectedWorkspace?.id && current.projectId === selectedProject?.id
-      ? environments.find((environment) => environment.id === current.environmentId)
+    ?? (currentWorkspaceId === selectedWorkspace?.id && currentProjectId === selectedProject?.id && currentEnvironmentId
+      ? environments.find((environment) => environment.id === currentEnvironmentId)
       : undefined);
 
   const scope = selectedWorkspace && selectedProject && selectedEnvironment
