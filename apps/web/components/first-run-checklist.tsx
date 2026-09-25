@@ -9,12 +9,12 @@ export function FirstRunChecklist({ guide }: { guide: FirstRunGuide }) {
     <section className="firstRunPanel vlCard vlCardRaised" aria-labelledby="first-run-title">
       <div className="firstRunHeader">
         <div>
-          <p className="vlEyebrow">First run</p>
-          <h2 id="first-run-title">Get from workspace to first trusted decision.</h2>
-          <p>VetoLayer becomes useful when policy, execution context, and auditable decisions are connected. You are {guide.completedCount}/3 steps through activation.</p>
+          <p className="vlEyebrow">Activation</p>
+          <h2 id="first-run-title">Finish your first operational VetoLayer gate.</h2>
+          <p>Policies, an execution path, and a real Decision Receipt are the minimum operational chain. You are {guide.completedCount}/3 core resources through activation.</p>
         </div>
-        <ButtonLink className="firstRunDemo" tone="secondary" href="/demo">
-          <span>Run the 60-second flagship demo →</span>
+        <ButtonLink className="firstRunDemo" tone="primary" href="/onboarding">
+          <span>Resume guided setup →</span>
         </ButtonLink>
       </div>
 
