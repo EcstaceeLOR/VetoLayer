@@ -1,12 +1,17 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { ServerEnvironment } from "./env";
 import { getIntegrationReadiness, testDeveloperApiIntegration, testGitHubIntegration } from "./integration-health";
 
 function environment(overrides: Partial<ServerEnvironment> = {}): ServerEnvironment {
   return {
     servConfigured: true,
-    githubTokenConfigured: true,
-    persistenceConfigured: false,
+    githubTokenConfigured: false,
+    githubAppConfigured: true,
+    githubAppSlug: "vetolayer-test",
+    githubAppMissing: [],
+    persistenceConfigured: true,
+    supabaseUrl: "https://example.supabase.co",
+    supabaseServiceRoleKey: "service-role",
     demoWorkspaceId: "demo",
     demoRateLimitPerMinute: 30,
     apiRateLimitPerMinute: 60,
@@ -17,14 +22,24 @@ function environment(overrides: Partial<ServerEnvironment> = {}): ServerEnvironm
 }
 
 describe("integration readiness", () => {
-  it("requires both GitHub and SERV configuration for the GitHub gate", () => {
+  it("requires GitHub App registration, persistence, and SERV for production GitHub readiness", () => {
     const readiness = getIntegrationReadiness({
-      environment: environment({ githubTokenConfigured: false, servConfigured: false }),
+      environment: environment({ githubAppConfigured: false, servConfigured: false }),
       nodeEnv: "production",
     });
 
     expect(readiness.github.ready).toBe(false);
-    expect(readiness.github.missing).toEqual(["GITHUB_TOKEN", "SERV_API_KEY + SERV_MODEL"]);
+    expect(readiness.github.missing).toEqual(["GitHub App registration", "SERV_API_KEY + SERV_MODEL"]);
+    expect(readiness.github.setupMode).toBe("github-app");
+  });
+
+  it("requires durable persistence for production GitHub installations", () => {
+    const readiness = getIntegrationReadiness({
+      environment: environment({ persistenceConfigured: false, supabaseUrl: undefined, supabaseServiceRoleKey: undefined }),
+      nodeEnv: "production",
+    });
+    expect(readiness.github.ready).toBe(false);
+    expect(readiness.github.missing).toContain("SUPABASE persistence");
   });
 
   it("requires bearer authentication for the public production Developer API", () => {
@@ -48,51 +63,30 @@ describe("integration readiness", () => {
   });
 });
 
-describe("integration tests", () => {
-  it("returns an actionable error when the GitHub token is missing", async () => {
-    const result = await testGitHubIntegration({
-      environment: environment({ githubTokenConfigured: false }),
-      githubToken: "",
-      fetchImpl: vi.fn(),
+describe("integration infrastructure tests", () => {
+  it("returns an operator-level error when the GitHub App registration is missing", () => {
+    const result = testGitHubIntegration({
+      environment: environment({ githubAppConfigured: false }),
+      nodeEnv: "production",
     });
-
     expect(result.ok).toBe(false);
-    expect(result.code).toBe("GITHUB_TOKEN_MISSING");
-    expect(result.nextSteps?.join(" ")).toContain("GITHUB_TOKEN");
+    expect(result.code).toBe("GITHUB_APP_NOT_CONFIGURED");
   });
 
-  it("validates GitHub server-side without exposing the token", async () => {
-    const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
-      expect(String(new Headers(init?.headers).get("authorization"))).toBe("Bearer top-secret-token");
-      return new Response(JSON.stringify({ login: "octo-vetolayer" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    }) as unknown as typeof fetch;
-
-    const result = await testGitHubIntegration({
-      environment: environment(),
-      githubToken: "top-secret-token",
-      fetchImpl,
-    });
-
-    expect(result.ok).toBe(true);
-    expect(result.code).toBe("GITHUB_CONNECTED");
-    expect(result.details?.account).toBe("octo-vetolayer");
-    expect(JSON.stringify(result)).not.toContain("top-secret-token");
-  });
-
-  it("keeps a valid GitHub connection in warning state until SERV is configured", async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ login: "octo-vetolayer" }), { status: 200 })) as unknown as typeof fetch;
-    const result = await testGitHubIntegration({
+  it("keeps GitHub App infrastructure in warning state until SERV is configured", () => {
+    const result = testGitHubIntegration({
       environment: environment({ servConfigured: false }),
-      githubToken: "token",
-      fetchImpl,
+      nodeEnv: "production",
     });
-
     expect(result.ok).toBe(true);
     expect(result.level).toBe("warning");
-    expect(result.code).toBe("GITHUB_CONNECTED_SERV_MISSING");
+    expect(result.code).toBe("GITHUB_APP_READY_SERV_MISSING");
+  });
+
+  it("reports the deployment-level GitHub App as ready when infrastructure is complete", () => {
+    const result = testGitHubIntegration({ environment: environment(), nodeEnv: "production" });
+    expect(result.ok).toBe(true);
+    expect(result.code).toBe("GITHUB_APP_READY");
   });
 
   it("flags missing production API authentication", () => {
