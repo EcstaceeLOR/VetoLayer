@@ -46,6 +46,9 @@ export async function POST(request: Request) {
       ...auth.credential.scope,
       message: error instanceof Error ? error.message : "Evaluation failed",
     });
+    if (error instanceof Error && error.name === "PoliciesRequiredError") {
+      return apiError("POLICIES_REQUIRED", "Activate a Policy Studio version for this project environment, or supply request policies while the scope has no managed policy yet.", 409);
+    }
     return apiError("EVALUATION_FAILED", "VetoLayer could not complete the evaluation. No action was approved.", 503);
   }
 }

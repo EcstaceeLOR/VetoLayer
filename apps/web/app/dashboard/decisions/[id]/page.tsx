@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { parsePolicyVersionReference } from "../../../../lib/policy-lifecycle";
 import { loadDashboardDecision } from "../../../../lib/server/dashboard-decisions";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,7 @@ export default async function DecisionDetailPage({ params }: { params: Promise<{
   if (!decision) notFound();
 
   const allFindings = [...decision.deterministicFindings, ...decision.contextualFindings];
+  const policyById = new Map(decision.policiesEvaluated.map((policy) => [policy.id, policy]));
 
   return (
     <>
@@ -34,21 +36,47 @@ export default async function DecisionDetailPage({ params }: { params: Promise<{
         <section className="dashboardSection detailPanel">
           <div className="sectionHeading"><div><p className="eyebrow">POLICY FINDINGS</p><h2>Why VetoLayer decided this</h2></div></div>
           <div className="findingList">
-            {allFindings.map((finding) => (
-              <article className="finding" key={finding.id}>
-                <div className="findingTop">
-                  <span className={`findingStatus ${finding.status}`}>{finding.status.toUpperCase()}</span>
-                  <span className="modeTag">{finding.source === "contextual" ? "SERV reasoning" : "Deterministic"}</span>
-                </div>
-                <h3><Link href={`/dashboard/policies?focus=${encodeURIComponent(finding.policyId)}`}>{finding.policyId}</Link></h3>
-                <p>{finding.summary}</p>
-                <small>{finding.severity} severity · {finding.evidenceIds.length} evidence reference{finding.evidenceIds.length === 1 ? "" : "s"}</small>
-              </article>
-            ))}
+            {allFindings.map((finding) => {
+              const reference = parsePolicyVersionReference(finding.policyId);
+              const receiptPolicy = policyById.get(finding.policyId);
+              const label = receiptPolicy?.name ?? reference?.policyId ?? finding.policyId;
+              const href = reference
+                ? `/dashboard/policies?focus=${encodeURIComponent(reference.policyId)}&version=${reference.version}`
+                : `/dashboard/policies?focus=${encodeURIComponent(finding.policyId)}`;
+              return (
+                <article className="finding" key={finding.id}>
+                  <div className="findingTop">
+                    <span className={`findingStatus ${finding.status}`}>{finding.status.toUpperCase()}</span>
+                    <span className="modeTag">{finding.source === "contextual" ? "SERV reasoning" : "Deterministic"}</span>
+                    {reference ? <span className="modeTag">v{reference.version}</span> : null}
+                  </div>
+                  <h3><Link href={href}>{label}</Link></h3>
+                  <p>{finding.summary}</p>
+                  <small>{finding.severity} severity · {finding.evidenceIds.length} evidence reference{finding.evidenceIds.length === 1 ? "" : "s"}</small>
+                </article>
+              );
+            })}
           </div>
         </section>
 
         <aside className="receiptRail">
+          <section className="railCard">
+            <p className="eyebrow">GOVERNING POLICY VERSIONS</p>
+            {decision.policiesEvaluated.length ? decision.policiesEvaluated.map((policy) => {
+              const reference = parsePolicyVersionReference(policy.id);
+              const href = reference
+                ? `/dashboard/policies?focus=${encodeURIComponent(reference.policyId)}&version=${reference.version}`
+                : `/dashboard/policies?focus=${encodeURIComponent(policy.id)}`;
+              return (
+                <div className="keyValue" key={policy.id}>
+                  <span>{reference ? `v${reference.version}` : "Legacy"}</span>
+                  <strong><Link href={href}>{policy.name}</Link></strong>
+                </div>
+              );
+            }) : <p className="muted">No policy was applied to this receipt.</p>}
+            <small className="muted">Version references are part of the signed receipt content, so later policy edits cannot rewrite this decision&apos;s historical meaning.</small>
+          </section>
+
           <section className="railCard">
             <p className="eyebrow">EXECUTION TRACE</p>
             <ol className="traceList">

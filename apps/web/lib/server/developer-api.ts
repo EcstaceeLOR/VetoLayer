@@ -11,6 +11,7 @@ import type { ServerEnvironment } from "./env";
 
 export type DeveloperEvaluationPayload = {
   action: ActionRequest;
+  /** Optional when the selected project/environment has active managed Policy Studio versions. */
   policies: Policy[];
   evidence: Evidence[];
   facts: Record<string, JsonValue>;
@@ -72,14 +73,14 @@ export function parseDeveloperEvaluationPayload(
   const action = ActionRequestSchema.safeParse(input.action);
   if (!action.success) return invalid("INVALID_ACTION", "Action Request does not satisfy the VetoLayer contract.", action.error.issues);
 
-  if (!Array.isArray(input.policies) || input.policies.length === 0) {
-    return invalid("POLICIES_REQUIRED", "At least one VetoLayer policy is required for evaluation.");
-  }
   const policies: Policy[] = [];
-  for (const [index, candidate] of input.policies.entries()) {
-    const parsed = PolicySchema.safeParse(candidate);
-    if (!parsed.success) return invalid("INVALID_POLICY", `Policy at index ${index} is invalid.`, parsed.error.issues);
-    policies.push(parsed.data);
+  if (input.policies !== undefined) {
+    if (!Array.isArray(input.policies)) return invalid("INVALID_POLICY", "policies must be an array when supplied.");
+    for (const [index, candidate] of input.policies.entries()) {
+      const parsed = PolicySchema.safeParse(candidate);
+      if (!parsed.success) return invalid("INVALID_POLICY", `Policy at index ${index} is invalid.`, parsed.error.issues);
+      policies.push(parsed.data);
+    }
   }
 
   const evidence: Evidence[] = [];

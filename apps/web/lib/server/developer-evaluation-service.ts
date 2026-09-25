@@ -5,6 +5,7 @@ import type { ProductScope } from "../workspace-model";
 import { getDecisionStore } from "./decision-store";
 import type { DeveloperEvaluationPayload } from "./developer-api";
 import { getDeveloperStore } from "./developer-store";
+import { mergeManagedPolicies } from "./managed-policies";
 import { logServerEvent } from "./observability";
 
 export async function executeDeveloperEvaluation(input: {
@@ -15,9 +16,16 @@ export async function executeDeveloperEvaluation(input: {
   const now = new Date();
   const startedAt = Date.now();
   const requestId = `req_${input.payload.action.id}_${now.getTime()}`;
+  const policySet = await mergeManagedPolicies(input.scope, input.payload.policies);
+  if (!policySet.policies.length) {
+    const error = new Error("No active managed Policy Studio version or request policy is available for this project environment.");
+    error.name = "PoliciesRequiredError";
+    throw error;
+  }
+
   const orchestration = await evaluateAction({
     action: input.payload.action,
-    policies: input.payload.policies,
+    policies: policySet.policies,
     evidence: input.payload.evidence,
     facts: input.payload.facts,
     environment: { ...input.payload.environment, ...input.scope },
@@ -31,7 +39,7 @@ export async function executeDeveloperEvaluation(input: {
   const receipt = await createDecisionReceipt({
     orchestration,
     action: input.payload.action,
-    policies: input.payload.policies,
+    policies: policySet.policies,
     evidence: input.payload.evidence,
     createdAt: now,
     receiptId: `receipt_${input.payload.action.id}_${now.getTime()}`,
@@ -81,6 +89,7 @@ export async function executeDeveloperEvaluation(input: {
     outcome: orchestration.decision.outcome,
     receiptId: receipt.receiptId,
     providerStatus: orchestration.contextualTrace?.providerStatus,
+    managedPolicyVersions: policySet.managedVersions.map((version) => `${version.policyId}@v${version.version}`),
     latencyMs,
   });
 
@@ -92,6 +101,8 @@ export async function executeDeveloperEvaluation(input: {
     providerTrace: orchestration.contextualTrace,
     persistence,
     scope: input.scope,
+    policySource: policySet.source,
+    managedPolicyVersions: policySet.managedVersions.map((version) => ({ policyId: version.policyId, version: version.version, versionId: version.id })),
     latencyMs,
   };
 }

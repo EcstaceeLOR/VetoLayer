@@ -15,7 +15,12 @@ export type VetoLayerApiScope = {
 
 export type VetoLayerEvaluationRequest = {
   action: ActionRequest;
-  policies: Policy[];
+  /**
+   * Optional once the API key's project/environment has active Policy Studio versions.
+   * Managed policies are authoritative. Request policies are used only while no managed
+   * policy is active for the scope, which preserves backwards compatibility.
+   */
+  policies?: Policy[];
   evidence?: Evidence[];
   facts?: Record<string, JsonValue>;
   environment?: Record<string, JsonValue>;
@@ -34,6 +39,8 @@ export type VetoLayerEvaluationResponse = {
   providerTrace?: Record<string, unknown>;
   persistence: "supabase" | "memory";
   scope: VetoLayerApiScope;
+  policySource?: "request" | "managed" | "managed+trusted";
+  managedPolicyVersions?: Array<{ policyId: string; version: number; versionId: string }>;
   latencyMs: number;
 };
 
