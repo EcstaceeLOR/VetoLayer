@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../../lib/server/api-auth";
 import { getDecisionStore } from "../../../../../lib/server/decision-store";
 import { logServerEvent } from "../../../../../lib/server/observability";
+import { emitHighSeverityBlockEvent } from "../../../../../lib/server/product-events";
 import { ReviewConflictError, getReviewStore, type ReviewCase } from "../../../../../lib/server/review-store";
 import { emitReviewWebhook, reevaluateReviewCase, reviewActor, reviewEvent, syncReviewDecisionIndex } from "../../../../../lib/server/review-workflow";
 import { getWorkspaceStore } from "../../../../../lib/server/workspace-store";
@@ -227,9 +228,6 @@ async function reevaluateAndSave(
     updatedAt: reevaluatedAt,
   };
 
-  // Persist the immutable receipt before linking it into the mutable review
-  // record. A stale compare-and-swap may leave an unlinked receipt, but a
-  // review must never reference a receipt that was not durably written first.
   const { store: decisionStore } = getDecisionStore();
   await decisionStore.save({
     id: result.receipt.receiptId,
@@ -239,6 +237,7 @@ async function reevaluateAndSave(
     createdAt: reevaluatedAt,
     parentReceiptId: result.parentReceiptId,
   });
+  await emitHighSeverityBlockEvent({ scope, receipt: result.receipt, source: "review" });
 
   const { store } = getReviewStore();
   const saved = await store.save(next, { expectedRevision });

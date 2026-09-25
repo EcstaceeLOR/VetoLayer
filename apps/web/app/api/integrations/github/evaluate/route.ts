@@ -5,6 +5,7 @@ import { getDecisionStore } from "../../../../../lib/server/decision-store";
 import { getGitHubInstallationToken, readGitHubAppConfig } from "../../../../../lib/server/github-app";
 import { getGitHubAppStore } from "../../../../../lib/server/github-app-store";
 import { mergeManagedPolicies } from "../../../../../lib/server/managed-policies";
+import { emitHighSeverityBlockEvent } from "../../../../../lib/server/product-events";
 import { consumeRateLimit, requestClientKey } from "../../../../../lib/server/rate-limit";
 import { getReviewStore } from "../../../../../lib/server/review-store";
 import { emitReviewWebhook, reviewEvent, syncReviewDecisionIndex } from "../../../../../lib/server/review-workflow";
@@ -62,16 +63,12 @@ export async function POST(request: Request) {
       githubToken,
       operation,
       policies: policySet.policies,
-      receiptScope: {
-        ...scope,
-        workspaceName: auth.workspace.workspace.name,
-        projectName: auth.workspace.project.name,
-        environmentName: auth.workspace.environment.name,
-      },
+      receiptScope: { ...scope, workspaceName: auth.workspace.workspace.name, projectName: auth.workspace.project.name, environmentName: auth.workspace.environment.name },
     });
 
     const { store: decisionStore } = getDecisionStore();
     await decisionStore.save({ id: result.receipt.receiptId, ...scope, source: "integration", receipt: result.receipt, createdAt: result.receipt.timestamps.receiptCreatedAt });
+    await emitHighSeverityBlockEvent({ scope, receipt: result.receipt, source: "integration" });
 
     let reviewCaseId: string | undefined;
     if (result.receipt.outcome === "REVIEW") {

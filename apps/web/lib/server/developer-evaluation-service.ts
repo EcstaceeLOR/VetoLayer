@@ -7,6 +7,7 @@ import type { DeveloperEvaluationPayload } from "./developer-api";
 import { getDeveloperStore } from "./developer-store";
 import { mergeManagedPolicies } from "./managed-policies";
 import { logServerEvent } from "./observability";
+import { emitHighSeverityBlockEvent } from "./product-events";
 
 export async function executeDeveloperEvaluation(input: {
   payload: DeveloperEvaluationPayload;
@@ -48,20 +49,15 @@ export async function executeDeveloperEvaluation(input: {
 
   const { store: decisionStore, persistence } = getDecisionStore();
   try {
-    await decisionStore.save({
-      id: receipt.receiptId,
-      ...input.scope,
-      source: "api",
-      receipt,
-      createdAt: receipt.timestamps.receiptCreatedAt,
-    });
+    await decisionStore.save({ id: receipt.receiptId, ...input.scope, source: "api", receipt, createdAt: receipt.timestamps.receiptCreatedAt });
   } catch (error) {
-    logServerEvent("warn", "api.decision.persistence.failed", {
-      requestId,
-      receiptId: receipt.receiptId,
-      ...input.scope,
-      message: error instanceof Error ? error.message : "Decision persistence failed",
-    });
+    logServerEvent("warn", "api.decision.persistence.failed", { requestId, receiptId: receipt.receiptId, ...input.scope, message: error instanceof Error ? error.message : "Decision persistence failed" });
+  }
+
+  try {
+    await emitHighSeverityBlockEvent({ scope: input.scope, receipt, source: "api" });
+  } catch (error) {
+    logServerEvent("warn", "api.notification.emit_failed", { requestId, receiptId: receipt.receiptId, ...input.scope, message: error instanceof Error ? error.message : "Notification event failed" });
   }
 
   const latencyMs = Date.now() - startedAt;

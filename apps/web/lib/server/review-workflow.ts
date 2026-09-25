@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { after } from "next/server";
 import {
   createDecisionReceipt,
   evaluateAction,
@@ -15,6 +16,7 @@ import { getDeveloperStore } from "./developer-store";
 import { deliverDeveloperWebhook } from "./developer-webhooks";
 import { mergeManagedPolicies } from "./managed-policies";
 import { logServerEvent } from "./observability";
+import { emitProductEvent, type ProductEventInput } from "./product-events";
 import type { ReviewCase, ReviewTimelineEvent, ReviewTimelineEventType } from "./review-store";
 
 export function reviewActor(input: { userId: string; displayName?: string; email?: string; role?: string }): Actor {
@@ -75,9 +77,7 @@ export async function reevaluateReviewCase(input: {
     requestedAt: now,
   });
   const reviewEvidence = input.reviewCase.reviewHistory.map(humanReviewToEvidence);
-  if (input.humanReview && !input.reviewCase.reviewHistory.some((item) => item.id === input.humanReview?.id)) {
-    reviewEvidence.push(humanReviewToEvidence(input.humanReview));
-  }
+  if (input.humanReview && !input.reviewCase.reviewHistory.some((item) => item.id === input.humanReview?.id)) reviewEvidence.push(humanReviewToEvidence(input.humanReview));
   const addedEvidence = input.reviewCase.evidenceAdditions.map((item) => item.evidence);
   const evidence = dedupeEvidence([...bundle.evidence, ...reviewEvidence, ...addedEvidence]);
   const policySet = await mergeManagedPolicies(input.scope, githubGatePolicies, { preserveTrustedFallback: true });
@@ -111,24 +111,13 @@ export async function reevaluateReviewCase(input: {
   };
 }
 
-/** Keep derived Decision Explorer review metadata in sync without making the
- * authoritative review mutation depend on a secondary search index. */
 export async function syncReviewDecisionIndex(reviewCase: ReviewCase) {
   const receiptIds = [...new Set(reviewCase.receiptLineage.map((entry) => entry.receiptId))];
   try {
     const { store } = getDecisionStore();
-    await store.annotateReview(reviewCase.workspaceId, receiptIds, {
-      state: reviewCase.status,
-      reviewCaseId: reviewCase.id,
-    });
+    await store.annotateReview(reviewCase.workspaceId, receiptIds, { state: reviewCase.status, reviewCaseId: reviewCase.id });
   } catch (error) {
-    logServerEvent("warn", "review.decision_index.failed", {
-      reviewCaseId: reviewCase.id,
-      workspaceId: reviewCase.workspaceId,
-      status: reviewCase.status,
-      receiptCount: receiptIds.length,
-      message: error instanceof Error ? error.message : "Decision review index update failed",
-    });
+    logServerEvent("warn", "review.decision_index.failed", { reviewCaseId: reviewCase.id, workspaceId: reviewCase.workspaceId, status: reviewCase.status, receiptCount: receiptIds.length, message: error instanceof Error ? error.message : "Decision review index update failed" });
   }
 }
 
@@ -138,26 +127,64 @@ export async function emitReviewWebhook(input: {
   reviewCase: ReviewCase;
   action?: string;
 }) {
+  const latestReceiptId = input.reviewCase.resolutionReceipt?.receiptId ?? input.reviewCase.receipt.receiptId;
+  const common = {
+    ...input.scope,
+    href: `/dashboard/reviews?case=${encodeURIComponent(input.reviewCase.id)}`,
+    data: {
+      reviewCaseId: input.reviewCase.id,
+      status: input.reviewCase.status,
+      revision: input.reviewCase.revision,
+      assigneeUserId: input.reviewCase.assignment?.userId ?? null,
+      latestReceiptId,
+      ...(input.action ? { action: input.action } : {}),
+    },
+  };
+
+  if (input.eventType === "review.created") {
+    await safelyEmitReviewProductEvent(input.reviewCase.id, { ...common, idempotencyKey: `review:${input.reviewCase.id}:created`, type: "review.created", severity: "warning", title: "Review required", message: input.reviewCase.title });
+    return;
+  }
+  if (input.eventType === "review.resolved") {
+    await safelyEmitReviewProductEvent(input.reviewCase.id, { ...common, idempotencyKey: `review:${input.reviewCase.id}:${input.reviewCase.revision}:resolved`, type: "review.resolved", severity: "info", title: "Review resolved", message: `${input.reviewCase.title} is resolved.`, ...(input.reviewCase.assignment?.userId ? { recipientUserIds: [input.reviewCase.assignment.userId] } : {}) });
+    return;
+  }
+  if (input.action === "assign") {
+    await safelyEmitReviewProductEvent(input.reviewCase.id, { ...common, idempotencyKey: `review:${input.reviewCase.id}:${input.reviewCase.revision}:assigned`, type: "review.assigned", severity: "warning", title: "Review assigned", message: `You were assigned ${input.reviewCase.title}.`, ...(input.reviewCase.assignment?.userId ? { recipientUserIds: [input.reviewCase.assignment.userId] } : {}) });
+    return;
+  }
+  if (input.action === "request_evidence") {
+    await safelyEmitReviewProductEvent(input.reviewCase.id, { ...common, idempotencyKey: `review:${input.reviewCase.id}:${input.reviewCase.revision}:evidence-requested`, type: "review.evidence_requested", severity: "warning", title: "Evidence requested", message: `${input.reviewCase.title} needs additional evidence.`, ...(input.reviewCase.assignment?.userId ? { recipientUserIds: [input.reviewCase.assignment.userId] } : {}) });
+    return;
+  }
+
   try {
-    const { store } = getDeveloperStore();
-    const endpoints = await store.listWebhooks(input.scope);
-    const active = endpoints.filter((endpoint) => endpoint.status === "active" && endpoint.events.includes(input.eventType));
-    await Promise.allSettled(active.map((endpoint) => deliverDeveloperWebhook({
-      store,
-      endpoint,
-      scope: input.scope,
-      eventType: input.eventType,
-      payload: {
-        reviewCaseId: input.reviewCase.id,
-        status: input.reviewCase.status,
-        revision: input.reviewCase.revision,
-        assigneeUserId: input.reviewCase.assignment?.userId ?? null,
-        latestReceiptId: input.reviewCase.resolutionReceipt?.receiptId ?? input.reviewCase.receipt.receiptId,
-        ...(input.action ? { action: input.action } : {}),
-      },
-    })));
+    after(async () => {
+      try {
+        const { store } = getDeveloperStore();
+        const endpoints = (await store.listWebhooks(input.scope)).filter((endpoint) => endpoint.status === "active" && endpoint.events.includes("review.updated"));
+        await Promise.allSettled(endpoints.map((endpoint) => deliverDeveloperWebhook({ store, endpoint, scope: input.scope, eventType: "review.updated", payload: common.data })));
+      } catch (error) {
+        logServerEvent("warn", "review.webhook.background_failed", { reviewCaseId: input.reviewCase.id, message: error instanceof Error ? error.message : "Review webhook failed" });
+      }
+    });
   } catch {
-    // Review mutation success must not depend on an optional outbound webhook.
+    // The authoritative review mutation is already durable; webhook work stays optional.
+  }
+}
+
+async function safelyEmitReviewProductEvent(reviewCaseId: string, event: ProductEventInput) {
+  try {
+    await emitProductEvent(event);
+  } catch (error) {
+    logServerEvent("warn", "review.notification.emit_failed", {
+      reviewCaseId,
+      workspaceId: event.workspaceId,
+      projectId: event.projectId,
+      environmentId: event.environmentId,
+      eventType: event.type,
+      message: error instanceof Error ? error.message : "Review notification could not be queued",
+    });
   }
 }
 
