@@ -133,6 +133,14 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   return <textarea className={cx("vlTextarea", className)} {...props} />;
 }
 
+type NoticeTone = "info" | "success" | "warning" | "danger";
+const noticeToneClass: Record<NoticeTone, string> = {
+  info: "vlNoticeInfo",
+  success: "vlNoticeSuccess",
+  warning: "vlNoticeWarning",
+  danger: "vlNoticeDanger",
+};
+
 export function Notice({
   tone = "info",
   title,
@@ -140,15 +148,14 @@ export function Notice({
   className,
   role,
 }: {
-  tone?: "info" | "success" | "warning" | "danger";
+  tone?: NoticeTone;
   title: ReactNode;
   children?: ReactNode;
   className?: string;
   role?: "alert" | "status";
 }) {
-  const toneName = tone[0].toUpperCase() + tone.slice(1);
   return (
-    <div className={cx("vlNotice", `vlNotice${toneName}`, className)} role={role}>
+    <div className={cx("vlNotice", noticeToneClass[tone], className)} role={role}>
       <strong>{title}</strong>
       {children ? <p>{children}</p> : null}
     </div>
