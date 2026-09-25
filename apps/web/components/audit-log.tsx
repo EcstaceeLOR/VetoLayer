@@ -67,7 +67,7 @@ export function AuditLog() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const query = useMemo(() => {
+  const queryString = useMemo(() => {
     const params = new URLSearchParams({ limit: "100" });
     if (actor.trim()) params.set("actor", actor.trim());
     if (action.trim()) params.set("action", action.trim());
@@ -76,14 +76,15 @@ export function AuditLog() {
     if (environmentId) params.set("environmentId", environmentId);
     if (from) params.set("from", new Date(`${from}T00:00:00`).toISOString());
     if (to) params.set("to", new Date(`${to}T23:59:59.999`).toISOString());
-    return params;
+    return params.toString();
   }, [actor, action, resource, projectId, environmentId, from, to]);
 
   async function load(append = false) {
-    append ? setLoadingMore(true) : setLoading(true);
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams(query);
+      const params = new URLSearchParams(queryString);
       if (append && nextBefore) params.set("before", nextBefore);
       const response = await fetch(`/api/audit?${params.toString()}`, { cache: "no-store" });
       const payload = await response.json() as AuditPayload & { error?: { message?: string } };
@@ -101,10 +102,10 @@ export function AuditLog() {
     }
   }
 
-  useEffect(() => { void load(false); }, [query.toString()]);
+  useEffect(() => { void load(false); }, [queryString]);
 
   const availableEnvironments = environments.filter((environment) => !projectId || environment.projectId === projectId);
-  const exportBase = `/api/audit/export?${query.toString()}`;
+  const exportBase = `/api/audit/export?${queryString}`;
 
   return (
     <div className="auditLayout">
