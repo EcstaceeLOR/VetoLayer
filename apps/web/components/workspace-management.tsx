@@ -17,7 +17,7 @@ type Props = {
   invitations: Array<Omit<WorkspaceInvitation, "tokenHash">>;
 };
 
-type ApiError = { error?: { message?: string } };
+type ApiResponse = { error?: { message?: string }; inviteUrl?: string } & Record<string, unknown>;
 
 export function WorkspaceManagement(props: Props) {
   const router = useRouter();
@@ -35,7 +35,7 @@ export function WorkspaceManagement(props: Props) {
     setNotice(null);
     try {
       const response = await fetch(path, init);
-      const result = await response.json() as ApiError;
+      const result = await response.json() as ApiResponse;
       if (!response.ok) {
         setNotice({ tone: "danger", title: "Action failed", message: result.error?.message ?? "VetoLayer could not complete that action." });
         return null;
@@ -91,8 +91,7 @@ export function WorkspaceManagement(props: Props) {
     const email = String(formData.get("email") ?? "");
     const role = String(formData.get("role") ?? "member");
     const result = await call("/api/workspaces/members", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, role }) }, "member-invite", "Invitation created. Share the one-time invitation link securely.");
-    const url = result && typeof (result as { inviteUrl?: unknown }).inviteUrl === "string" ? (result as { inviteUrl: string }).inviteUrl : null;
-    setInviteUrl(url);
+    setInviteUrl(result?.inviteUrl ?? null);
   }
 
   async function changeRole(userId: string, role: WorkspaceRole) {
@@ -126,7 +125,7 @@ export function WorkspaceManagement(props: Props) {
             <Field label="Workspace name"><Input name="workspaceName" defaultValue={props.workspace.name} disabled={!canManageWorkspace || Boolean(busy)} /></Field>
             <Button type="submit" tone="secondary" disabled={!canManageWorkspace || Boolean(busy)}>Rename</Button>
           </form>
-          <dl className="workspaceFacts"><div><dt>Workspace ID</dt><dd>{props.workspace.id}</dd></div><div><dt>Your role</dt><dd>{props.role}</dd></div><div><dt>Members</dt><dd>{props.members.length}</dd></div><div><dt>Projects</dt><dd>{props.projects.length}</dd></div></dl>
+          <dl className="workspaceFacts"><div><dt>Workspace ID</dt><dd>{props.workspace.id}</dd></div><div><dt>Your role</dt><dd>{props.role}</dd></div><div><dt>Members</dt><dd>{canManageMembers ? props.members.length : "Restricted"}</dd></div><div><dt>Projects</dt><dd>{props.projects.length}</dd></div></dl>
           {props.role === "owner" ? <Button tone="danger" size="sm" onClick={() => void archiveWorkspace()} disabled={Boolean(busy)}>Archive workspace</Button> : null}
         </Card>
 
@@ -141,18 +140,22 @@ export function WorkspaceManagement(props: Props) {
         </Card>
 
         <Card raised className="workspaceAdminCard workspaceAdminWide">
-          <div className="workspaceSectionHead"><div><span>Environments</span><h2>{props.project.name} environments</h2></div><Badge>{props.environments.length} active</Badge></div>
-          <div className="workspaceEntityList workspaceEnvironmentList">{props.environments.map((environment) => <div key={environment.id}><span><strong>{environment.name}</strong><small>{environment.kind} · {environment.id}</small></span><div className="workspaceRowActions">{environment.id === props.environment.id ? <Badge tone="accent">Selected</Badge> : null}{canManageEnvironments ? <Button tone="ghost" size="sm" onClick={() => void archiveEnvironment(environment.id)} disabled={Boolean(busy) || props.environments.length <= 1}>Archive</Button> : null}</div></div>)}</div>
+          <div className="workspaceSectionHead"><div><span>Environments</span><h2>{props.project.name} environments</h2></div><Badge>{props.environments.filter((item) => item.status === "active").length} active</Badge></div>
+          <div className="workspaceEntityList workspaceEnvironmentList">{props.environments.map((environment) => <div key={environment.id}><span><strong>{environment.name}</strong><small>{environment.kind} · {environment.status} · {environment.id}</small></span><div className="workspaceRowActions">{environment.id === props.environment.id ? <Badge tone="accent">Selected</Badge> : null}{canManageEnvironments && environment.status === "active" ? <Button tone="ghost" size="sm" onClick={() => void archiveEnvironment(environment.id)} disabled={Boolean(busy) || props.environments.filter((item) => item.status === "active").length <= 1}>Archive</Button> : null}</div></div>)}</div>
           {canManageEnvironments ? <div className="workspaceTwoForms"><form action={renameEnvironment} className="workspaceInlineForm"><Field label="Rename selected environment"><Input name="environmentName" defaultValue={props.environment.name} /></Field><Button type="submit" tone="secondary" disabled={Boolean(busy)}>Rename</Button></form><form action={createEnvironment} className="workspaceInlineForm"><Field label="New environment"><Input name="environmentName" placeholder="EU Production" /></Field><Field label="Kind"><Select name="environmentKind" defaultValue="custom"><option value="development">Development</option><option value="staging">Staging</option><option value="production">Production</option><option value="custom">Custom</option></Select></Field><Button type="submit" tone="primary" disabled={Boolean(busy)}>Add environment</Button></form></div> : null}
         </Card>
 
-        <Card raised className="workspaceAdminCard workspaceAdminWide">
-          <div className="workspaceSectionHead"><div><span>Team</span><h2>Members and roles</h2></div><Badge>{props.members.length} members</Badge></div>
-          <TableShell><Table><thead><tr><th>Member</th><th>Role</th><th>Joined</th><th aria-label="Actions" /></tr></thead><tbody>{props.members.map((member) => <tr key={member.userId}><td><strong>{member.displayName ?? member.email ?? member.userId}</strong>{member.displayName && member.email ? <small>{member.email}</small> : null}</td><td>{canManageMembers && member.role !== "owner" ? <Select value={member.role} onChange={(event) => void changeRole(member.userId, event.target.value as WorkspaceRole)} disabled={Boolean(busy)}>{props.role === "owner" ? <option value="admin">Admin</option> : null}<option value="reviewer">Reviewer</option><option value="member">Member</option></Select> : <Badge tone={member.role === "owner" ? "accent" : "neutral"}>{member.role}</Badge>}</td><td>{new Date(member.joinedAt).toLocaleDateString()}</td><td>{canManageMembers && member.role !== "owner" ? <Button tone="ghost" size="sm" onClick={() => void removeMember(member.userId)} disabled={Boolean(busy)}>Remove</Button> : null}</td></tr>)}</tbody></Table></TableShell>
-          {canManageMembers ? <form action={inviteMember} className="workspaceInviteForm"><Field label="Invite by email"><Input name="email" type="email" placeholder="reviewer@company.com" required /></Field><Field label="Role"><Select name="role" defaultValue="reviewer">{props.role === "owner" ? <option value="admin">Admin</option> : null}<option value="reviewer">Reviewer</option><option value="member">Member</option></Select></Field><Button type="submit" tone="primary" disabled={Boolean(busy)}>Create invitation</Button></form> : null}
-          {inviteUrl ? <Notice tone="success" title="Invitation link created"><span className="workspaceInviteLink">{inviteUrl}</span><br /><Button tone="ghost" size="sm" type="button" onClick={() => void navigator.clipboard.writeText(inviteUrl)}>Copy invitation link</Button></Notice> : null}
-          {props.invitations.length ? <div className="workspaceInvites"><span>Recent invitations</span>{props.invitations.map((invitation) => <div key={invitation.id}><strong>{invitation.email}</strong><small>{invitation.role} · {invitation.status} · expires {new Date(invitation.expiresAt).toLocaleDateString()}</small></div>)}</div> : null}
-        </Card>
+        {canManageMembers ? (
+          <Card raised className="workspaceAdminCard workspaceAdminWide">
+            <div className="workspaceSectionHead"><div><span>Team</span><h2>Members and roles</h2></div><Badge>{props.members.length} members</Badge></div>
+            <TableShell><Table><thead><tr><th>Member</th><th>Role</th><th>Joined</th><th aria-label="Actions" /></tr></thead><tbody>{props.members.map((member) => <tr key={member.userId}><td><strong>{member.displayName ?? member.email ?? member.userId}</strong>{member.displayName && member.email ? <small>{member.email}</small> : null}</td><td>{member.role !== "owner" ? <Select value={member.role} onChange={(event) => void changeRole(member.userId, event.target.value as WorkspaceRole)} disabled={Boolean(busy)}>{props.role === "owner" ? <option value="admin">Admin</option> : null}<option value="reviewer">Reviewer</option><option value="member">Member</option></Select> : <Badge tone="accent">owner</Badge>}</td><td>{new Date(member.joinedAt).toLocaleDateString()}</td><td>{member.role !== "owner" ? <Button tone="ghost" size="sm" onClick={() => void removeMember(member.userId)} disabled={Boolean(busy)}>Remove</Button> : null}</td></tr>)}</tbody></Table></TableShell>
+            <form action={inviteMember} className="workspaceInviteForm"><Field label="Invite by email"><Input name="email" type="email" placeholder="reviewer@company.com" required /></Field><Field label="Role"><Select name="role" defaultValue="reviewer">{props.role === "owner" ? <option value="admin">Admin</option> : null}<option value="reviewer">Reviewer</option><option value="member">Member</option></Select></Field><Button type="submit" tone="primary" disabled={Boolean(busy)}>Create invitation</Button></form>
+            {inviteUrl ? <Notice tone="success" title="Invitation link created"><span className="workspaceInviteLink">{inviteUrl}</span><br /><Button tone="ghost" size="sm" type="button" onClick={() => void navigator.clipboard.writeText(inviteUrl)}>Copy invitation link</Button></Notice> : null}
+            {props.invitations.length ? <div className="workspaceInvites"><span>Recent invitations</span>{props.invitations.map((invitation) => <div key={invitation.id}><strong>{invitation.email}</strong><small>{invitation.role} · {invitation.status} · expires {new Date(invitation.expiresAt).toLocaleDateString()}</small></div>)}</div> : null}
+          </Card>
+        ) : (
+          <Card raised className="workspaceAdminCard workspaceAdminWide"><div className="workspaceSectionHead"><div><span>Team</span><h2>Membership is admin-managed</h2></div><Badge>{props.role}</Badge></div><p className="muted">Your role can operate within this workspace but cannot enumerate, invite, remove, or change other members. Owner and Admin roles manage team membership.</p></Card>
+        )}
       </div>
     </div>
   );
