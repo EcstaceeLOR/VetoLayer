@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { DataLifecycleJob } from "../../lib/server/data-lifecycle";
+import type { DataLifecycleJob } from "../lib/server/data-lifecycle";
 
 type Props = {
   workspaceName: string;
@@ -120,8 +120,8 @@ export function DataLifecycleClient(props: Props) {
       </section>
 
       <section className="dataCard">
-        <div className="dataCardHead"><div><span>ACCOUNT</span><h2>Delete your VetoLayer identity</h2></div><Link href="/account#account-deletion">Account security →</Link></div>
-        <p>Account deletion is separate from workspace removal. You must transfer or remove every workspace you own first. Historical receipts and append-only audit records retain their original actor identifiers for integrity; live membership and notification access is removed.</p>
+        <div className="dataCardHead"><div><span>ACCOUNT</span><h2>Offboard your VetoLayer identity</h2></div><Link href="/account/offboarding">Account offboarding →</Link></div>
+        <p>Account offboarding is separate from workspace removal. You must transfer or remove every workspace you own first. Historical receipts and append-only audit records retain their original actor identifiers for integrity; live membership and notification access is removed.</p>
       </section>
     </div>
   );
@@ -129,4 +129,4 @@ export function DataLifecycleClient(props: Props) {
 
 function formatDate(value?: string) { return value ? new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "Not scheduled"; }
 function retentionLabel(days: number) { return days === 0 ? "Indefinite" : `${days} days`; }
-function jobLabel(kind: DataLifecycleJob["kind"]) { return kind === "workspace_export" ? "Workspace export" : kind === "workspace_delete" ? "Workspace removal" : "Account deletion"; }
+function jobLabel(kind: DataLifecycleJob["kind"]) { return kind === "workspace_export" ? "Workspace export" : kind === "workspace_delete" ? "Workspace removal" : "Account offboarding"; }
