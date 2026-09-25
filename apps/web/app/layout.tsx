@@ -10,6 +10,7 @@ import "./design-system.css";
 import "./design-system-compat.css";
 import "./product-journey.css";
 import "./product-shell-interactions.css";
+import "./workspace-model.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://vetolayer.vercel.app"),
