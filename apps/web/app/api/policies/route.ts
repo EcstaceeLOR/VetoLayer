@@ -2,6 +2,7 @@ import { PolicySchema } from "@vetolayer/core";
 import { NextResponse } from "next/server";
 import { groupPolicyVersions, policyActivationWarnings, policyStudioTemplates, type PolicyVersionRecord } from "../../../lib/policy-lifecycle";
 import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../lib/server/api-auth";
+import { recordAuditEvent, workspaceAuditInput } from "../../../lib/server/audit";
 import { logServerEvent } from "../../../lib/server/observability";
 import { getPolicyLifecycleStore } from "../../../lib/server/policy-lifecycle-store";
 import { emitProductEvent } from "../../../lib/server/product-events";
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
       const targets = validTargets(auth.workspace, body.targetEnvironmentIds ?? [auth.workspace.environmentId]);
       if (!targets) return productError("INVALID_POLICY_TARGETS", "Select one or more active environments in this project.");
       const created = await store.createInitialDraft({ ...scope, policy: { ...template.policy, enabled: false }, targetEnvironmentIds: targets, sourceTemplateId: template.id, changeNote: `Created from ${template.name}`, createdByUserId: auth.workspace.userId });
+      await auditPolicy(auth.workspace, created, "policy.create", request, { sourceTemplateId: template.id });
       return NextResponse.json({ version: created, persistence }, { status: 201 });
     }
 
@@ -73,6 +75,7 @@ export async function POST(request: Request) {
       const targets = validTargets(auth.workspace, body.targetEnvironmentIds ?? [auth.workspace.environmentId]);
       if (!targets) return productError("INVALID_POLICY_TARGETS", "Select one or more active environments in this project.");
       const created = await store.createInitialDraft({ ...scope, policy: { ...parsed.data, enabled: false }, targetEnvironmentIds: targets, changeNote: String(body.changeNote ?? "New policy draft").trim().slice(0, 500), createdByUserId: auth.workspace.userId });
+      await auditPolicy(auth.workspace, created, "policy.create", request);
       return NextResponse.json({ version: created, persistence }, { status: 201 });
     }
 
@@ -83,6 +86,7 @@ export async function POST(request: Request) {
       const targets = validTargets(auth.workspace, body.targetEnvironmentIds);
       if (!targets) return productError("INVALID_POLICY_TARGETS", "Select one or more active environments in this project.");
       const updated = await store.updateDraft({ ...scope, versionId, policy: { ...parsed.data, enabled: false }, targetEnvironmentIds: targets, changeNote: String(body.changeNote ?? "").trim().slice(0, 500) });
+      await auditPolicy(auth.workspace, updated, "policy.draft.update", request);
       return NextResponse.json({ version: updated, persistence });
     }
 
@@ -90,6 +94,7 @@ export async function POST(request: Request) {
       const sourceVersionId = String(body.versionId ?? "");
       if (!sourceVersionId) return productError("POLICY_VERSION_REQUIRED", "Select a published version to edit.");
       const created = await store.forkDraft({ ...scope, sourceVersionId, createdByUserId: auth.workspace.userId, changeNote: String(body.changeNote ?? "New draft version").trim().slice(0, 500) });
+      await auditPolicy(auth.workspace, created, "policy.version.create", request, { sourceVersionId });
       return NextResponse.json({ version: created, persistence }, { status: 201 });
     }
 
@@ -97,6 +102,7 @@ export async function POST(request: Request) {
       const sourceVersionId = String(body.versionId ?? "");
       if (!sourceVersionId) return productError("POLICY_VERSION_REQUIRED", "Select a version to duplicate.");
       const duplicated = await store.duplicateVersion({ ...scope, sourceVersionId, createdByUserId: auth.workspace.userId });
+      await auditPolicy(auth.workspace, duplicated, "policy.duplicate", request, { sourceVersionId });
       return NextResponse.json({ version: duplicated, persistence }, { status: 201 });
     }
 
@@ -113,7 +119,10 @@ export async function POST(request: Request) {
       const confirmationRequired = warnings.some((warning) => warning.severity === "warning");
       if (confirmationRequired && body.confirmWarnings !== true) return productError("POLICY_ACTIVATION_CONFIRMATION_REQUIRED", "Review the policy warnings before activation.", 409, warnings);
       const activated = await store.activateVersion(scope, versionId);
-      await emitPolicyLifecycleEvent(auth.workspace, activated, "policy.activated");
+      await Promise.all([
+        emitPolicyLifecycleEvent(auth.workspace, activated, "policy.activated"),
+        auditPolicy(auth.workspace, activated, "policy.activate", request, { warningsAcknowledged: confirmationRequired }),
+      ]);
       return NextResponse.json({ version: activated, warnings, persistence });
     }
 
@@ -121,7 +130,10 @@ export async function POST(request: Request) {
       const versionId = String(body.versionId ?? "");
       if (!versionId) return productError("POLICY_VERSION_REQUIRED", "Select a policy version to archive.");
       const archivedVersion = await store.archiveVersion(scope, versionId);
-      await emitPolicyLifecycleEvent(auth.workspace, archivedVersion, "policy.deactivated");
+      await Promise.all([
+        emitPolicyLifecycleEvent(auth.workspace, archivedVersion, "policy.deactivated"),
+        auditPolicy(auth.workspace, archivedVersion, "policy.archive", request),
+      ]);
       return NextResponse.json({ version: archivedVersion, persistence });
     }
 
@@ -131,6 +143,27 @@ export async function POST(request: Request) {
     const code = message.includes("immutable") ? "POLICY_VERSION_IMMUTABLE" : message.includes("editable draft") ? "POLICY_DRAFT_EXISTS" : "POLICY_ACTION_FAILED";
     return productError(code, message, code === "POLICY_DRAFT_EXISTS" ? 409 : 503);
   }
+}
+
+async function auditPolicy(workspace: WorkspaceContext, version: PolicyVersionRecord, action: string, request: Request, extra: Record<string, unknown> = {}) {
+  await recordAuditEvent(workspaceAuditInput(workspace, {
+    action,
+    category: "policy",
+    targetType: "policy_version",
+    targetId: version.id,
+    targetLabel: `${version.policy.name} v${version.version}`,
+    href: `/dashboard/policies?policy=${encodeURIComponent(version.policyId)}&version=${version.version}`,
+    request,
+    metadata: {
+      policyId: version.policyId,
+      version: version.version,
+      state: version.state,
+      severity: version.policy.severity,
+      targetEnvironmentIds: version.targetEnvironmentIds,
+      changeNote: version.changeNote ?? null,
+      ...extra,
+    },
+  }));
 }
 
 async function emitPolicyLifecycleEvent(workspace: WorkspaceContext, version: PolicyVersionRecord, type: "policy.activated" | "policy.deactivated") {
