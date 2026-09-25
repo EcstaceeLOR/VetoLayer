@@ -186,9 +186,7 @@ export function PolicyStudio({
       .then(async (response) => response.ok ? response.json() : { decisions: [] })
       .then((payload: { decisions?: HistoricalDecision[] }) => setHistoricalDecisions(payload.decisions ?? []))
       .catch(() => setHistoricalDecisions([]));
-    // Initial load only; subsequent lifecycle mutations call load explicitly.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [load]);
 
   async function mutate(action: string, payload: Record<string, unknown> = {}) {
     setBusy(action);
