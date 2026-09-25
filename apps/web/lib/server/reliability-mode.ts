@@ -1,5 +1,11 @@
 export const RELIABILITY_PROFILE_COOKIE = "vl_e2e_profile";
 
+export const RELIABILITY_SCOPE = {
+  workspaceId: "e2e-workspace",
+  projectId: "e2e-project",
+  environmentId: "e2e-production",
+} as const;
+
 export type ReliabilityProfile = "onboarding" | "operator";
 
 export function isReliabilityTestMode(env: NodeJS.ProcessEnv = process.env) {
