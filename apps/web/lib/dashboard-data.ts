@@ -23,7 +23,9 @@ const base = {
   integrity: { algorithm: "SHA-256" as const, hash: "8d7bc97c02b8b77c707ddb1a3b83f7b3cbf3f6aeeaaf259bf3bb40a88577c441" },
 };
 
-export const dashboardDecisions: DashboardDecision[] = [
+// Seeded dashboard receipts are development-only fixtures. Production product
+// routes must always render durable workspace data or an honest empty state.
+export const dashboardDecisions: DashboardDecision[] = process.env.NODE_ENV === "production" ? [] : [
   {
     ...base,
     receiptId: "receipt_github_acme_api_42_merge",
