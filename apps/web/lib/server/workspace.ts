@@ -3,6 +3,7 @@ import { createSupabaseServerClient, isSupabaseAuthConfigured } from "../supabas
 export type WorkspaceContext = {
   userId: string;
   email?: string;
+  displayName?: string;
   workspaceId: string;
   label: string;
 };
@@ -25,9 +26,12 @@ export async function getAuthenticatedWorkspace(): Promise<WorkspaceContext | nu
   if (error || !user) return null;
 
   const email = user.email?.trim() || undefined;
+  const rawDisplayName = user.user_metadata?.display_name;
+  const displayName = typeof rawDisplayName === "string" && rawDisplayName.trim() ? rawDisplayName.trim() : undefined;
   return {
     userId: user.id,
     ...(email ? { email } : {}),
+    ...(displayName ? { displayName } : {}),
     workspaceId: workspaceIdForUser(user.id),
     label: email ? workspaceLabelFromEmail(email) : "Personal workspace",
   };
