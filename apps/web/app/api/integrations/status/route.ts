@@ -1,13 +1,39 @@
 import { NextResponse } from "next/server";
-import type { IntegrationKey, IntegrationTestResult } from "../../../../lib/integration-contracts";
+import type { GitHubInstallationView, IntegrationTestResult } from "../../../../lib/integration-contracts";
 import { rejectArchivedProjectWrite, requireApiWorkspace } from "../../../../lib/server/api-auth";
-import { getGitHubAppStore } from "../../../../lib/server/github-app-store";
+import { getGitHubAppStore, type StoredGitHubInstallation } from "../../../../lib/server/github-app-store";
 import { githubScope, refreshGitHubInstallation } from "../../../../lib/server/github-app-service";
 import { getIntegrationReadiness, testDeveloperApiIntegration, testGitHubIntegration } from "../../../../lib/server/integration-health";
 import { getIntegrationStore } from "../../../../lib/server/integration-store";
 import { consumeRateLimit, requestClientKey } from "../../../../lib/server/rate-limit";
+import type { WorkspaceContext } from "../../../../lib/server/workspace";
 
 export const runtime = "nodejs";
+
+function toView(record: StoredGitHubInstallation): GitHubInstallationView {
+  return {
+    installationId: record.installationId,
+    accountLogin: record.accountLogin,
+    accountType: record.accountType,
+    ...(record.accountUrl ? { accountUrl: record.accountUrl } : {}),
+    ...(record.installationUrl ? { installationUrl: record.installationUrl } : {}),
+    repositorySelection: record.repositorySelection,
+    status: record.status,
+    repositories: record.repositories.map((repository) => ({
+      id: repository.id,
+      name: repository.name,
+      fullName: repository.fullName,
+      private: repository.private,
+      htmlUrl: repository.htmlUrl,
+      defaultBranch: repository.defaultBranch,
+      archived: repository.archived,
+      disabled: repository.disabled,
+    })),
+    ...(record.lastSyncedAt ? { lastSyncedAt: record.lastSyncedAt } : {}),
+    ...(record.lastEvent ? { lastEvent: record.lastEvent } : {}),
+    updatedAt: record.updatedAt,
+  };
+}
 
 export async function GET() {
   const auth = await requireApiWorkspace("integrations.read");
@@ -18,7 +44,7 @@ export async function GET() {
     const { store, persistence } = getIntegrationStore();
     const connections = await store.list(auth.workspace.workspaceId, { projectId: auth.workspace.projectId, environmentId: auth.workspace.environmentId });
     const { store: githubStore, persistence: githubPersistence } = getGitHubAppStore();
-    const githubInstallations = await githubStore.list(scope);
+    const githubInstallations = (await githubStore.list(scope)).map(toView);
     return NextResponse.json({
       readiness: getIntegrationReadiness(),
       connections,
@@ -66,14 +92,14 @@ export async function POST(request: Request) {
     });
     const connections = await store.list(auth.workspace.workspaceId, { projectId: auth.workspace.projectId, environmentId: auth.workspace.environmentId });
     const { store: githubStore } = getGitHubAppStore();
-    const githubInstallations = await githubStore.list(githubScope(auth.workspace));
+    const githubInstallations = (await githubStore.list(githubScope(auth.workspace))).map(toView);
     return NextResponse.json({ result, readiness: getIntegrationReadiness(), connections, githubInstallations, persistence, scope: { projectId: auth.workspace.projectId, environmentId: auth.workspace.environmentId } });
   } catch {
     return NextResponse.json({ error: { code: "INTEGRATION_TEST_FAILED", message: "The integration check could not be completed safely." } }, { status: 500 });
   }
 }
 
-async function testScopedGitHub(workspace: Parameters<typeof githubScope>[0]): Promise<IntegrationTestResult> {
+async function testScopedGitHub(workspace: WorkspaceContext): Promise<IntegrationTestResult> {
   const infrastructure = testGitHubIntegration();
   if (!infrastructure.ok) return infrastructure;
   const scope = githubScope(workspace);
