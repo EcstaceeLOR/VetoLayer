@@ -15,7 +15,12 @@ export function GET() {
       serv: environment.servConfigured ? "configured" : "not-configured",
       auth: authConfigured ? "configured" : "not-configured",
       persistence: environment.persistenceConfigured ? "configured" : "not-configured",
-      github: environment.githubTokenConfigured ? "configured" : "not-configured",
+      github: environment.githubAppConfigured ? "app-configured" : "not-configured",
+      githubApp: {
+        configured: Boolean(environment.githubAppConfigured),
+        ...(environment.githubAppSlug ? { slug: environment.githubAppSlug } : {}),
+        persistenceReady: environment.persistenceConfigured,
+      },
       developerApi: environment.apiAuthConfigured ? "configured" : "disabled",
       timestamp: new Date().toISOString(),
     });
