@@ -18,17 +18,23 @@ export const HumanReviewRecordSchema = z
 export type HumanReviewRecord = z.infer<typeof HumanReviewRecordSchema>;
 
 /**
- * Convert a human review into verified policy evidence. The review is evidence,
+ * Convert a human review into verified workflow evidence. A review is evidence,
  * not a decision override; callers must re-run the normal orchestrator.
+ * Only an explicit approve action is typed as review-approval.
  */
 export function humanReviewToEvidence(review: HumanReviewRecord): Evidence {
   const validated = HumanReviewRecordSchema.parse(review);
+  const type = validated.action === "approve"
+    ? "review-approval"
+    : validated.action === "reject"
+      ? "review-rejection"
+      : "review-evidence-request";
   return {
     id: `human-review-${validated.id}`,
-    type: "review-approval",
+    type,
     source: {
       kind: "vetolayer-human-review",
-      label: "VetoLayer human review",
+      label: `VetoLayer human review · ${validated.action.replace("_", " ")}`,
     },
     data: {
       reviewId: validated.id,
