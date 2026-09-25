@@ -4,31 +4,17 @@ import {
   evaluateAction,
   type DecisionOrchestrationResult,
   type DecisionReceipt,
+  type DecisionReceiptScope,
   type HumanReviewRecord,
   type Policy,
 } from "@vetolayer/core";
 import { evaluateDeterministicPolicies } from "@vetolayer/policies";
-import {
-  evaluateWithServ,
-  readServEnvironment,
-  type ServClientConfig,
-} from "@vetolayer/serv";
-import {
-  buildGitHubGateBundle,
-  type GitHubGateOperation,
-  type GitHubIncidentContext,
-} from "./adapter";
-import {
-  createGitHubEvidenceClient,
-  type GitHubPullRequestSnapshot,
-} from "./github-client";
+import { evaluateWithServ, readServEnvironment, type ServClientConfig } from "@vetolayer/serv";
+import { buildGitHubGateBundle, type GitHubGateOperation, type GitHubIncidentContext } from "./adapter";
+import { createGitHubEvidenceClient, type GitHubPullRequestSnapshot } from "./github-client";
 import { githubGatePolicies } from "./policies";
 
-export type GitHubGateResult = {
-  snapshot: GitHubPullRequestSnapshot;
-  orchestration: DecisionOrchestrationResult;
-  receipt: DecisionReceipt;
-};
+export type GitHubGateResult = { snapshot: GitHubPullRequestSnapshot; orchestration: DecisionOrchestrationResult; receipt: DecisionReceipt };
 
 export async function evaluateGitHubSnapshot(input: {
   snapshot: GitHubPullRequestSnapshot;
@@ -40,46 +26,35 @@ export async function evaluateGitHubSnapshot(input: {
   restrictedWindow?: boolean;
   incident?: GitHubIncidentContext;
   humanReview?: HumanReviewRecord;
+  receiptScope?: DecisionReceiptScope;
 }): Promise<GitHubGateResult> {
   const now = input.now ?? new Date();
   const bundle = buildGitHubGateBundle({
     snapshot: input.snapshot,
     ...(input.operation ? { operation: input.operation } : {}),
     requestedAt: now,
-    ...(input.restrictedWindow !== undefined
-      ? { restrictedWindow: input.restrictedWindow }
-      : {}),
+    ...(input.restrictedWindow !== undefined ? { restrictedWindow: input.restrictedWindow } : {}),
     ...(input.incident ? { incident: input.incident } : {}),
     ...(input.humanReview ? { humanReview: input.humanReview } : {}),
   });
   const policies = input.policies ?? githubGatePolicies;
-
-  // The decision ID is stable for one proposed action so re-evaluations remain
-  // part of the same decision lineage. Each receipt is unique, however, so a
-  // later evaluation can never overwrite an earlier audit artifact.
   const decisionId = `decision_${bundle.action.id}`;
 
-  const orchestration = await evaluateAction(
-    {
-      action: bundle.action,
-      policies,
-      evidence: bundle.evidence,
-      facts: bundle.facts,
-      environment: bundle.environment,
-      now,
-      decisionId,
+  const orchestration = await evaluateAction({
+    action: bundle.action,
+    policies,
+    evidence: bundle.evidence,
+    facts: bundle.facts,
+    environment: bundle.environment,
+    now,
+    decisionId,
+  }, {
+    evaluateDeterministic: (deterministicInput) => evaluateDeterministicPolicies(deterministicInput),
+    evaluateContextual: (contextualInput) => {
+      const servConfig = input.servConfig ?? readServEnvironment();
+      return input.servFetch ? evaluateWithServ(contextualInput, servConfig, input.servFetch) : evaluateWithServ(contextualInput, servConfig);
     },
-    {
-      evaluateDeterministic: (deterministicInput) =>
-        evaluateDeterministicPolicies(deterministicInput),
-      evaluateContextual: (contextualInput) => {
-        const servConfig = input.servConfig ?? readServEnvironment();
-        return input.servFetch
-          ? evaluateWithServ(contextualInput, servConfig, input.servFetch)
-          : evaluateWithServ(contextualInput, servConfig);
-      },
-    },
-  );
+  });
 
   const receipt = await createDecisionReceipt({
     orchestration,
@@ -88,8 +63,8 @@ export async function evaluateGitHubSnapshot(input: {
     evidence: bundle.evidence,
     createdAt: now,
     receiptId: `receipt_${bundle.action.id}_${randomUUID()}`,
+    ...(input.receiptScope ? { scope: input.receiptScope } : {}),
   });
-
   return { snapshot: input.snapshot, orchestration, receipt };
 }
 
@@ -107,17 +82,10 @@ export async function evaluateGitHubPullRequest(input: {
   restrictedWindow?: boolean;
   incident?: GitHubIncidentContext;
   humanReview?: HumanReviewRecord;
+  receiptScope?: DecisionReceiptScope;
 }): Promise<GitHubGateResult> {
-  const client = input.githubFetch
-    ? createGitHubEvidenceClient({ token: input.githubToken }, input.githubFetch)
-    : createGitHubEvidenceClient({ token: input.githubToken });
-
-  const snapshot = await client.collectPullRequest(
-    input.owner,
-    input.repo,
-    input.pullRequest,
-  );
-
+  const client = input.githubFetch ? createGitHubEvidenceClient({ token: input.githubToken }, input.githubFetch) : createGitHubEvidenceClient({ token: input.githubToken });
+  const snapshot = await client.collectPullRequest(input.owner, input.repo, input.pullRequest);
   return evaluateGitHubSnapshot({
     snapshot,
     ...(input.operation ? { operation: input.operation } : {}),
@@ -125,10 +93,9 @@ export async function evaluateGitHubPullRequest(input: {
     ...(input.servConfig ? { servConfig: input.servConfig } : {}),
     ...(input.servFetch ? { servFetch: input.servFetch } : {}),
     ...(input.now ? { now: input.now } : {}),
-    ...(input.restrictedWindow !== undefined
-      ? { restrictedWindow: input.restrictedWindow }
-      : {}),
+    ...(input.restrictedWindow !== undefined ? { restrictedWindow: input.restrictedWindow } : {}),
     ...(input.incident ? { incident: input.incident } : {}),
     ...(input.humanReview ? { humanReview: input.humanReview } : {}),
+    ...(input.receiptScope ? { receiptScope: input.receiptScope } : {}),
   });
 }

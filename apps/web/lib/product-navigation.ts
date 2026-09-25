@@ -24,13 +24,14 @@ export const productNavigation: ProductNavigationSection[] = [
     items: [
       { label: "Policies", href: "/dashboard/policies", description: "Deterministic rules and contextual policy", icon: "policy" },
       { label: "Integrations", href: "/dashboard/integrations", description: "Connect execution paths and developer access", icon: "integration" },
+      { label: "Workspace", href: "/dashboard/workspace", description: "Projects, environments, members, roles, and invitations", icon: "overview" },
     ],
   },
 ];
 
 export const productCommands = [
   ...productNavigation.flatMap((section) => section.items.map((item) => ({ ...item, section: section.label }))),
-  { label: "Set up a project", href: "/onboarding", description: "Create or change the current project setup", icon: "overview" as const, section: "Workspace" },
+  { label: "Create another workspace", href: "/onboarding", description: "Create a new workspace and first governed project", icon: "overview" as const, section: "Workspace" },
   { label: "Open product example", href: "/demo", description: "See a seeded REVIEW → re-evaluation example", icon: "decision" as const, section: "Learn" },
 ];
 
