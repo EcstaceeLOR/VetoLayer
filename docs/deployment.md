@@ -51,7 +51,7 @@ See [`auth-production.md`](auth-production.md) and [`auth-workspaces.md`](auth-w
 
 ## 3. Durable product persistence
 
-Durable persistence is **required for production workspace creation, onboarding progress, and product operation**. Configure both server-only values:
+Durable persistence is **required for production workspace creation, onboarding progress, GitHub App installations, and product operation**. Configure both server-only values:
 
 ```text
 SUPABASE_URL=https://<project>.supabase.co
@@ -63,6 +63,7 @@ Apply the migrations in order:
 ```text
 supabase/migrations/202609250100_workspace_model.sql
 supabase/migrations/202609250600_onboarding_state.sql
+supabase/migrations/202609250730_github_app.sql
 ```
 
 The production model includes:
@@ -73,24 +74,43 @@ The production model includes:
 - `vetolayer_environments`
 - `vetolayer_workspace_invitations`
 - `vetolayer_onboarding_states`
+- `vetolayer_github_installations`
 - `vetolayer_decisions`
 - `vetolayer_policies`
 - `vetolayer_review_cases`
 - `vetolayer_integration_configs`
 
-The workspace migration adds project/environment scope indexes to the existing operational tables and provides a one-time bridge for historical `user:<id>` workspaces. The onboarding migration stores only resume selections and the receipt reference; VetoLayer revalidates real workspace, integration, policy, SERV, and receipt state every time onboarding loads. See [`auth-workspaces.md`](auth-workspaces.md) and [`onboarding.md`](onboarding.md).
+The workspace migration adds project/environment scope indexes to the existing operational tables and provides a one-time bridge for historical `user:<id>` workspaces. The onboarding migration stores only resume selections and the receipt reference; VetoLayer revalidates real workspace, integration, policy, SERV, and receipt state every time onboarding loads. The GitHub migration stores installation/repository metadata only and contains no credential columns.
 
 The service-role key never enters browser code. Application routes authenticate the Supabase user, validate workspace membership, role, project ownership, and environment ownership, then perform server-side persistence.
 
-## 4. GitHub Gate
+## 4. GitHub App
 
-Optional for the public example, required when a user chooses GitHub as their real onboarding/integration path:
+Required when a workspace uses the GitHub coding-agent gate. Register one GitHub App for the VetoLayer deployment, then configure its server-only credentials:
 
 ```text
-GITHUB_TOKEN=...
+GITHUB_APP_ID=...
+GITHUB_APP_SLUG=...
+GITHUB_APP_CLIENT_ID=...
+GITHUB_APP_CLIENT_SECRET=...
+GITHUB_APP_PRIVATE_KEY=...
+GITHUB_APP_WEBHOOK_SECRET=...
 ```
 
-The token stays server-only. Issue #56 replaces this server-token setup with a proper GitHub App installation flow; until then the operational onboarding step tests the current server-side GitHub connection rather than pretending a repository has been installed.
+Production URLs:
+
+```text
+Homepage:   https://<your-production-domain>
+Callback:   https://<your-production-domain>/api/github/install/callback
+Setup URL:  https://<your-production-domain>/api/github/install/setup
+Webhook:    https://<your-production-domain>/api/github/webhook
+```
+
+Normal product users do **not** edit environment variables or paste GitHub personal tokens. Owners/Admins choose **Connect GitHub** in VetoLayer, install the App, and select repositories in GitHub.
+
+VetoLayer validates post-install `installation_id` values against the authorizing GitHub user before attaching them to a workspace/project/environment. Temporary user tokens are discarded after setup. Installation tokens are minted server-side on demand and are never persisted or returned to browser code.
+
+See [`github-app.md`](github-app.md) for permissions, webhook subscriptions, registration, and lifecycle details.
 
 ## 5. Developer API
 
@@ -119,7 +139,7 @@ The `/demo` flow remains a public product example; it is not the authenticated p
 
 ## 7. Health endpoint
 
-`GET /api/health` is secret-free and reports deployment readiness for SERV, auth, persistence, GitHub, and Developer API configuration.
+`GET /api/health` is secret-free and reports deployment readiness for SERV, auth, persistence, GitHub App infrastructure, and Developer API configuration. A specific workspace is only GitHub-connected when that product scope also has an active verified installation.
 
 ## 8. Local release gate
 
@@ -151,6 +171,8 @@ SMOKE_BASE_URL=https://<your-production-domain> pnpm release:smoke
 - archived project write -> `409 PROJECT_ARCHIVED`
 - production workspace persistence missing -> `503 WORKSPACE_PERSISTENCE_REQUIRED`
 - production onboarding persistence missing -> `503 ONBOARDING_PERSISTENCE_REQUIRED`
+- invalid GitHub webhook signature -> `401 INVALID_SIGNATURE`
+- unavailable/suspended GitHub installation -> connection marked visibly unavailable; live evaluation fails closed
 - invalid Developer API token -> `401`
 - rate limit exceeded -> `429` with `Retry-After`
 - SERV/provider failure -> conservative `REVIEW`, never accidental `ALLOW`
@@ -158,4 +180,4 @@ SMOKE_BASE_URL=https://<your-production-domain> pnpm release:smoke
 
 ## Secret handling
 
-Never expose SERV, GitHub, Supabase service-role, or VetoLayer API secrets through `NEXT_PUBLIC_*`. Server logging redacts credential-like metadata, and the release smoke script checks generated browser bundles for configured server-secret values when available.
+Never expose SERV, GitHub App private/client/webhook secrets, Supabase service-role, or VetoLayer API secrets through `NEXT_PUBLIC_*`. GitHub user tokens used to verify installation ownership and installation access tokens used for evidence collection are ephemeral and are never stored. Server logging redacts credential-like metadata, and the release smoke script checks generated browser bundles for configured server-secret values when available.
