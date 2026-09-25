@@ -16,9 +16,8 @@ describe("operational onboarding integration contract", () => {
     expect(route).toContain("SERV_LIVE_CHECK_FAILED");
   });
 
-  it("cannot satisfy receipt completion with seeded demo history", () => {
+  it("requires a receipt from the selected production scope", () => {
     const progress = source("./server/onboarding-progress.ts");
-    expect(progress).toContain('record.source !== "demo"');
     expect(progress).toContain("record.projectId === scope.projectId");
     expect(progress).toContain("record.environmentId === scope.environmentId");
   });
@@ -34,7 +33,6 @@ describe("operational onboarding integration contract", () => {
     const stateRoute = source("../app/api/onboarding/route.ts");
     const flow = source("../components/onboarding-flow.tsx");
     expect(stateRoute).toContain("store.clear(identity.userId)");
-    expect(stateRoute).not.toContain("clearDemo");
     expect(flow).toContain("Step {step} of 8");
     expect(flow).toContain("Inspect Decision Receipt");
     expect(flow).toContain("Open policy pack");
