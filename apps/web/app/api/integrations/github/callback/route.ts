@@ -1,16 +1,16 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
-import { hasWorkspacePermission } from "../../../../../../lib/workspace-model";
-import { resolveAppOrigin } from "../../../../../../lib/server/app-origin";
+import { hasWorkspacePermission } from "../../../../../lib/workspace-model";
+import { resolveAppOrigin } from "../../../../../lib/server/app-origin";
 import {
   exchangeGitHubUserCode,
   readGitHubAppConfig,
   verifyUserInstallationAccess,
-} from "../../../../../../lib/server/github-app";
-import { getGitHubAppStore } from "../../../../../../lib/server/github-app-store";
-import { syncGitHubConnection } from "../../../../../../lib/server/github-app-service";
-import { getAuthenticatedIdentity } from "../../../../../../lib/server/workspace";
-import { getWorkspaceStore } from "../../../../../../lib/server/workspace-store";
+} from "../../../../../lib/server/github-app";
+import { getGitHubAppStore } from "../../../../../lib/server/github-app-store";
+import { syncGitHubConnection } from "../../../../../lib/server/github-app-service";
+import { getAuthenticatedIdentity } from "../../../../../lib/server/workspace";
+import { getWorkspaceStore } from "../../../../../lib/server/workspace-store";
 
 export const runtime = "nodejs";
 
@@ -26,9 +26,7 @@ export async function GET(request: Request) {
   const state = url.searchParams.get("state");
   const rawInstallationId = url.searchParams.get("installation_id");
   const installationId = rawInstallationId ? Number(rawInstallationId) : NaN;
-  if (!code || !state || !Number.isSafeInteger(installationId) || installationId <= 0) {
-    return redirectResult(request, "callback_invalid");
-  }
+  if (!code || !state || !Number.isSafeInteger(installationId) || installationId <= 0) return redirectResult(request, "callback_invalid");
 
   const identity = await getAuthenticatedIdentity();
   if (!identity) {
@@ -42,15 +40,11 @@ export async function GET(request: Request) {
   if (!config) return redirectResult(request, "app_not_configured");
 
   const { store: githubStore, persistence } = getGitHubAppStore();
-  if (process.env.NODE_ENV === "production" && persistence !== "supabase") {
-    return redirectResult(request, "persistence_required");
-  }
+  if (process.env.NODE_ENV === "production" && persistence !== "supabase") return redirectResult(request, "persistence_required");
 
   const stateHash = createHash("sha256").update(state).digest("hex");
   const pending = await githubStore.consumeInstallState(stateHash);
-  if (!pending || pending.userId !== identity.userId || new Date(pending.expiresAt).getTime() <= Date.now()) {
-    return redirectResult(request, "state_invalid");
-  }
+  if (!pending || pending.userId !== identity.userId || new Date(pending.expiresAt).getTime() <= Date.now()) return redirectResult(request, "state_invalid");
 
   const { store: workspaceStore } = getWorkspaceStore();
   const [membership, project, environment] = await Promise.all([
@@ -58,20 +52,12 @@ export async function GET(request: Request) {
     workspaceStore.getProject(pending.workspaceId, pending.projectId),
     workspaceStore.getEnvironment(pending.workspaceId, pending.projectId, pending.environmentId),
   ]);
-  if (!membership || !hasWorkspacePermission(membership.role, "integrations.write")) {
-    return redirectResult(request, "forbidden");
-  }
-  if (!project || project.status !== "active" || !environment || environment.status !== "active") {
-    return redirectResult(request, "scope_invalid");
-  }
+  if (!membership || !hasWorkspacePermission(membership.role, "integrations.write")) return redirectResult(request, "forbidden");
+  if (!project || project.status !== "active" || !environment || environment.status !== "active") return redirectResult(request, "scope_invalid");
 
   try {
     const origin = resolveAppOrigin(url.origin) ?? url.origin;
-    const userToken = await exchangeGitHubUserCode({
-      config,
-      code,
-      redirectUri: `${origin}/api/integrations/github/callback`,
-    });
+    const userToken = await exchangeGitHubUserCode({ config, code, redirectUri: `${origin}/api/integrations/github/callback` });
     const authorized = await verifyUserInstallationAccess({ userAccessToken: userToken, installationId });
     if (!authorized) return redirectResult(request, "installation_not_authorized");
 
