@@ -14,7 +14,7 @@ function readCredentials(formData: FormData) {
   return { email, password, next };
 }
 
-function loginRedirect(params: Record<string, string>) {
+function loginRedirect(params: Record<string, string>): never {
   const query = new URLSearchParams(params);
   redirect(`/login?${query.toString()}`);
 }
