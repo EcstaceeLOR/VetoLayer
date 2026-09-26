@@ -63,13 +63,18 @@ export async function POST(request: Request) {
   }
 
   try {
+    // The legacy bridge ID is intentionally unique and can only be attached to
+    // the first workspace created for an account. Restarting onboarding must
+    // not make a later, legitimate workspace creation collide with it.
+    const existingWorkspaces = await store.listWorkspacesForUser(identity.userId);
+    const hasLegacyWorkspace = existingWorkspaces.some(({ workspace }) => Boolean(workspace.legacyWorkspaceId));
     const graph = await store.createWorkspace({
       ownerUserId: identity.userId,
       ...(identity.email ? { ownerEmail: identity.email } : {}),
       ...(identity.displayName ? { ownerDisplayName: identity.displayName } : {}),
       workspaceName,
       projectName,
-      legacyWorkspaceId: workspaceIdForUser(identity.userId),
+      ...(!hasLegacyWorkspace ? { legacyWorkspaceId: workspaceIdForUser(identity.userId) } : {}),
     });
     const production = graph.environments.find((environment) => environment.kind === "production") ?? graph.environments[0];
     if (!production) throw new Error("Workspace did not create an environment");
