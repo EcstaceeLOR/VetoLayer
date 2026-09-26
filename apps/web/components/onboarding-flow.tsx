@@ -16,6 +16,10 @@ import { Badge, Button, ButtonLink, Card, Field, Input, Notice, Select } from ".
 type ApiError = { code?: string; message?: string };
 type ApiEnvelope = {
   error?: ApiError;
+  ok?: boolean;
+  installation?: { accountLogin?: string; state?: string } | null;
+  repositories?: Array<{ connected?: boolean }>;
+  missingPermissions?: string[];
   snapshot?: OnboardingSnapshot;
   workspace?: { id: string; name: string };
   project?: { id: string; name: string };
@@ -249,13 +253,27 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
     setNotice(null);
     setIntegration(choice);
     try {
-      const response = await jsonRequest("/api/integrations/status", {
+      const response = await jsonRequest(choice === "github" ? "/api/integrations/github" : "/api/integrations/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ integration: choice }),
+        body: JSON.stringify(choice === "github" ? { action: "test" } : { integration: choice }),
       });
-      const next = await saveState({ integrationChoice: choice, lastStep: response.result?.ok ? 5 : 4 });
-      const result = response.result;
+      const result = choice === "github"
+        ? {
+            integration: "github" as const,
+            ok: Boolean(response.ok),
+            level: response.ok ? "success" as const : "warning" as const,
+            code: response.ok ? "GITHUB_READY" : "GITHUB_NEEDS_CONFIG",
+            message: response.ok
+              ? `GitHub is connected${response.installation?.accountLogin ? ` for ${response.installation.accountLogin}` : ""}.`
+              : "GitHub is installed but no connected repository is ready for this environment.",
+            nextSteps: response.ok ? undefined : [
+              ...(response.missingPermissions?.length ? [`Grant these GitHub App permissions: ${response.missingPermissions.join(", ")}.`] : []),
+              "Open Advanced integration setup and connect at least one repository.",
+            ],
+          }
+        : response.result;
+      const next = await saveState({ integrationChoice: choice, lastStep: result?.ok ? 5 : 4 });
       if (!result) throw new Error("Integration verification did not return a result.");
       setNotice({
         tone: result.ok ? (result.level === "warning" ? "warning" : "success") : "danger",
