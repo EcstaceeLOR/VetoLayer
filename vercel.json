@@ -1,6 +1,6 @@
 {
   "buildCommand": "pnpm --filter @vetolayer/web build",
-  "outputDirectory": "apps/web/.next",
+  "outputDirectory": ".next",
   "framework": "nextjs",
   "crons": [
     { "path": "/api/internal/retention", "schedule": "0 3 * * *" }
