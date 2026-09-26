@@ -80,7 +80,19 @@ export function OnboardingFlow({ initialSnapshot }: { initialSnapshot: Onboardin
   const canManageProjects = snapshot.selected?.role === "owner" || snapshot.selected?.role === "admin";
 
   async function jsonRequest(path: string, init?: RequestInit): Promise<ApiEnvelope> {
-    const response = await fetch(path, init);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 30_000);
+    let response: Response;
+    try {
+      response = await fetch(path, { ...init, signal: controller.signal });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new Error("VetoLayer took too long to respond. Check the connection and try again.");
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timeout);
+    }
     const data = await response.json().catch(() => ({})) as ApiEnvelope;
     if (!response.ok) throw new Error(data.error?.message ?? "VetoLayer could not complete that setup action.");
     return data;
