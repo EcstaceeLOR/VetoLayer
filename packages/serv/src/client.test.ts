@@ -91,6 +91,7 @@ describe("evaluateWithServ", () => {
       const body = JSON.parse(String(init?.body));
       expect(body.model).toBe("serv-test-model");
       expect(body.messages).toHaveLength(2);
+      expect(body.temperature).toBeUndefined();
       expect(body.messages[1].content).toContain(contextualPolicy.id);
 
       return new Response(

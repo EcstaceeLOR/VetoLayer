@@ -65,9 +65,9 @@ export async function evaluateWithServ(
           Authorization: `Bearer ${config.apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          model: config.model,
-          messages: [
+          body: JSON.stringify({
+            model: config.model,
+            messages: [
             {
               role: "system",
               content:
@@ -75,11 +75,10 @@ export async function evaluateWithServ(
             },
             {
               role: "user",
-              content: buildServReasoningPrompt(input),
-            },
-          ],
-          temperature: 0,
-        }),
+                content: buildServReasoningPrompt(input),
+              },
+            ],
+          }),
         signal: controller.signal,
       });
     } catch (error) {
