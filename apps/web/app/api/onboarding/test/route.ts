@@ -12,6 +12,7 @@ import { logServerEvent } from "../../../../lib/server/observability";
 import { loadOnboardingSnapshot } from "../../../../lib/server/onboarding-progress";
 import { getOnboardingStore } from "../../../../lib/server/onboarding-store";
 import { getOptionalPolicyStore } from "../../../../lib/server/policy-store";
+import { createGenericReviewCase } from "../../../../lib/server/review-workflow";
 
 export const runtime = "nodejs";
 
@@ -145,6 +146,19 @@ export async function POST(request: Request) {
       receipt,
       createdAt: receipt.timestamps.receiptCreatedAt,
     });
+
+    if (receipt.outcome === "REVIEW") {
+      await createGenericReviewCase({
+        scope: { workspaceId: auth.workspace.workspaceId, projectId: auth.workspace.projectId, environmentId: auth.workspace.environmentId },
+        receipt,
+        action: input.action,
+        evidence: input.evidence,
+        facts: input.facts,
+        policies: selectedPolicies,
+        source: "api",
+        title: `${input.action.action.operation.replaceAll("-", " ")} · ${input.action.target.id ?? input.action.target.type}`,
+      });
+    }
 
     const servVerified = orchestration.contextualTrace?.providerStatus === "ok";
     logServerEvent(servVerified ? "info" : "warn", "onboarding.evaluation.completed", {

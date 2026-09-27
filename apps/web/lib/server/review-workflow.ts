@@ -5,7 +5,10 @@ import {
   evaluateAction,
   humanReviewToEvidence,
   type Actor,
+  type Evidence,
   type HumanReviewRecord,
+  type JsonValue,
+  type Policy,
 } from "@vetolayer/core";
 import { buildGitHubGateBundle, githubGatePolicies } from "@vetolayer/github-gate";
 import { evaluateDeterministicPolicies } from "@vetolayer/policies";
@@ -17,7 +20,7 @@ import { deliverDeveloperWebhook } from "./developer-webhooks";
 import { mergeManagedPolicies } from "./managed-policies";
 import { logServerEvent } from "./observability";
 import { emitProductEvent, type ProductEventInput } from "./product-events";
-import type { ReviewCase, ReviewTimelineEvent, ReviewTimelineEventType } from "./review-store";
+import { getReviewStore, type ReviewCase, type ReviewTimelineEvent, type ReviewTimelineEventType } from "./review-store";
 
 export function reviewActor(input: { userId: string; displayName?: string; email?: string; role?: string }): Actor {
   return {
@@ -52,6 +55,42 @@ export function reviewEvent(input: {
   };
 }
 
+export async function createGenericReviewCase(input: {
+  scope: ProductScope;
+  receipt: import("@vetolayer/core").DecisionReceipt;
+  action: import("@vetolayer/core").ActionRequest;
+  evidence: Evidence[];
+  facts: Record<string, JsonValue>;
+  policies: Policy[];
+  source: "api" | "integration";
+  title: string;
+}) {
+  const now = new Date().toISOString();
+  const reviewCaseId = `review_${input.receipt.receiptId}`;
+  const { store } = getReviewStore();
+  const saved = await store.save({
+    id: reviewCaseId,
+    ...input.scope,
+    revision: 1,
+    status: "pending",
+    title: input.title,
+    source: input.source,
+    receipt: input.receipt,
+    context: { kind: "generic", action: input.action, evidence: input.evidence, facts: input.facts, policies: input.policies },
+    createdAt: now,
+    updatedAt: now,
+    dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    comments: [],
+    evidenceAdditions: [],
+    reviewHistory: [],
+    timeline: [reviewEvent({ reviewCaseId, type: "created", summary: "Review case created from a REVIEW decision.", createdAt: now, receiptId: input.receipt.receiptId })],
+    receiptLineage: [{ receiptId: input.receipt.receiptId, outcome: input.receipt.outcome, createdAt: input.receipt.timestamps.receiptCreatedAt, reason: "initial" }],
+  });
+  await syncReviewDecisionIndex(saved);
+  await emitReviewWebhook({ scope: input.scope, eventType: "review.created", reviewCase: saved, action: "created" });
+  return saved;
+}
+
 export async function reevaluateReviewCase(input: {
   reviewCase: ReviewCase;
   scope: ProductScope;
@@ -66,8 +105,36 @@ export async function reevaluateReviewCase(input: {
   humanReview?: HumanReviewRecord;
   reason: "evidence-change" | "approval" | "rejection";
 }) {
-  if (input.reviewCase.context.kind !== "github") throw new Error("Unsupported review context");
   const now = new Date();
+  if (input.reviewCase.context.kind === "generic") {
+    const context = input.reviewCase.context;
+    const reviewEvidence = input.reviewCase.reviewHistory.map(humanReviewToEvidence);
+    if (input.humanReview && !input.reviewCase.reviewHistory.some((item) => item.id === input.humanReview?.id)) reviewEvidence.push(humanReviewToEvidence(input.humanReview));
+    const addedEvidence = input.reviewCase.evidenceAdditions.map((item) => item.evidence);
+    const evidence = dedupeEvidence([...context.evidence, ...reviewEvidence, ...addedEvidence]);
+    const orchestration = await evaluateAction({
+      action: context.action,
+      policies: context.policies,
+      evidence,
+      facts: context.facts,
+      environment: input.scope,
+      now,
+      decisionId: `decision_${context.action.id}_${now.getTime()}`,
+    }, {
+      evaluateDeterministic: (evaluation) => evaluateDeterministicPolicies(evaluation),
+      evaluateContextual: (evaluation) => evaluateWithServ(evaluation, readServEnvironment()),
+    });
+    const receipt = await createDecisionReceipt({
+      orchestration,
+      action: context.action,
+      policies: context.policies,
+      evidence,
+      createdAt: now,
+      receiptId: `receipt_${context.action.id}_${now.getTime()}`,
+      scope: input.receiptScope,
+    });
+    return { orchestration, receipt, parentReceiptId: (input.reviewCase.resolutionReceipt ?? input.reviewCase.receipt).receiptId, managedPolicyVersions: [] };
+  }
   const bundle = buildGitHubGateBundle({
     snapshot: input.reviewCase.context.snapshot,
     operation: input.reviewCase.context.operation,

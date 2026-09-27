@@ -256,7 +256,7 @@ async function reevaluateAndSave(
   await decisionStore.save({
     id: result.receipt.receiptId,
     ...scope,
-    source: "integration",
+    source: reviewCase.source,
     receipt: result.receipt,
     createdAt: reevaluatedAt,
     parentReceiptId: result.parentReceiptId,

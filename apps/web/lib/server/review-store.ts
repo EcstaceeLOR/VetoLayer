@@ -1,4 +1,4 @@
-import type { Actor, DecisionReceipt, Evidence, HumanReviewRecord } from "@vetolayer/core";
+import type { ActionRequest, Actor, DecisionReceipt, Evidence, HumanReviewRecord, JsonValue, Policy } from "@vetolayer/core";
 import type { GitHubGateOperation, GitHubIncidentContext, GitHubPullRequestSnapshot } from "@vetolayer/github-gate";
 import { readServerEnvironment } from "./env";
 
@@ -8,6 +8,14 @@ export type GitHubReviewContext = {
   operation: GitHubGateOperation;
   restrictedWindow: boolean;
   incident?: GitHubIncidentContext;
+};
+
+export type GenericReviewContext = {
+  kind: "generic";
+  action: ActionRequest;
+  evidence: Evidence[];
+  facts: Record<string, JsonValue>;
+  policies: Policy[];
 };
 
 export type ReviewScope = { projectId?: string; environmentId?: string };
@@ -75,7 +83,7 @@ export type ReviewCase = {
   title: string;
   source: "api" | "integration";
   receipt: DecisionReceipt;
-  context: GitHubReviewContext;
+  context: GitHubReviewContext | GenericReviewContext;
   createdAt: string;
   updatedAt: string;
   dueAt?: string;

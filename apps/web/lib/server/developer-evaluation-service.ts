@@ -8,6 +8,7 @@ import { getDeveloperStore } from "./developer-store";
 import { mergeManagedPolicies } from "./managed-policies";
 import { logServerEvent } from "./observability";
 import { emitHighSeverityBlockEvent } from "./product-events";
+import { createGenericReviewCase } from "./review-workflow";
 
 export async function executeDeveloperEvaluation(input: {
   payload: DeveloperEvaluationPayload;
@@ -58,6 +59,23 @@ export async function executeDeveloperEvaluation(input: {
     await emitHighSeverityBlockEvent({ scope: input.scope, receipt, source: "api" });
   } catch (error) {
     logServerEvent("warn", "api.notification.emit_failed", { requestId, receiptId: receipt.receiptId, ...input.scope, message: error instanceof Error ? error.message : "Notification event failed" });
+  }
+
+  if (receipt.outcome === "REVIEW") {
+    try {
+      await createGenericReviewCase({
+        scope: input.scope,
+        receipt,
+        action: input.payload.action,
+        evidence: input.payload.evidence,
+        facts: input.payload.facts,
+        policies: policySet.policies,
+        source: "api",
+        title: `${input.payload.action.action.operation.replaceAll("-", " ")} · ${input.payload.action.target.id ?? input.payload.action.target.type}`,
+      });
+    } catch (error) {
+      logServerEvent("warn", "api.review.persistence.failed", { requestId, receiptId: receipt.receiptId, ...input.scope, message: error instanceof Error ? error.message : "Review persistence failed" });
+    }
   }
 
   const latencyMs = Date.now() - startedAt;
