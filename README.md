@@ -52,6 +52,14 @@ VetoLayer is a complete operational product rather than a single evaluation endp
 - **Data & Offboarding** — safe exports, integrity hashes, ownership transfer, retention controls, delayed workspace removal, and account offboarding.
 - **Product Docs** — in-product guides for the API, SDK, policies, reviews, GitHub integration, webhooks, troubleshooting, and releases.
 
+## Honest limitations and near-term roadmap
+
+- VetoLayer currently evaluates and gates actions; the calling agent or application must execute the approved action. Built-in execution, rollback, and recovery workflows are planned.
+- Automated evidence collection from CI systems, deployment platforms, and approval tools is limited. Broader evidence connectors are planned to reduce manual input.
+- GitHub governance currently depends on installing the VetoLayer GitHub App and connecting repositories. Additional tool and platform integrations are planned.
+- Human Review supports evidence, re-evaluation, and audit history, but advanced routing, escalation, SLAs, and team notification workflows are still being expanded.
+- Larger-scale production hardening—including broader provider resilience, load testing, and deeper operational observability—is planned for upcoming releases.
+
 ## Architecture
 
 ```text
